@@ -16429,22 +16429,22 @@
       "DebugActionIndex": 423
     },
     {
-      "Annotation": "WriteText Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.framework.js.gz_u5eh.info",
+      "Annotation": "WriteText Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.framework.js.unityweb_uk3k.info",
       "ActionType": "WriteTextFile",
-      "WriteTextFilePayload": "{\"System.Object\":null,\"Bee.TundraBackend.CSharpActionInvocationInformation\":{\"typeFullName\":\"WebGLPlayerBuildProgram.GzipMarker\",\"methodName\":\"Run\",\"assemblyLocation\":\"D:\\\\Leandro\\\\Unity\\\\2021.3.9f1\\\\Editor\\\\Data\\\\PlaybackEngines\\\\WebGLSupport\\\\WebGLPlayerBuildProgram.exe\",\"targets\":[\"Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.framework.js.gz\"],\"inputs\":[\"Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.framework.js.unmarked\"],\"targetDirectories\":[]}}",
+      "WriteTextFilePayload": "{\"System.Object\":null,\"Bee.TundraBackend.CSharpActionInvocationInformation\":{\"typeFullName\":\"WebGLPlayerBuildProgram.GzipMarker\",\"methodName\":\"Run\",\"assemblyLocation\":\"D:\\\\Leandro\\\\Unity\\\\2021.3.9f1\\\\Editor\\\\Data\\\\PlaybackEngines\\\\WebGLSupport\\\\WebGLPlayerBuildProgram.exe\",\"targets\":[\"Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.framework.js.unityweb\"],\"inputs\":[\"Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.framework.js.unmarked\"],\"targetDirectories\":[]}}",
       "Inputs": [],
       "Outputs": [
-        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.framework.js.gz_u5eh.info"
+        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.framework.js.unityweb_uk3k.info"
       ],
       "AllowUnwrittenOutputFiles": true,
       "DebugActionIndex": 424
     },
     {
-      "Annotation": "GzipMarker Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.framework.js.gz",
-      "Action": "\"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\Tools\\netcorerun\\netcorerun.exe\" \"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\PlaybackEngines\\WebGLSupport\\WebGLPlayerBuildProgram.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/Bee;D:/Leandro/Unity/2021.3.9f1/Editor/Data/Tools/BuildPipeline\" invoke_static_method \"Library\\Bee\\artifacts\\csharpactions\\TaTeTiConEsteroidesWeb.framework.js.gz_u5eh.info\"",
+      "Annotation": "GzipMarker Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.framework.js.unityweb",
+      "Action": "\"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\Tools\\netcorerun\\netcorerun.exe\" \"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\PlaybackEngines\\WebGLSupport\\WebGLPlayerBuildProgram.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/Bee;D:/Leandro/Unity/2021.3.9f1/Editor/Data/Tools/BuildPipeline\" invoke_static_method \"Library\\Bee\\artifacts\\csharpactions\\TaTeTiConEsteroidesWeb.framework.js.unityweb_uk3k.info\"",
       "Inputs": [
         "Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.framework.js.unmarked",
-        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.framework.js.gz_u5eh.info",
+        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.framework.js.unityweb_uk3k.info",
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/modules.asset",
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll",
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.pdb",
@@ -16453,7 +16453,7 @@
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/WebGLPlayerBuildProgram.exe"
       ],
       "Outputs": [
-        "Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.framework.js.gz"
+        "Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.framework.js.unityweb"
       ],
       "ToBuildDependencies": [
         423,
@@ -16480,22 +16480,22 @@
       "DebugActionIndex": 426
     },
     {
-      "Annotation": "WriteText Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.wasm.gz_jlus.info",
+      "Annotation": "WriteText Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.wasm.unityweb_v974.info",
       "ActionType": "WriteTextFile",
-      "WriteTextFilePayload": "{\"System.Object\":null,\"Bee.TundraBackend.CSharpActionInvocationInformation\":{\"typeFullName\":\"WebGLPlayerBuildProgram.GzipMarker\",\"methodName\":\"Run\",\"assemblyLocation\":\"D:\\\\Leandro\\\\Unity\\\\2021.3.9f1\\\\Editor\\\\Data\\\\PlaybackEngines\\\\WebGLSupport\\\\WebGLPlayerBuildProgram.exe\",\"targets\":[\"Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.wasm.gz\"],\"inputs\":[\"Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.wasm.unmarked\"],\"targetDirectories\":[]}}",
+      "WriteTextFilePayload": "{\"System.Object\":null,\"Bee.TundraBackend.CSharpActionInvocationInformation\":{\"typeFullName\":\"WebGLPlayerBuildProgram.GzipMarker\",\"methodName\":\"Run\",\"assemblyLocation\":\"D:\\\\Leandro\\\\Unity\\\\2021.3.9f1\\\\Editor\\\\Data\\\\PlaybackEngines\\\\WebGLSupport\\\\WebGLPlayerBuildProgram.exe\",\"targets\":[\"Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.wasm.unityweb\"],\"inputs\":[\"Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.wasm.unmarked\"],\"targetDirectories\":[]}}",
       "Inputs": [],
       "Outputs": [
-        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.wasm.gz_jlus.info"
+        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.wasm.unityweb_v974.info"
       ],
       "AllowUnwrittenOutputFiles": true,
       "DebugActionIndex": 427
     },
     {
-      "Annotation": "GzipMarker Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.wasm.gz",
-      "Action": "\"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\Tools\\netcorerun\\netcorerun.exe\" \"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\PlaybackEngines\\WebGLSupport\\WebGLPlayerBuildProgram.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/Bee;D:/Leandro/Unity/2021.3.9f1/Editor/Data/Tools/BuildPipeline\" invoke_static_method \"Library\\Bee\\artifacts\\csharpactions\\TaTeTiConEsteroidesWeb.wasm.gz_jlus.info\"",
+      "Annotation": "GzipMarker Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.wasm.unityweb",
+      "Action": "\"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\Tools\\netcorerun\\netcorerun.exe\" \"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\PlaybackEngines\\WebGLSupport\\WebGLPlayerBuildProgram.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/Bee;D:/Leandro/Unity/2021.3.9f1/Editor/Data/Tools/BuildPipeline\" invoke_static_method \"Library\\Bee\\artifacts\\csharpactions\\TaTeTiConEsteroidesWeb.wasm.unityweb_v974.info\"",
       "Inputs": [
         "Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.wasm.unmarked",
-        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.wasm.gz_jlus.info",
+        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.wasm.unityweb_v974.info",
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/modules.asset",
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll",
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.pdb",
@@ -16504,7 +16504,7 @@
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/WebGLPlayerBuildProgram.exe"
       ],
       "Outputs": [
-        "Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.wasm.gz"
+        "Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.wasm.unityweb"
       ],
       "ToBuildDependencies": [
         426,
@@ -16600,22 +16600,22 @@
       "DebugActionIndex": 433
     },
     {
-      "Annotation": "WriteText Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.data.gz_h8wx.info",
+      "Annotation": "WriteText Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.data.unityweb_p56o.info",
       "ActionType": "WriteTextFile",
-      "WriteTextFilePayload": "{\"System.Object\":null,\"Bee.TundraBackend.CSharpActionInvocationInformation\":{\"typeFullName\":\"WebGLPlayerBuildProgram.GzipMarker\",\"methodName\":\"Run\",\"assemblyLocation\":\"D:\\\\Leandro\\\\Unity\\\\2021.3.9f1\\\\Editor\\\\Data\\\\PlaybackEngines\\\\WebGLSupport\\\\WebGLPlayerBuildProgram.exe\",\"targets\":[\"Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.data.gz\"],\"inputs\":[\"Library/Bee/artifacts/WebGL/webgl.data.unmarked\"],\"targetDirectories\":[]}}",
+      "WriteTextFilePayload": "{\"System.Object\":null,\"Bee.TundraBackend.CSharpActionInvocationInformation\":{\"typeFullName\":\"WebGLPlayerBuildProgram.GzipMarker\",\"methodName\":\"Run\",\"assemblyLocation\":\"D:\\\\Leandro\\\\Unity\\\\2021.3.9f1\\\\Editor\\\\Data\\\\PlaybackEngines\\\\WebGLSupport\\\\WebGLPlayerBuildProgram.exe\",\"targets\":[\"Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.data.unityweb\"],\"inputs\":[\"Library/Bee/artifacts/WebGL/webgl.data.unmarked\"],\"targetDirectories\":[]}}",
       "Inputs": [],
       "Outputs": [
-        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.data.gz_h8wx.info"
+        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.data.unityweb_p56o.info"
       ],
       "AllowUnwrittenOutputFiles": true,
       "DebugActionIndex": 434
     },
     {
-      "Annotation": "GzipMarker Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.data.gz",
-      "Action": "\"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\Tools\\netcorerun\\netcorerun.exe\" \"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\PlaybackEngines\\WebGLSupport\\WebGLPlayerBuildProgram.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/Bee;D:/Leandro/Unity/2021.3.9f1/Editor/Data/Tools/BuildPipeline\" invoke_static_method \"Library\\Bee\\artifacts\\csharpactions\\TaTeTiConEsteroidesWeb.data.gz_h8wx.info\"",
+      "Annotation": "GzipMarker Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.data.unityweb",
+      "Action": "\"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\Tools\\netcorerun\\netcorerun.exe\" \"D:\\Leandro\\Unity\\2021.3.9f1\\Editor\\Data\\PlaybackEngines\\WebGLSupport\\WebGLPlayerBuildProgram.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/Bee;D:/Leandro/Unity/2021.3.9f1/Editor/Data/Tools/BuildPipeline\" invoke_static_method \"Library\\Bee\\artifacts\\csharpactions\\TaTeTiConEsteroidesWeb.data.unityweb_p56o.info\"",
       "Inputs": [
         "Library/Bee/artifacts/WebGL/webgl.data.unmarked",
-        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.data.gz_h8wx.info",
+        "Library/Bee/artifacts/csharpactions/TaTeTiConEsteroidesWeb.data.unityweb_p56o.info",
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/modules.asset",
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll",
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.pdb",
@@ -16624,7 +16624,7 @@
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/WebGLPlayerBuildProgram.exe"
       ],
       "Outputs": [
-        "Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.data.gz"
+        "Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.data.unityweb"
       ],
       "ToBuildDependencies": [
         433,
@@ -16636,7 +16636,7 @@
     },
     {
       "Annotation": "PreprocessJS Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.loader.js",
-      "Action": "cd /d \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools\" && \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Emscripten/node/node.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Preprocess.js\"  \"locals.cwd='D\\x3a/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools'\"  \"locals.inputPath='UnityLoader/UnityLoader.js'\"  \"locals.outputPath='C\\x3a/Users/leand/unityProyects/TaTeTi con Esteroides/Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.loader.js'\"  \"locals.minifyOutput=true\"  \"COMPANY_NAME='DefaultCompany'\" \"PRODUCT_NAME='TaTeTi con Esteroides'\" \"PRODUCT_VERSION='0.1'\" \"WIDTH=960\" \"HEIGHT=600\" \"SPLASH_SCREEN_STYLE='Dark'\" \"BACKGROUND_COLOR='\\x23231F20'\" \"DATA_FILENAME='TaTeTiConEsteroidesWeb.data.gz'\" \"FRAMEWORK_FILENAME='TaTeTiConEsteroidesWeb.framework.js.gz'\" \"CODE_FILENAME='TaTeTiConEsteroidesWeb.wasm.gz'\" \"MEMORY_FILENAME=''\" \"SYMBOLS_FILENAME=''\" \"BACKGROUND_FILENAME=''\" \"USE_WASM=true\" \"USE_THREADS=false\" \"USE_WEBGL_1_0=true\" \"USE_WEBGL_2_0=true\" \"USE_DATA_CACHING=true\" \"DECOMPRESSION_FALLBACK=''\" \"TOTAL_MEMORY=16777216\" \"DEVELOPMENT_PLAYER=false\" \"UNITY_VERSION='2021.3.9f1'\" \"LOADER_FILENAME='TaTeTiConEsteroidesWeb.loader.js'\"",
+      "Action": "cd /d \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools\" && \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Emscripten/node/node.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Preprocess.js\"  \"locals.cwd='D\\x3a/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools'\"  \"locals.inputPath='UnityLoader/UnityLoader.js'\"  \"locals.outputPath='C\\x3a/Users/leand/unityProyects/TaTeTi con Esteroides/Builds/TaTeTiConEsteroidesWeb/Build/TaTeTiConEsteroidesWeb.loader.js'\"  \"locals.minifyOutput=true\"  \"COMPANY_NAME='DefaultCompany'\" \"PRODUCT_NAME='TaTeTi con Esteroides'\" \"PRODUCT_VERSION='0.1'\" \"WIDTH=960\" \"HEIGHT=600\" \"SPLASH_SCREEN_STYLE='Dark'\" \"BACKGROUND_COLOR='\\x23231F20'\" \"DATA_FILENAME='TaTeTiConEsteroidesWeb.data.unityweb'\" \"FRAMEWORK_FILENAME='TaTeTiConEsteroidesWeb.framework.js.unityweb'\" \"CODE_FILENAME='TaTeTiConEsteroidesWeb.wasm.unityweb'\" \"MEMORY_FILENAME=''\" \"SYMBOLS_FILENAME=''\" \"BACKGROUND_FILENAME=''\" \"USE_WASM=true\" \"USE_THREADS=false\" \"USE_WEBGL_1_0=true\" \"USE_WEBGL_2_0=true\" \"USE_DATA_CACHING=true\" \"DECOMPRESSION_FALLBACK='Gzip'\" \"TOTAL_MEMORY=16777216\" \"DEVELOPMENT_PLAYER=false\" \"UNITY_VERSION='2021.3.9f1'\" \"LOADER_FILENAME='TaTeTiConEsteroidesWeb.loader.js'\"",
       "Inputs": [
         "UnityLoader/UnityLoader.js"
       ],
@@ -16648,7 +16648,7 @@
     },
     {
       "Annotation": "PreprocessJS Builds/TaTeTiConEsteroidesWeb/index.html",
-      "Action": "cd /d \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools\" && \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Emscripten/node/node.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Preprocess.js\"  \"locals.cwd='D\\x3a/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools'\"  \"locals.inputPath='D\\x3a/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/WebGLTemplates/Default/index.html'\"  \"locals.outputPath='C\\x3a/Users/leand/unityProyects/TaTeTi con Esteroides/Builds/TaTeTiConEsteroidesWeb/index.html'\"  \"locals.minifyOutput=false\"  \"COMPANY_NAME='DefaultCompany'\" \"PRODUCT_NAME='TaTeTi con Esteroides'\" \"PRODUCT_VERSION='0.1'\" \"WIDTH=960\" \"HEIGHT=600\" \"SPLASH_SCREEN_STYLE='Dark'\" \"BACKGROUND_COLOR='\\x23231F20'\" \"DATA_FILENAME='TaTeTiConEsteroidesWeb.data.gz'\" \"FRAMEWORK_FILENAME='TaTeTiConEsteroidesWeb.framework.js.gz'\" \"CODE_FILENAME='TaTeTiConEsteroidesWeb.wasm.gz'\" \"MEMORY_FILENAME=''\" \"SYMBOLS_FILENAME=''\" \"BACKGROUND_FILENAME=''\" \"USE_WASM=true\" \"USE_THREADS=false\" \"USE_WEBGL_1_0=true\" \"USE_WEBGL_2_0=true\" \"USE_DATA_CACHING=true\" \"DECOMPRESSION_FALLBACK=''\" \"TOTAL_MEMORY=16777216\" \"DEVELOPMENT_PLAYER=false\" \"UNITY_VERSION='2021.3.9f1'\" \"LOADER_FILENAME='TaTeTiConEsteroidesWeb.loader.js'\"",
+      "Action": "cd /d \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools\" && \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Emscripten/node/node.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Preprocess.js\"  \"locals.cwd='D\\x3a/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools'\"  \"locals.inputPath='D\\x3a/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/WebGLTemplates/Default/index.html'\"  \"locals.outputPath='C\\x3a/Users/leand/unityProyects/TaTeTi con Esteroides/Builds/TaTeTiConEsteroidesWeb/index.html'\"  \"locals.minifyOutput=false\"  \"COMPANY_NAME='DefaultCompany'\" \"PRODUCT_NAME='TaTeTi con Esteroides'\" \"PRODUCT_VERSION='0.1'\" \"WIDTH=960\" \"HEIGHT=600\" \"SPLASH_SCREEN_STYLE='Dark'\" \"BACKGROUND_COLOR='\\x23231F20'\" \"DATA_FILENAME='TaTeTiConEsteroidesWeb.data.unityweb'\" \"FRAMEWORK_FILENAME='TaTeTiConEsteroidesWeb.framework.js.unityweb'\" \"CODE_FILENAME='TaTeTiConEsteroidesWeb.wasm.unityweb'\" \"MEMORY_FILENAME=''\" \"SYMBOLS_FILENAME=''\" \"BACKGROUND_FILENAME=''\" \"USE_WASM=true\" \"USE_THREADS=false\" \"USE_WEBGL_1_0=true\" \"USE_WEBGL_2_0=true\" \"USE_DATA_CACHING=true\" \"DECOMPRESSION_FALLBACK='Gzip'\" \"TOTAL_MEMORY=16777216\" \"DEVELOPMENT_PLAYER=false\" \"UNITY_VERSION='2021.3.9f1'\" \"LOADER_FILENAME='TaTeTiConEsteroidesWeb.loader.js'\"",
       "Inputs": [
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/WebGLTemplates/Default/index.html"
       ],
@@ -16726,7 +16726,7 @@
     },
     {
       "Annotation": "PreprocessJS Builds/TaTeTiConEsteroidesWeb/TemplateData/style.css",
-      "Action": "cd /d \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools\" && \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Emscripten/node/node.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Preprocess.js\"  \"locals.cwd='D\\x3a/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools'\"  \"locals.inputPath='D\\x3a/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/WebGLTemplates/Default/TemplateData/style.css'\"  \"locals.outputPath='C\\x3a/Users/leand/unityProyects/TaTeTi con Esteroides/Builds/TaTeTiConEsteroidesWeb/TemplateData/style.css'\"  \"locals.minifyOutput=false\"  \"COMPANY_NAME='DefaultCompany'\" \"PRODUCT_NAME='TaTeTi con Esteroides'\" \"PRODUCT_VERSION='0.1'\" \"WIDTH=960\" \"HEIGHT=600\" \"SPLASH_SCREEN_STYLE='Dark'\" \"BACKGROUND_COLOR='\\x23231F20'\" \"DATA_FILENAME='TaTeTiConEsteroidesWeb.data.gz'\" \"FRAMEWORK_FILENAME='TaTeTiConEsteroidesWeb.framework.js.gz'\" \"CODE_FILENAME='TaTeTiConEsteroidesWeb.wasm.gz'\" \"MEMORY_FILENAME=''\" \"SYMBOLS_FILENAME=''\" \"BACKGROUND_FILENAME=''\" \"USE_WASM=true\" \"USE_THREADS=false\" \"USE_WEBGL_1_0=true\" \"USE_WEBGL_2_0=true\" \"USE_DATA_CACHING=true\" \"DECOMPRESSION_FALLBACK=''\" \"TOTAL_MEMORY=16777216\" \"DEVELOPMENT_PLAYER=false\" \"UNITY_VERSION='2021.3.9f1'\" \"LOADER_FILENAME='TaTeTiConEsteroidesWeb.loader.js'\"",
+      "Action": "cd /d \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools\" && \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Emscripten/node/node.exe\" \"D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/Preprocess.js\"  \"locals.cwd='D\\x3a/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools'\"  \"locals.inputPath='D\\x3a/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/WebGLTemplates/Default/TemplateData/style.css'\"  \"locals.outputPath='C\\x3a/Users/leand/unityProyects/TaTeTi con Esteroides/Builds/TaTeTiConEsteroidesWeb/TemplateData/style.css'\"  \"locals.minifyOutput=false\"  \"COMPANY_NAME='DefaultCompany'\" \"PRODUCT_NAME='TaTeTi con Esteroides'\" \"PRODUCT_VERSION='0.1'\" \"WIDTH=960\" \"HEIGHT=600\" \"SPLASH_SCREEN_STYLE='Dark'\" \"BACKGROUND_COLOR='\\x23231F20'\" \"DATA_FILENAME='TaTeTiConEsteroidesWeb.data.unityweb'\" \"FRAMEWORK_FILENAME='TaTeTiConEsteroidesWeb.framework.js.unityweb'\" \"CODE_FILENAME='TaTeTiConEsteroidesWeb.wasm.unityweb'\" \"MEMORY_FILENAME=''\" \"SYMBOLS_FILENAME=''\" \"BACKGROUND_FILENAME=''\" \"USE_WASM=true\" \"USE_THREADS=false\" \"USE_WEBGL_1_0=true\" \"USE_WEBGL_2_0=true\" \"USE_DATA_CACHING=true\" \"DECOMPRESSION_FALLBACK='Gzip'\" \"TOTAL_MEMORY=16777216\" \"DEVELOPMENT_PLAYER=false\" \"UNITY_VERSION='2021.3.9f1'\" \"LOADER_FILENAME='TaTeTiConEsteroidesWeb.loader.js'\"",
       "Inputs": [
         "D:/Leandro/Unity/2021.3.9f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/WebGLTemplates/Default/TemplateData/style.css"
       ],
