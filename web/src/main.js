@@ -1,9 +1,9 @@
-import { createWorld } from './scene/world.js'
+import { startGame } from './app/game.js'
 
 /**
  * Muestra un error fatal como cartel DOM. Existe porque los fallos mas comunes
- * de este stack (worker que no importa, contexto WebGL que no se crea) no dejan
- * nada visible: el tablero simplemente no responde.
+ * de este stack (un worker que no importa, un contexto WebGL que no se crea) no
+ * dejan nada visible: el tablero simplemente no responde a los toques.
  * @param {unknown} err
  */
 export function fatal(err) {
@@ -21,9 +21,14 @@ export function fatal(err) {
 window.addEventListener('error', (e) => fatal(e.error ?? e.message))
 window.addEventListener('unhandledrejection', (e) => fatal(e.reason))
 
-try {
-  const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('scene'))
-  createWorld(canvas)
-} catch (err) {
-  fatal(err)
-}
+const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('scene'))
+const uiRoot = /** @type {HTMLElement} */ (document.getElementById('ui'))
+
+startGame(canvas, uiRoot, fatal)
+  .then((game) => {
+    // Mango de debug: permite que un test headless juegue una partida entera y
+    // que cualquier bug se reproduzca desde una URL.
+    // @ts-ignore
+    window.__game = game
+  })
+  .catch(fatal)

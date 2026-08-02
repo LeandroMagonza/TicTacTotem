@@ -1,10 +1,12 @@
 :root {
   color-scheme: dark;
-  --amber: #e8a33d;
-  --slate: #4a7fb5;
+  --a: #e8a33d;
+  --b: #4a7fb5;
   --ink: #eceef2;
-  --ink-dim: #9aa1ad;
+  --ink-dim: #99a1ae;
   --bg: #1b1d21;
+  --surface: #23262c;
+  --line: #343a44;
 }
 
 * { box-sizing: border-box; }
@@ -15,7 +17,7 @@ html, body {
   height: 100%;
   background: var(--bg);
   color: var(--ink);
-  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
   /* Sin esto iOS hace rubber-band y saca el tablero de abajo del dedo. */
   overscroll-behavior: none;
   user-select: none;
@@ -34,28 +36,118 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* El overlay no come eventos; cada hijo se los gana con pointer-events:auto. */
+/* El overlay no come eventos; cada hijo se los gana con pointer-events:auto.
+   dvh en vez de vh: en celular la barra de URL se colapsa y vh miente. */
 #ui {
   position: fixed;
   inset: 0;
+  height: 100dvh;
   pointer-events: none;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-           env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+           max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  gap: 8px;
 }
+
+.bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bar-top { justify-content: space-between; }
+.bar-bottom { margin-top: auto; }
+.spacer { flex: 1; }
+
+.turn { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.dot { width: 13px; height: 13px; border-radius: 50%; display: inline-block; }
+.turn-text { white-space: nowrap; }
+
+.hand { display: flex; align-items: center; gap: 4px; }
+.hand-label { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; margin-right: 2px; }
+.chip {
+  min-width: 21px; height: 21px; padding: 0 3px;
+  border: 1.5px solid var(--line); border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.chip.empty { border-style: dashed; color: var(--ink-dim); }
+
+.btn {
+  pointer-events: auto;
+  min-height: 44px; min-width: 44px;   /* objetivo tactil minimo */
+  padding: 0 14px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: inherit; font-weight: 600;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: #4b535f; }
+.btn:focus-visible { outline: 2px solid var(--a); outline-offset: 2px; }
+.btn:disabled { opacity: 0.35; cursor: default; }
+.btn.ghost { background: transparent; }
+.btn.icon { padding: 0; font-size: 18px; }
+.btn.sel { border-color: var(--a); background: #2f2a20; }
+
+.log { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.log-line {
+  font-size: 12px; color: var(--ink-dim);
+  border-left: 3px solid var(--line); padding-left: 7px;
+  background: rgba(27, 29, 33, 0.72); border-radius: 0 5px 5px 0;
+}
+
+/* El panel va abajo, no centrado: centrado tapa justo la linea ganadora que el
+   propio panel esta explicando. Y el fondo va sin oscurecer para que el tablero
+   final se siga leyendo. */
+.overlay {
+  pointer-events: none;
+  position: fixed; inset: 0;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 16px calc(16px + env(safe-area-inset-right)) calc(78px + env(safe-area-inset-bottom));
+}
+.overlay.hidden { display: none; }
+.overlay > .panel { pointer-events: auto; }
+
+/* El menu si es un modal de verdad: centrado y con el fondo atenuado. */
+.overlay.modal {
+  pointer-events: auto;
+  align-items: center;
+  padding: 16px;
+  background: rgba(12, 13, 15, 0.74);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  max-width: min(440px, 100%);
+  max-height: 92dvh; overflow-y: auto;
+}
+.panel.wide { max-width: min(520px, 100%); }
+.panel h2 { margin: 0 0 6px; font-size: 22px; text-wrap: balance; }
+.panel h3 { margin: 16px 0 6px; font-size: 12px; letter-spacing: 0.09em;
+            text-transform: uppercase; color: var(--ink-dim); font-weight: 700; }
+.panel .why { margin: 0 0 10px; color: var(--ink); }
+.panel .note { margin: 12px 0 0; font-size: 13px; color: var(--ink-dim); }
+.panel .warn { margin: 8px 0 0; font-size: 13px; color: var(--a); }
+.panel details { font-size: 13px; color: var(--ink-dim); }
+.panel summary { cursor: pointer; }
+.panel .rule { margin: 6px 0 0; }
+.options { display: flex; flex-wrap: wrap; gap: 6px; }
+.panel-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 
 /* Cartel de error fatal: un worker que explota al importar falla en silencio
    y te queda un tablero que no responde y nada visible en consola. */
 #fatal {
   pointer-events: auto;
-  position: fixed;
-  inset: auto 0 0 0;
-  margin: 0;
-  padding: 12px 16px;
-  background: #7a2233;
-  color: #fff;
-  font-size: 14px;
-  white-space: pre-wrap;
+  position: fixed; inset: auto 0 0 0;
+  margin: 0; padding: 12px 16px; z-index: 99;
+  background: #7a2233; color: #fff;
+  font: 12px/1.45 ui-monospace, monospace;
+  white-space: pre-wrap; max-height: 45dvh; overflow: auto;
+}
+
+@media (max-width: 420px) {
+  .btn { padding: 0 10px; font-size: 14px; }
+  .hand-label { display: none; }
 }

@@ -183,6 +183,29 @@ export function canonicalPacked(spec, p) {
 }
 
 /**
+ * Que lineas hay completas y de quien, para poder explicar POR QUE se gano.
+ * winnerAfter solo devuelve quien; la UI necesita ademas iluminar las celdas y
+ * decir si fue "hiciste linea" o "destapaste la del rival", que son dos cosas
+ * muy distintas para el jugador.
+ *
+ * @param {import('./spec.js').GameSpec} spec @param {number} p
+ * @returns {{whiteLines: number[][], blackLines: number[][]}}
+ */
+export function lineReport(spec, p) {
+  const top = computeTops(spec, unpackInto(spec, p, _locsScratch), new Int8Array(CELLS))
+  const whiteLines = [], blackLines = []
+  for (const line of LINES) {
+    const a = top[line[0]]
+    if (a < 0) continue
+    const o = spec.owner[a]
+    const b = top[line[1]]; if (b < 0 || spec.owner[b] !== o) continue
+    const c = top[line[2]]; if (c < 0 || spec.owner[c] !== o) continue
+    ;(o === WHITE ? whiteLines : blackLines).push(line)
+  }
+  return { whiteLines, blackLines }
+}
+
+/**
  * Pilas por celda, de abajo hacia arriba. La UI las consume para saber a que
  * altura dibujar cada pieza; nunca ordena ni compara rangos por su cuenta.
  * Los rangos crecen estrictamente hacia arriba (Game.cs:14-16).

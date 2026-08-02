@@ -1,0 +1,520 @@
+import * as THREE from 'three'
+import { createWorld } from '../scene/world.js'
+import { createMaterials, TEAM_NAME } from '../scene/materials.js'
+import { createBoard } from '../scene/board.js'
+import { createPieceSet } from '../scene/pieces.js'
+import { createRig, DEG } from '../scene/camera.js'
+import { createHighlights } from '../scene/highlights.js'
+import { createTweens, easeOut, easeIn, easeInOut } from '../scene/tween.js'
+import { cellToWorld, traySlotToWorld, ELEVATION_LOW, ELEVATION_HIGH } from '../scene/geometry.js'
+import { createEngineClient } from './engineClient.js'
+import { createInput, createKeyboard } from './input.js'
+import { createHud } from './hud.js'
+import { DIFFICULTIES } from '../engine/ai.js'
+
+const WHITE_SET = '12344'
+const BLACK_SET = '11245'
+
+/** @param {HTMLCanvasElement} canvas @param {HTMLElement} uiRoot @param {(m:string)=>void} onFatal */
+export async function startGame(canvas, uiRoot, onFatal) {
+  const world = createWorld(canvas)
+  const mats = createMaterials()
+  const board = createBoard(mats)
+  const highlights = createHighlights(mats)
+  const rig = createRig(world.camera)
+  const tweens = createTweens()
+
+  world.scene.add(rig.pivot, board.group, highlights.group)
+  world.steppers.push((now) => tweens.update(now))
+
+  const state = {
+    phase: /** @type {'menu'|'playing'|'thinking'|'animating'|'over'} */ ('playing'),
+    mode: /** @type {'ai'|'hotseat'} */ ('ai'),
+    difficulty: /** @type {keyof typeof DIFFICULTIES} */ ('dificil'),
+    humanSide: 0,
+    snapshot: null,
+    pieces: {},
+    selection: /** @type {null|{key:string, moves:any[]}} */ (null),
+    layout: /** @type {'portrait'|'landscape'} */ ('portrait'),
+    exploded: /** @type {number|null} */ (null),
+  }
+
+  let pieceSet = null
+  const engine = createEngineClient(onFatal)
+
+  // --- layout ------------------------------------------------------------
+  function pickLayout() {
+    const w = window.visualViewport?.width ?? window.innerWidth
+    const h = window.visualViewport?.height ?? window.innerHeight
+    return w >= h ? 'landscape' : 'portrait'
+  }
+
+  function applyLayout(force = false) {
+    const next = pickLayout()
+    if (!force && next === state.layout) return false
+    state.layout = next
+    rig.setLayout(next)
+    board.applyLayout(next)
+    return true
+  }
+
+  world.setResizeHandler((w, h) => {
+    applyLayout()
+    rig.fit(w / h)
+    if (state.snapshot) syncInstant()
+  })
+
+  // --- sincronizacion escena <- snapshot ---------------------------------
+  //
+  // La regla que hace facil todo lo demas: la escena se reconstruye desde
+  // cualquier snapshot sin animar. Undo, restart, cambio de bando y "algo se
+  // desincronizo" colapsan a este unico camino.
+  function syncInstant() {
+    pieceSet.applyInstant(state.snapshot, state.layout)
+    state.exploded = null
+    // Los pickers de mano se reasignan en cada sync: los slots se reordenan a
+    // medida que se gastan las piezas, asi que el slot k no es siempre la misma
+    // pieza.
+    for (const side of [0, 1]) {
+      const hand = state.snapshot.hands[side] ?? []
+      board.handPickers[side].forEach((p, k) => {
+        p.userData.pieceId = hand[k] ?? -1
+        const { x, z } = traySlotToWorld(side, k, state.layout)
+        p.position.set(x, 0.31, z)
+      })
+    }
+    refreshHighlights()
+    world.invalidate()
+  }
+
+  const landingY = (cell) => pieceSet.landingY(state.snapshot, cell)
+
+  function sourceKey(m) {
+    return m.from === 'hand' ? `hand:${m.pieceId}` : `cell:${m.from}`
+  }
+
+  function refreshHighlights() {
+    const s = state.snapshot
+    if (!s) return
+    if (state.selection) {
+      const anchor = state.selection.moves[0]
+      const obj = pieceSet.byId.get(anchor.pieceId)
+      highlights.showSelection(obj.position)
+      highlights.showDestinations(state.selection.moves, landingY)
+    } else {
+      highlights.showSelection(null)
+      highlights.showDestinations([], landingY)
+    }
+    highlights.showLastMove(s.lastMove?.from ?? null, s.lastMove?.to ?? null, landingY)
+    highlights.showWinningLine(s.result?.lines?.[0] ?? null)
+    world.invalidate()
+  }
+
+  // --- animacion de jugada ------------------------------------------------
+  function animateMove(mv, prevSnapshot) {
+    const obj = pieceSet.byId.get(mv.pieceId)
+    const dest = cellToWorld(mv.to)
+    // La altura de destino sale del snapshot ANTERIOR: es la pila sobre la que
+    // se apoya, sin contar la pieza que esta llegando.
+    let destY = 0
+    for (const id of prevSnapshot.stacks[mv.to]) {
+      if (id !== mv.pieceId) destY += pieceSet.byId.get(id).userData.thickness
+    }
+    const from = obj.position.clone()
+    const peak = Math.max(from.y, destY) + 0.6
+
+    const lift = from.clone(); lift.y = peak
+    const over = new THREE.Vector3(dest.x, peak, dest.z)
+    const land = new THREE.Vector3(dest.x, destY, dest.z)
+    const step = (a, b) => (k) => { obj.position.lerpVectors(a, b, k); world.invalidate() }
+
+    return tweens.sequence([
+      { dur: 140, ease: easeOut, step: step(from, lift) },
+      { dur: mv.from === 'hand' ? 320 : 240, ease: easeInOut, step: step(lift, over) },
+      { dur: 160, ease: easeIn, step: step(over, land) },
+      {
+        dur: 60,
+        step: (k) => { obj.scale.y = 1 - 0.06 * Math.sin(k * Math.PI); world.invalidate() },
+        done: () => { obj.scale.y = 1 },
+      },
+    ])
+  }
+
+  /**
+   * La pieza recien destapada pulsa. Destapar es COMO SE PIERDE en este juego
+   * (GameManager.cs:206-211); si el juego no lleva el ojo ahi, la derrota se
+   * vive como aleatoria.
+   */
+  function pulseUncovered(prevSnapshot, mv) {
+    if (mv.from === 'hand') return
+    const stack = prevSnapshot.stacks[mv.from]
+    const below = stack[stack.length - 2]
+    if (below == null) return
+    const obj = pieceSet.byId.get(below)
+    const meshes = []
+    obj.traverse((o) => { if (o.isMesh) meshes.push(o) })
+    tweens.add({
+      dur: 250,
+      step: (k) => {
+        const a = Math.sin(k * Math.PI)
+        for (const m of meshes) {
+          if (!m.material.emissive) continue
+          m.material = m.material.clone()
+          m.material.emissive.setRGB(a * 0.5, a * 0.45, a * 0.25)
+        }
+        world.invalidate()
+      },
+      done: () => {
+        for (const m of meshes) if (m.material.emissive) m.material.emissive.setRGB(0, 0, 0)
+        world.invalidate()
+      },
+    })
+  }
+
+  // --- explotar una pila --------------------------------------------------
+  function explode(cell) {
+    const stack = state.snapshot.stacks[cell]
+    if (stack.length < 2) return
+    state.exploded = cell
+    const { x, z } = cellToWorld(cell)
+    stack.forEach((id, i) => {
+      const obj = pieceSet.byId.get(id)
+      const y0 = obj.position.y
+      const y1 = i * 0.5
+      tweens.add({
+        dur: 250,
+        step: (k) => { obj.position.set(x, y0 + (y1 - y0) * k, z); world.invalidate() },
+      })
+    })
+  }
+
+  function collapse() {
+    if (state.exploded == null) return
+    syncInstant()
+  }
+
+  // --- flujo de juego -----------------------------------------------------
+  function clearSelection() {
+    state.selection = null
+    refreshHighlights()
+    hud.render(state)
+  }
+
+  async function commit(moveId) {
+    const prev = state.snapshot
+    const mv = prev.legalMoves.find((m) => m.id === moveId)
+    state.selection = null
+    state.phase = 'animating'
+    highlights.showSelection(null)
+    highlights.showDestinations([], landingY)
+
+    const { snapshot } = await engine.applyMove(moveId)
+    pulseUncovered(prev, mv)
+    await animateMove(mv, prev)
+    state.snapshot = snapshot
+    syncInstant()
+    hud.render(state)
+
+    if (snapshot.result) return finish()
+    state.phase = 'playing'
+    if (state.mode === 'ai' && snapshot.turn !== state.humanSide) await aiTurn()
+  }
+
+  async function aiTurn() {
+    state.phase = 'thinking'
+    hud.render(state)
+    const prev = state.snapshot
+    const res = await engine.aiMove({ difficulty: state.difficulty })
+    if (!res.move) { state.snapshot = res.snapshot; return finish() }
+
+    const mv = prev.legalMoves.find((m) => m.id === res.move)
+    // Pre-resaltar origen y destino ANTES de que la pieza se mueva. Es el truco
+    // de legibilidad que importa: te dice donde mirar antes de que arranque el
+    // movimiento, asi ves la jugada en vez de enterarte despues.
+    highlights.showLastMove(mv.from, mv.to, landingY)
+    world.invalidate()
+    await new Promise((r) => setTimeout(r, 350))
+
+    state.phase = 'animating'
+    pulseUncovered(prev, mv)
+    await animateMove(mv, prev)
+    state.snapshot = res.snapshot
+    syncInstant()
+    hud.render(state)
+    if (res.snapshot.result) return finish()
+    state.phase = 'playing'
+  }
+
+  function finish() {
+    state.phase = 'over'
+    refreshHighlights()
+    hud.render(state)
+    hud.showResult(state.snapshot.result, () => newGame({}), () => newGame({ swapSide: true }), openMenu)
+    // Orbita lenta de celebracion: deja leer el arreglo final de totems.
+    // Se reencuadra en cada paso porque la caja de contenido NO es simetrica a
+    // la rotacion (2,35 x 1,75): girando 90 grados cambia lo que entra, y sin
+    // reencuadrar las bandejas se salen de pantalla.
+    const t0 = performance.now()
+    const az0 = rig.state.azimuth
+    world.steppers.push((now) => {
+      if (state.phase !== 'over') return false
+      rig.state.azimuth = az0 + ((now - t0) / 24000) * Math.PI * 2
+      rig.fit(world.camera.aspect)
+      world.invalidate()
+      return true
+    })
+  }
+
+  // --- toques -------------------------------------------------------------
+  function onTap(hit) {
+    if (tweens.pending) { tweens.finishAll(); return }
+    if (state.phase !== 'playing') return
+    if (state.exploded != null) { collapse(); return }
+    if (!hit) { clearSelection(); return }
+
+    const s = state.snapshot
+    if (state.mode === 'ai' && s.turn !== state.humanSide) return
+
+    // Destino de una jugada seleccionada
+    if (state.selection && hit.kind === 'cell') {
+      const mv = state.selection.moves.find((m) => m.to === hit.index)
+      if (mv) { commit(mv.id); return }
+    }
+
+    const key = hit.kind === 'hand' ? `hand:${hit.pieceId}` : `cell:${hit.index}`
+
+    // Volver a tocar la fuente ya seleccionada: explota la pila si es del tablero
+    if (state.selection?.key === key) {
+      if (hit.kind === 'cell') explode(hit.index)
+      else clearSelection()
+      return
+    }
+
+    const moves = s.legalMoves.filter((m) => sourceKey(m) === key)
+    if (moves.length === 0) {
+      // Ni modal ni cartel: un temblor de 120 ms sobre el objeto y listo.
+      shake(hit)
+      clearSelection()
+      return
+    }
+    state.selection = { key, moves }
+    refreshHighlights()
+    hud.render(state)
+  }
+
+  function shake(hit) {
+    const s = state.snapshot
+    let obj = null
+    if (hit.kind === 'hand') obj = pieceSet.byId.get(hit.pieceId)
+    else {
+      const stack = s.stacks[hit.index]
+      if (stack.length) obj = pieceSet.byId.get(stack[stack.length - 1])
+    }
+    if (!obj) return
+    const x0 = obj.position.x
+    tweens.add({
+      dur: 120,
+      step: (k) => { obj.position.x = x0 + Math.sin(k * Math.PI * 3) * 0.05; world.invalidate() },
+      done: () => { obj.position.x = x0; world.invalidate() },
+    })
+  }
+
+  // --- undo ---------------------------------------------------------------
+  async function undo() {
+    if (state.phase === 'thinking' || state.phase === 'animating') return
+    // En modo IA se deshacen dos: la de la IA y la tuya.
+    const plies = state.mode === 'ai' ? 2 : 1
+    const { snapshot } = await engine.undo(plies)
+    state.snapshot = snapshot
+    state.selection = null
+    state.phase = 'playing'
+    hud.hideResult()
+    syncInstant()
+    hud.render(state)
+  }
+
+  // --- partidas -----------------------------------------------------------
+  async function newGame({ swapSide = false } = {}) {
+    if (swapSide) state.humanSide = 1 - state.humanSide
+    hud.hideResult()
+    hud.showMenu(false)
+    state.selection = null
+    state.phase = 'playing'
+
+    const res = await engine.newGame({
+      white: WHITE_SET,
+      black: BLACK_SET,
+      seed: (Math.random() * 2 ** 31) >>> 0,
+    })
+    state.pieces = res.pieces
+    state.snapshot = res.snapshot
+
+    if (pieceSet) world.scene.remove(pieceSet.group)
+    // Se rearman arrays indexados por id de pieza en vez de confiar en el orden
+    // de Object.values: el motor manda una tabla, no una lista.
+    const ids = Object.keys(res.pieces).map(Number).sort((a, b) => a - b)
+    pieceSet = createPieceSet({
+      pieceCount: ids.length,
+      owner: Int8Array.from(ids, (i) => res.pieces[i].owner),
+      rank: Int8Array.from(ids, (i) => res.pieces[i].rank),
+    }, mats)
+    world.scene.add(pieceSet.group)
+
+    applyLayout(true)
+    rig.fit(canvas.clientWidth / Math.max(1, canvas.clientHeight))
+    syncInstant()
+    hud.render(state)
+
+    if (state.mode === 'ai' && state.snapshot.turn !== state.humanSide) await aiTurn()
+  }
+
+  /**
+   * Salta a una posicion arbitraria aplicando jugadas sin animar.
+   *
+   * Es la unica forma de llegar a proposito a posiciones que jugando no se
+   * alcanzan nunca: un ahogado ocurre 2 veces en 1,4 millones de nodos, y 0
+   * veces en los 5,5 millones de estados alcanzables en 8 plies. Tambien sirve
+   * para reproducir cualquier bug desde una URL.
+   *
+   * ?jugadas=12,45,...   ids de jugada exactos
+   * ?demo=6              6 jugadas legales al azar, con semilla fija
+   */
+  async function jumpTo({ moves, demo, seed = 7 }) {
+    const wasMode = state.mode
+    state.mode = 'hotseat'          // que no conteste la IA mientras se arma
+    let rnd = seed >>> 0
+    const nextRnd = (n) => { rnd = (rnd * 1103515245 + 12345) & 0x7fffffff; return rnd % n }
+
+    const ids = moves ?? []
+    const count = demo ?? ids.length
+    for (let i = 0; i < count; i++) {
+      const legal = state.snapshot.legalMoves
+      if (legal.length === 0 || state.snapshot.result) break
+      const id = moves ? ids[i] : legal[nextRnd(legal.length)].id
+      const { snapshot } = await engine.applyMove(id)
+      state.snapshot = snapshot
+    }
+    state.mode = wasMode
+    syncInstant()
+    hud.render(state)
+    // Si la posicion cargada ya termino, pasar por el MISMO cierre que una
+    // partida jugada. Si no, el camino de debug no ejercitaria la pantalla final,
+    // que es justo lo que se quiere revisar cargando una posicion a mano.
+    if (state.snapshot.result) finish()
+  }
+
+  // --- menu ---------------------------------------------------------------
+  function openMenu() { buildMenu(); hud.showMenu(true) }
+
+  function buildMenu() {
+    const { el, btn } = hud
+    const root = hud.menuRoot
+    root.innerHTML = ''
+    root.append(el('h2', '', 'TicTacTotem'))
+
+    const group = (title) => { root.append(el('h3', '', title)); const d = el('div', 'options'); root.append(d); return d }
+
+    const modes = group('Modo')
+    for (const [id, label] of [['ai', 'Contra la máquina'], ['hotseat', 'Dos jugadores']]) {
+      const b = btn(label, label, () => { state.mode = /** @type {any} */ (id); buildMenu() },
+        state.mode === id ? 'sel' : 'ghost')
+      modes.append(b)
+    }
+
+    if (state.mode === 'ai') {
+      const dif = group('Dificultad')
+      for (const [id, cfg] of Object.entries(DIFFICULTIES)) {
+        const b = btn(cfg.label, `Calcula ${cfg.vision} jugadas hacia adelante`,
+          () => { state.difficulty = /** @type {any} */ (id); buildMenu() },
+          state.difficulty === id ? 'sel' : 'ghost')
+        dif.append(b)
+      }
+
+      const bando = group('Tu bando')
+      for (const side of [0, 1]) {
+        const set = side === 0 ? WHITE_SET : BLACK_SET
+        const b = btn(`${TEAM_NAME[side]} · ${[...set].join(' ')}`,
+          side === 0 ? 'Arranca' : 'Juega segundo',
+          () => { state.humanSide = side; buildMenu() },
+          state.humanSide === side ? 'sel' : 'ghost')
+        bando.append(b)
+      }
+
+      // Decir la verdad sobre el desbalance, en vez de dejar que alguien
+      // concluya que el juego esta roto.
+      const nota = el('p', 'note',
+        'B tiene victoria forzada con juego perfecto, pero está a 12 jugadas y nadie la ve. ' +
+        'A profundidad humana los bandos están casi parejos (52 / 48 para A). ' +
+        'A se lleva el tempo; B se lleva la teoría.')
+      root.append(nota)
+
+      if (state.difficulty === 'experto' && state.humanSide === 0) {
+        root.append(el('p', 'warn',
+          'En Experto la victoria de la máquina desde este bando es forzada: es un puzzle, no una partida.'))
+      }
+    }
+
+    const acciones = el('div', 'panel-btns')
+    acciones.append(
+      btn('Nueva partida', 'Empezar', () => newGame({})),
+      btn('Cerrar', 'Volver al tablero', () => hud.showMenu(false), 'ghost'),
+    )
+    root.append(acciones)
+  }
+
+  // --- cableado -----------------------------------------------------------
+  const hud = createHud(uiRoot, {
+    undo,
+    cancel: clearSelection,
+    rotate: (q) => { rig.rotateQuarters(q); world.invalidate() },
+    tilt: () => {
+      const target = rig.toggleTilt()
+      const from = rig.state.elevation / DEG
+      tweens.add({
+        dur: 400,
+        step: (k) => { rig.setElevationDeg(from + (target - from) * k); world.invalidate() },
+      })
+    },
+    openMenu,
+  })
+
+  createInput({
+    canvas,
+    camera: world.camera,
+    pickables: () => board.pickables,
+    onTap,
+    onDrag: (dx, dy) => {
+      rig.orbit(-dx * 0.006, -dy * 0.004)
+      world.invalidate()
+    },
+  })
+
+  createKeyboard({
+    onUndo: undo,
+    onCancel: clearSelection,
+    onRotate: (q) => { rig.rotateQuarters(q); world.invalidate() },
+    onTilt: () => { rig.setElevationDeg(rig.toggleTilt()); world.invalidate() },
+    onCell: (cell) => onTap({ kind: 'cell', index: cell }),
+    onHandSlot: (slot) => {
+      const hand = state.snapshot?.hands[state.snapshot.turn] ?? []
+      if (hand[slot] != null) onTap({ kind: 'hand', pieceId: hand[slot] })
+    },
+  })
+
+  world.resize()
+  await newGame({})
+
+  const params = new URLSearchParams(location.search)
+  if (params.has('demo') || params.has('jugadas')) {
+    await jumpTo({
+      demo: params.has('demo') ? Number(params.get('demo')) : undefined,
+      moves: params.has('jugadas') ? params.get('jugadas').split(',').map(Number) : undefined,
+      seed: Number(params.get('seed') ?? 7),
+    })
+  }
+  if (params.has('elev')) { rig.setElevationDeg(Number(params.get('elev'))); world.invalidate() }
+
+  return { state, newGame, openMenu, engine, jumpTo, rig, tweens }
+}
+
+export { ELEVATION_LOW, ELEVATION_HIGH }
