@@ -42,6 +42,28 @@ export class Match {
     return this
   }
 
+  /**
+   * Salta a una posicion arbitraria, descartando la historia.
+   *
+   * Es la unica forma de llegar a posiciones que jugando no se alcanzan nunca.
+   * El caso que importa es el ahogado: ocurre 2 veces en los 1,4 millones de
+   * nodos que resuelven el juego, y 0 veces en los 5,5 millones de estados
+   * alcanzables en 8 plies. Sin esto, la pantalla de "te quedaste sin jugadas"
+   * se enviaria sin haberla visto nunca.
+   *
+   * @param {number} pos @param {number} turn
+   */
+  loadPosition(pos, turn) {
+    const canon = canonicalPacked(this.spec, pos)
+    this.history = [{ pos, turn, canon }]
+    this.moves = []
+    this.seq++
+    // Se evalua con el rival como ultimo en mover, que es lo que asume el resto
+    // del motor para una posicion recien alcanzada.
+    this.result = this._evaluate(pos, 1 - turn, turn, canon)
+    return this.result
+  }
+
   get pos() { return this.history[this.history.length - 1].pos }
   get turn() { return this.history[this.history.length - 1].turn }
   get ply() { return this.history.length - 1 }

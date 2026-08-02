@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import {
-  BOARD_HALF, BOARD_THICKNESS, TILE_SIZE, MAX_STACK_HEIGHT,
+  BOARD_HALF, BOARD_THICKNESS, TILE_SIZE, TILE_THICKNESS, MAX_STACK_HEIGHT,
   cellToWorld, traySlotToWorld, TRAY_SLOTS, COLLAR_RADIUS,
 } from './geometry.js'
 
@@ -27,13 +27,13 @@ export function createBoard(mats) {
   group.add(slab)
 
   // Nueve baldosas
-  const tileGeo = new THREE.BoxGeometry(TILE_SIZE, 0.02, TILE_SIZE)
+  const tileGeo = new THREE.BoxGeometry(TILE_SIZE, TILE_THICKNESS, TILE_SIZE)
   /** @type {THREE.Mesh[]} */
   const tiles = []
   for (let i = 0; i < 9; i++) {
     const t = new THREE.Mesh(tileGeo, mats.tile.clone())
     const { x, z } = cellToWorld(i)
-    t.position.set(x, 0.011, z)
+    t.position.set(x, 0.001 + TILE_THICKNESS / 2, z)
     t.receiveShadow = true
     t.userData = { kind: 'tile', index: i }
     tiles.push(t)

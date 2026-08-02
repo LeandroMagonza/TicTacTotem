@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 
 import { makeSpecFromLabels } from '../src/engine/spec.js'
 import { WHITE, ONGOING, DRAW, WHITE_WIN, BLACK_WIN } from '../src/engine/constants.js'
-import { initialPosition, unpack, applyMove } from '../src/engine/position.js'
-import { winnerAfter, generateMoves, canonical } from '../src/engine/rules.js'
+import { initialPosition, unpack, applyMove, loc } from '../src/engine/position.js'
+import { winnerAfter, generateMoves, canonical, legalMoves, stacksOf } from '../src/engine/rules.js'
 import { Searcher } from '../src/engine/searcher.js'
 
 /**
@@ -200,6 +200,62 @@ test('las tres rarezas de Search.cs siguen vivas', async (t) => {
     const r = s.solveFrom(p, 1, 6)   // le toca a negro; blanco acaba de mover
     assert.equal(r.result, WHITE_WIN)
     assert.equal(r.plies, 0, 'terminal se reconoce sin buscar')
+  })
+})
+
+test('la regla del ahogado, sobre las posiciones reales', async (t) => {
+  const { readFileSync } = await import('node:fs')
+  const fixture = JSON.parse(
+    readFileSync(new URL('./fixtures/ahogados.json', import.meta.url), 'utf8'))
+  const spec = makeSpecFromLabels(fixture.spec.white, fixture.spec.black)
+
+  await t.test('el solve sigue encontrando exactamente estas dos', () => {
+    const s = new Searcher(spec, { ttBits: 22 }).resetCounters()
+    s.stalemateLog = []
+    s.solve(12)
+    const vistas = new Set(s.stalemateLog.map((e) => `${e.pos}:${e.turn}`))
+    const esperadas = new Set(fixture.posiciones.map((p) => `${p.pos}:${p.turn}`))
+    assert.deepEqual([...vistas].sort(), [...esperadas].sort())
+  })
+
+  for (const caso of fixture.posiciones) {
+    await t.test(`pos ${caso.pos}: sin jugadas y derrota para el que mueve`, () => {
+      assert.equal(legalMoves(spec, caso.pos, caso.turn).length, 0)
+
+      // Y el rival SI tiene jugadas: si no, seria una posicion muerta y no un
+      // ahogado de verdad.
+      assert.ok(legalMoves(spec, caso.pos, 1 - caso.turn).length >= 0)
+
+      // Nadie hizo linea: se pierde por no poder mover, no por el tablero.
+      assert.equal(winnerAfter(spec, unpack(spec, caso.pos), 1 - caso.turn), ONGOING)
+
+      // A cualquier profundidad >= 1 el buscador la puntua como derrota del que
+      // no puede mover. A profundidad 0 devuelve 0, que es la rareza de
+      // Search.cs:97 y esta fijada aparte.
+      const s = new Searcher(spec, { ttBits: 14 })
+      for (const d of [1, 2, 5]) {
+        s.setPosition(caso.pos)
+        const v = (s._search(caso.turn, d, -1, 1) & 3) - 1
+        assert.equal(v, caso.turn === WHITE ? -1 : 1, `a profundidad ${d}`)
+      }
+      s.setPosition(caso.pos)
+      assert.equal((s._search(caso.turn, 0, -1, 1) & 3) - 1, DRAW,
+        'a profundidad 0 tiene que dar 0, no derrota')
+    })
+  }
+
+  await t.test('el tablero esta lleno y al que se ahoga le sobra una pieza', () => {
+    for (const caso of fixture.posiciones) {
+      const pilas = stacksOf(spec, caso.pos)
+      assert.ok(pilas.every((p) => p.length === 1), 'el tablero tendria que estar lleno y plano')
+
+      let enMano = 0
+      for (let i = 0; i < spec.pieceCount; i++) {
+        if (loc(caso.pos, i) === 15) { enMano++; assert.equal(spec.owner[i], caso.turn) }
+      }
+      // 10 piezas, 9 casillas: siempre sobra exactamente una.
+      assert.equal(enMano, 1)
+    }
   })
 })
 

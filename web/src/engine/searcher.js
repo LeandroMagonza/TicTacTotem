@@ -58,6 +58,8 @@ export class Searcher {
     this.ttHits = 0
     this.stalemates = 0
     this.repetitions = 0
+    /** Si se le asigna un array, se registran ahi las posiciones de ahogado. */
+    this.stalemateLog = null
     this._budgetMs = 0
     this._tick = 0
     this._t0 = 0
@@ -125,6 +127,11 @@ export class Searcher {
     // ahogado justo en el horizonte puntua 0 y no derrota.
     if (n === 0) {
       this.stalemates++
+      // Los ahogados son rarisimos: 2 en los 1,4 millones de nodos que resuelven
+      // este juego, y CERO en los 5,5 millones de estados alcanzables en 8 plies.
+      // Jugando no se llega nunca. Poder capturarlos aca es la unica forma de
+      // sacar un fixture con el que probar esa pantalla final.
+      if (this.stalemateLog) this.stalemateLog.push({ pos: pack(locs, spec.pieceCount), turn })
       return (turn === WHITE ? -1 : 1) + 1
     }
 

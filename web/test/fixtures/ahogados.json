@@ -1,0 +1,32 @@
+{
+  "_comentario": [
+    "Las DOS posiciones sin jugada legal que aparecen al resolver 12344 vs 11245.",
+    "Salen de instrumentar el buscador (Searcher.stalemateLog) sobre el solve de 12",
+    "plies, que las encuentra 2 veces en 1,4 millones de nodos. Coincide con lo que",
+    "reporta el solver C# en Simulacion/README.md:173.",
+    "",
+    "Estan hardcodeadas porque NO SE PUEDEN ALCANZAR de otra forma: un barrido en",
+    "anchura de los 5,5 millones de estados alcanzables en 8 plies encuentra CERO",
+    "ahogados. Ni jugando ni fuzzeando se llega. Sin este fixture, la regla del",
+    "ahogado y su pantalla final se enviarian sin haberse probado nunca.",
+    "",
+    "En las dos el tablero esta LLENO y a B le queda el 5 en la mano sin ningun",
+    "lugar donde ponerlo, que es justo el mecanismo que describe el README: 10",
+    "piezas para 9 casillas, alguien se queda con una en la mano."
+  ],
+  "spec": { "white": "12344", "black": "11245" },
+  "posiciones": [
+    {
+      "pos": 1058730636576,
+      "turn": 1,
+      "tablero": ["W1 B1 W2", "W4 B1 W3", "B4 W4 B2"],
+      "porQue": "B1 en c1 y c4, B4 en c6, B2 en c8: ningun vecino tiene nivel estrictamente menor, y no queda casilla vacia donde colocar el 5"
+    },
+    {
+      "pos": 1058730635856,
+      "turn": 1,
+      "tablero": ["W1 B1 W3", "W4 B1 W2", "B4 W4 B2"],
+      "porQue": "igual que la anterior con W2 y W3 intercambiados"
+    }
+  ]
+}

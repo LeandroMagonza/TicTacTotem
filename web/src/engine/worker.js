@@ -55,6 +55,11 @@ const handlers = {
     return { snapshot: match.snapshot() }
   },
 
+  loadPosition({ pos, turn = 0 }) {
+    match.loadPosition(pos, turn)
+    return { snapshot: match.snapshot() }
+  },
+
   /**
    * Pide la jugada de la IA. `minThinkMs` es un piso deliberado: a ve2 y ve4 la
    * respuesta sale en menos de 2 ms, y una jugada instantanea se lee como glitch

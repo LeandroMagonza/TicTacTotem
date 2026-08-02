@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { COLLAR_RADIUS, cellToWorld } from './geometry.js'
+import { COLLAR_RADIUS, cellToWorld, GROUND_RING_Y } from './geometry.js'
 
 /**
  * Anillos de resaltado: seleccion, destinos legales y ultima jugada.
@@ -55,7 +55,10 @@ export function createHighlights(mats) {
       if (i >= dests.length) return
       const d = dests[i]
       const { x, z } = cellToWorld(m.to)
-      d.position.set(x, landingY(m.to) + 0.02, z)
+      // El anillo se dibuja a la altura a la que CAERIA la pieza, asi previsualiza
+      // la altura resultante de la pila. Sobre celda vacia hay que despegarlo de
+      // la baldosa o queda enterrado adentro.
+      d.position.set(x, Math.max(landingY(m.to), GROUND_RING_Y), z)
       // Ambar avisa que la jugada destapa una linea rival y pierde en el acto.
       // Es la regla mas contraintuitiva del juego (GameManager.cs:206-211) y
       // sale gratis: el motor ya calcula ese valor.
@@ -73,13 +76,13 @@ export function createHighlights(mats) {
     }
     if (typeof from === 'number') {
       const a = cellToWorld(from)
-      lastFrom.position.set(a.x, 0.015, a.z)
+      lastFrom.position.set(a.x, GROUND_RING_Y, a.z)
       lastFrom.visible = true
     } else {
       lastFrom.visible = false
     }
     const b = cellToWorld(to)
-    lastTo.position.set(b.x, landingY(to) + 0.015, b.z)
+    lastTo.position.set(b.x, Math.max(landingY(to), GROUND_RING_Y), b.z)
     lastTo.visible = true
   }
 
@@ -88,7 +91,7 @@ export function createHighlights(mats) {
     if (!cells) return
     cells.slice(0, 3).forEach((cell, i) => {
       const { x, z } = cellToWorld(cell)
-      winCells[i].position.set(x, 0.025, z)
+      winCells[i].position.set(x, GROUND_RING_Y, z)
       winCells[i].visible = true
     })
   }

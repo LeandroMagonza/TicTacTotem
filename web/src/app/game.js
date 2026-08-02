@@ -3,6 +3,7 @@ import { createWorld } from '../scene/world.js'
 import { createMaterials, TEAM_NAME } from '../scene/materials.js'
 import { createBoard } from '../scene/board.js'
 import { createPieceSet } from '../scene/pieces.js'
+import { loadModels } from '../scene/models.js'
 import { createRig, DEG } from '../scene/camera.js'
 import { createHighlights } from '../scene/highlights.js'
 import { createTweens, easeOut, easeIn, easeInOut } from '../scene/tween.js'
@@ -41,6 +42,11 @@ export async function startGame(canvas, uiRoot, onFatal) {
 
   let pieceSet = null
   const engine = createEngineClient(onFatal)
+
+  // Los modelos se cargan una sola vez. Si no hay ninguno, el juego arranca
+  // igual con las piezas procedurales — la degradacion es por nivel.
+  const { models, avisos } = await loadModels()
+  for (const a of avisos) console.warn('[modelos]', a)
 
   // --- layout ------------------------------------------------------------
   function pickLayout() {
@@ -357,7 +363,7 @@ export async function startGame(canvas, uiRoot, onFatal) {
       pieceCount: ids.length,
       owner: Int8Array.from(ids, (i) => res.pieces[i].owner),
       rank: Int8Array.from(ids, (i) => res.pieces[i].rank),
-    }, mats)
+    }, mats, models)
     world.scene.add(pieceSet.group)
 
     applyLayout(true)
@@ -505,6 +511,17 @@ export async function startGame(canvas, uiRoot, onFatal) {
   await newGame({})
 
   const params = new URLSearchParams(location.search)
+  if (params.has('pos')) {
+    // ?pos=<entero>&turno=0|1 carga una posicion cruda. Es como se prueba el
+    // ahogado, que jugando no se alcanza nunca.
+    const { snapshot } = await engine.loadPosition(
+      Number(params.get('pos')), Number(params.get('turno') ?? 0))
+    state.snapshot = snapshot
+    state.mode = 'hotseat'
+    syncInstant()
+    hud.render(state)
+    if (snapshot.result) finish()
+  }
   if (params.has('demo') || params.has('jugadas')) {
     await jumpTo({
       demo: params.has('demo') ? Number(params.get('demo')) : undefined,
@@ -514,7 +531,9 @@ export async function startGame(canvas, uiRoot, onFatal) {
   }
   if (params.has('elev')) { rig.setElevationDeg(Number(params.get('elev'))); world.invalidate() }
 
-  return { state, newGame, openMenu, engine, jumpTo, rig, tweens }
+  // `tap` va expuesto para que un test headless pueda jugar una partida entera
+  // de forma determinista y sin depender de pixeles.
+  return { state, newGame, openMenu, engine, jumpTo, rig, tweens, tap: onTap, undo, highlights }
 }
 
 export { ELEVATION_LOW, ELEVATION_HIGH }

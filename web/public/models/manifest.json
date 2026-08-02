@@ -1,0 +1,29 @@
+{
+  "_comentario": [
+    "Mapa nivel -> modelo. Se carga en runtime, asi que agregar un animal es tirar",
+    "el .glb en esta carpeta y sumar tres lineas aca. No hace falta rebuild.",
+    "",
+    "La degradacion es POR NIVEL: si un archivo no esta o no carga, ESE nivel queda",
+    "con la pieza procedural y los demas usan modelo. El juego nunca deja de ser",
+    "jugable, asi que se puede ir modelando de a un animal.",
+    "",
+    "El loader normaliza todo (escala uniforme al alto del nivel, recorte de huella,",
+    "reorigen a la base). En Blender NO hace falta poner el origen ni cuidar la",
+    "escala; lo unico importante es aplicar las transformaciones.",
+    "",
+    "Campos opcionales por nivel:",
+    "  height     alto final en unidades de celda (por defecto, el del nivel)",
+    "  label      nombre del animal, para la interfaz",
+    "  yawDeg     giro sobre Y si el animal mira para otro lado",
+    "  upAxis     'Z' solo si se exporto sin la casilla +Y Up",
+    "  footprint  ancho maximo propio, si este animal necesita otro"
+  ],
+
+  "defaults": {
+    "upAxis": "Y",
+    "footprint": 0.48
+  },
+
+  "ranks": {
+  }
+}

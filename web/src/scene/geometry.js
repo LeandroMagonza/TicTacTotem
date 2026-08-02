@@ -8,7 +8,17 @@
 export const CELL_PITCH = 1.0
 export const BOARD_HALF = 1.5          // el tablero va de -1,5 a +1,5 en x y z
 export const TILE_SIZE = 0.92
+export const TILE_THICKNESS = 0.02
 export const BOARD_THICKNESS = 0.12
+
+/**
+ * Cara superior de la baldosa. Todo anillo que vaya "en el piso" tiene que
+ * dibujarse por ENCIMA de esto o queda enterrado dentro de la baldosa y no se
+ * ve — que es exactamente lo que pasaba con los anillos de destino.
+ */
+export const TILE_TOP = 0.001 + TILE_THICKNESS
+/** Altura a la que se dibujan los anillos apoyados en el piso. */
+export const GROUND_RING_Y = TILE_TOP + 0.012
 
 /**
  * El COLLAR es el dispositivo central de legibilidad del juego.
