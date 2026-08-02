@@ -1,0 +1,57 @@
+# =============================================================================
+#  OJO: Build/ y Builds/ NO se ignoran, a proposito.
+#
+#  Todo .gitignore estandar de Unity (incluido el oficial de GitHub) trae
+#  [Bb]uild/ y [Bb]uilds/. En este repo esos directorios son el sitio en vivo:
+#  index.html:58-63 apunta a Build/TaTeTiConEsteroidesWeb.*, servido por
+#  GitHub Pages. Ignorarlos romperia el deploy del build de Unity de 2022,
+#  que se conserva en /legacy/.
+#
+#  Si algun dia migras este .gitignore, dejar este comentario.
+# =============================================================================
+
+# --- Unity ---
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Ll]ogs/
+[Mm]emoryCaptures/
+[Uu]serSettings/
+sysinfo.txt
+*.unitypackage
+*.apk
+*.aab
+crashlytics-build.properties
+
+# Proyectos y soluciones generados por Unity
+*.csproj
+*.sln
+*.unityproj
+*.pidb
+*.booproj
+*.svd
+*.userprefs
+
+# --- Editores ---
+.idea/
+.vs/
+.vscode/
+*.swp
+*~
+
+# --- Juego web (Three.js) ---
+web/node_modules/
+web/dist/
+web/.vite/
+web/test-results/
+web/playwright-report/
+npm-debug.log*
+yarn-error.log*
+
+# --- Solver C# ---
+Simulacion/solver/bin/
+Simulacion/solver/obj/
+
+# --- Sistema ---
+.DS_Store
+Thumbs.db
