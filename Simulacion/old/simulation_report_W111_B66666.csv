@@ -1,0 +1,29 @@
+,Valor
+Total de partidas ganadas por blanco,164.0
+Total de partidas ganadas por negro,168.0
+Porcentaje de victorias de blanco,49.39759036144578
+Porcentaje de victorias de negro,50.602409638554214
+Promedio de piezas colocadas por el ganador,5.566265060240964
+Promedio de piezas colocadas por blanco cuando gana,5.103658536585366
+Promedio de piezas colocadas por negro cuando gana,6.017857142857143
+Promedio de rondas total,3.496987951807229
+Promedio de rondas en partidas ganadas por blanco,3.25
+Promedio de rondas en partidas ganadas por negro,3.738095238095238
+
+Ronda,Cantidad de Partidas,% Ganadas Blanco,% Ganadas Negro
+3,204,61.76470588235294,38.23529411764706
+4,96,36.45833333333333,63.541666666666664
+5,28,10.714285714285714,89.28571428571429
+6,3,0.0,100.0
+7,1,0.0,100.0
+
+first_move,total_games,white_wins,avg_rounds,white_win_percentage
+"WC1(0,0)",37,16,3.7837837837837838,43.24324324324324
+"WC1(0,1)",44,20,3.5454545454545454,45.45454545454545
+"WC1(0,2)",39,20,3.4871794871794872,51.28205128205128
+"WC1(1,0)",38,17,3.4473684210526314,44.73684210526316
+"WC1(1,1)",36,21,3.4166666666666665,58.333333333333336
+"WC1(1,2)",32,20,3.4375,62.5
+"WC1(2,0)",41,20,3.4390243902439024,48.78048780487805
+"WC1(2,1)",39,13,3.5384615384615383,33.33333333333333
+"WC1(2,2)",26,17,3.3076923076923075,65.38461538461539

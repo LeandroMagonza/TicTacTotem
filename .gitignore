@@ -52,6 +52,16 @@ yarn-error.log*
 Simulacion/solver/bin/
 Simulacion/solver/obj/
 
+# Los barridos grandes van commiteados COMPRIMIDOS (.csv.gz), no crudos: son
+# 14 MB en texto contra 3 MB en gz. Los .csv quedan en disco para que los
+# scripts de Python los lean directo; si haces un clone limpio, descomprimilos.
+Simulacion/balance_full.csv
+Simulacion/balance_espejo.csv
+Simulacion/balance_5v5.csv
+Simulacion/balance_5v5_ahogado.csv
+Simulacion/balance_4v5.csv
+Simulacion/simulation_results_W122335_B12246.csv
+
 # --- Sistema ---
 .DS_Store
 Thumbs.db
