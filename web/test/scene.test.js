@@ -174,13 +174,37 @@ test('picking: con la camara baja, apuntar a la fila del fondo NO pega adelante'
   })
 })
 
-test('las cajas de la mano no dejan huecos entre piezas', () => {
-  const { board } = setup()
-  const caja = board.handPickers[0][0].geometry.parameters.width
-  assert.ok(caja >= geo.TRAY_PITCH - 0.1,
-    `caja de ${caja} con paso de ${geo.TRAY_PITCH}: queda un hueco de ${(geo.TRAY_PITCH - caja).toFixed(2)} ` +
-    'donde el toque no registra, y esa pieza se siente como que "no se deja seleccionar"')
-  assert.ok(caja < geo.TRAY_PITCH, 'pero no se pueden superponer entre si')
+test('las cajas de la mano: sin huecos a lo largo, ceñidas a lo ancho', async (t) => {
+  for (const layout of ['portrait', 'landscape']) {
+    await t.test(layout, () => {
+      const { board, pieces } = setup(layout)
+      board.setHandHeights(() => geo.pieceThickness(5))
+      const caja = board.handPickers[0][0]
+      // El eje de la bandeja: en vertical corre a lo largo de x, en horizontal de z.
+      const aLoLargo = layout === 'portrait' ? caja.scale.x : caja.scale.z
+      const aLoAncho = layout === 'portrait' ? caja.scale.z : caja.scale.x
+
+      assert.ok(aLoLargo >= geo.TRAY_PITCH - 0.1,
+        `${aLoLargo} con un paso de ${geo.TRAY_PITCH}: queda un hueco de ` +
+        `${(geo.TRAY_PITCH - aLoLargo).toFixed(2)} donde el toque no registra, y esa pieza ` +
+        'se siente como que "no se deja seleccionar"')
+      assert.ok(aLoLargo < geo.TRAY_PITCH, 'pero no se pueden superponer entre si')
+
+      // A lo ancho y en alto tiene que ceñirse a la pieza: si sobresale, con la
+      // camara baja la bandeja se mete en la linea de vision de la fila de
+      // casillas mas cercana y le roba los toques.
+      assert.ok(aLoAncho <= geo.COLLAR_RADIUS * 2.1,
+        `la caja mide ${aLoAncho} de ancho contra un collar de ${geo.COLLAR_RADIUS * 2}`)
+      assert.ok(caja.scale.y <= geo.pieceThickness(5) + 0.05,
+        `la caja mide ${caja.scale.y} de alto contra una pieza de ${geo.pieceThickness(5)}`)
+      assert.ok(Math.abs(caja.position.y - caja.scale.y / 2) < 1e-9, 'la caja flota')
+
+      // Un slot vacio no roba toques.
+      board.setHandHeights(() => 0)
+      assert.ok(board.handPickers[0][0].scale.y < 0.01)
+      void pieces
+    })
+  }
 })
 
 test('las piezas se apilan a la altura correcta', () => {
