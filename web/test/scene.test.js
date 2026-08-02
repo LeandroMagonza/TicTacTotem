@@ -32,31 +32,155 @@ const geo = await import('../src/scene/geometry.js')
 
 const spec = makeSpecFromLabels('12344', '11245')
 
-function setup() {
+function setup(layout = 'portrait') {
   const mats = createMaterials()
   const board = createBoard(mats)
   const pieces = createPieceSet(spec, mats)
+  // Igual que hace la app en newGame. Sin esto las 10 cajas de bandeja se quedan
+  // en su posicion inicial, todas encimadas en el centro del tablero, y se comen
+  // los toques de la celda del medio.
+  board.applyLayout(layout)
   return { mats, board, pieces }
 }
 
-test('hay exactamente 19 cajas de picking', () => {
+test('hay exactamente 28 cajas de picking', () => {
   const { board } = setup()
-  // 9 de celda + 10 de slot de mano. Si este numero cambia, alguien empezo a
-  // rayear geometria de arte, que es justo lo que el diseño evita.
-  assert.equal(board.pickables.length, 19)
+  // 9 losas de celda + 9 columnas de pila + 10 slots de mano. Si este numero
+  // cambia, alguien empezo a rayear geometria de arte, que es justo lo que el
+  // diseño evita.
+  assert.equal(board.pickables.length, 28)
   const kinds = board.pickables.map((p) => p.userData.kind)
-  assert.equal(kinds.filter((k) => k === 'cell').length, 9)
+  assert.equal(kinds.filter((k) => k === 'cell').length, 18)
   assert.equal(kinds.filter((k) => k === 'hand').length, 10)
   assert.ok(board.pickables.every((p) => p.visible === false), 'los pickers son invisibles')
 })
 
-test('la caja de picking de celda cubre la pila maxima', () => {
+test('la caja de picking de celda sigue la altura real de su pila', () => {
+  const { board, pieces } = setup()
+  const idOf = (owner, rank) => {
+    for (let i = 0; i < spec.pieceCount; i++) if (spec.owner[i] === owner && spec.rank[i] === rank) return i
+    throw new Error('sin pieza')
+  }
+  const snap = { stacks: Array.from({ length: 9 }, () => []), hands: { 0: [], 1: [] } }
+  snap.stacks[4] = [idOf(0, 1), idOf(1, 2), idOf(0, 4)]
+  board.setCellHeights((c) => pieces.landingY(snap, c))
+
+  const columna = board.stackPickers[4]
+  const columnaVacia = board.stackPickers[0]
+  const alturaPila = pieces.landingY(snap, 4)
+
+  // La columna tiene que cubrir el totem, para que tocarle la punta seleccione
+  // su celda...
+  assert.ok(columna.scale.y >= alturaPila, `la columna (${columna.scale.y}) no cubre la pila (${alturaPila})`)
+  // ...pero sin pasarse: cada unidad de mas tapa lo que hay detras.
+  assert.ok(columna.scale.y < alturaPila + 0.1, 'la columna se pasa de alto')
+  // Sin pila no hay columna en absoluto.
+  assert.ok(columnaVacia.scale.y < 0.01, `una celda vacia levanta una columna de ${columnaVacia.scale.y}`)
+  // Se apoya en el tablero, no flota.
+  assert.ok(Math.abs(columna.position.y - columna.scale.y / 2) < 1e-9)
+
+  // Y no es mas ANCHA que la pieza: si lo fuera, un totem taparia mas de lo que
+  // se ve que tapa, que es como se sentia el bug de picking.
+  assert.ok(columna.scale.x <= geo.COLLAR_RADIUS * 2.2,
+    `la columna mide ${columna.scale.x} contra un collar de ${geo.COLLAR_RADIUS * 2}`)
+  // La losa, en cambio, cubre toda la baldosa y es chata.
+  assert.equal(board.cellPickers[4].scale.x, 0.95)
+  assert.ok(board.cellPickers[4].scale.y < 0.2)
+})
+
+test('picking: con la camara baja, apuntar a la fila del fondo NO pega adelante', async (t) => {
+  const THREE = await import('three')
+  const { board, pieces } = setup()
+
+  /** Rayo desde una camara en orbita hacia el centro de una celda. */
+  const apuntarA = (cell, elevacionGrados, distancia = 8) => {
+    // El raycaster usa matrixWorld, que queda vieja si nadie renderizo. En la
+    // app la actualiza el renderer en cada frame; aca hay que pedirla.
+    board.group.updateMatrixWorld(true)
+    const e = (elevacionGrados * Math.PI) / 180
+    const origen = new THREE.Vector3(0, distancia * Math.sin(e), distancia * Math.cos(e))
+    const destino = geo.cellToWorld(cell)
+    const dir = new THREE.Vector3(destino.x, 0, destino.z).sub(origen).normalize()
+    const rc = new THREE.Raycaster(origen, dir)
+    const hits = rc.intersectObjects(board.pickables, false)
+    return hits.length ? hits[0].object.userData : null
+  }
+
+  const snapVacio = { stacks: Array.from({ length: 9 }, () => []), hands: { 0: [], 1: [] } }
+
+  await t.test('tablero vacio: cada celda de la fila del fondo se acierta a 30 grados', () => {
+    board.setCellHeights((c) => pieces.landingY(snapVacio, c))
+    // Las celdas 0, 1 y 2 son la fila mas lejana con la camara en azimut 0.
+    for (const cell of [0, 1, 2]) {
+      const hit = apuntarA(cell, 30)
+      assert.ok(hit, `no se toco nada apuntando a la celda ${cell}`)
+      assert.equal(hit.kind, 'cell')
+      assert.equal(hit.index, cell,
+        `apuntando a la celda ${cell} se toco la ${hit.index}: la caja de una celda cercana se interpuso`)
+    }
+  })
+
+  await t.test('con un totem de 3 adelante, el fondo se sigue acertando', () => {
+    const idOf = (owner, rank) => {
+      for (let i = 0; i < spec.pieceCount; i++) if (spec.owner[i] === owner && spec.rank[i] === rank) return i
+      throw new Error('sin pieza')
+    }
+    const snap = { stacks: Array.from({ length: 9 }, () => []), hands: { 0: [], 1: [] } }
+    snap.stacks[7] = [idOf(0, 1), idOf(1, 2), idOf(0, 4)]   // pila de 3 en la fila de adelante
+    board.setCellHeights((c) => pieces.landingY(snap, c))
+
+    // Al angulo por defecto (45) un totem de 3 no llega a tapar la fila del fondo.
+    assert.equal(apuntarA(1, 45)?.index, 1, 'la pila de la celda 7 tapo la celda 1 a 45 grados')
+
+    // A 30 grados SI la tapa — pero eso es honesto: a ese angulo el totem
+    // realmente se interpone en la linea de vision, y para eso esta el boton de
+    // inclinacion. Lo que no puede pasar es que tape MAS de lo que se ve: la
+    // columna no puede superar al totem real por mas de un pelo.
+    const real = pieces.landingY(snap, 7)
+    const columna = board.stackPickers[7]
+    assert.ok(columna.scale.y - real < 0.05,
+      `la columna sobresale ${(columna.scale.y - real).toFixed(3)} sobre el totem real`)
+    assert.ok(columna.scale.x <= geo.COLLAR_RADIUS * 2.1,
+      'la columna es mas ancha que la pieza y tapa de mas')
+  })
+
+  await t.test('y tocar la punta del totem si selecciona SU celda', () => {
+    const idOf = (owner, rank) => {
+      for (let i = 0; i < spec.pieceCount; i++) if (spec.owner[i] === owner && spec.rank[i] === rank) return i
+      throw new Error('sin pieza')
+    }
+    const snap = { stacks: Array.from({ length: 9 }, () => []), hands: { 0: [], 1: [] } }
+    snap.stacks[4] = [idOf(0, 1), idOf(1, 2), idOf(0, 4)]
+    board.setCellHeights((c) => pieces.landingY(snap, c))
+
+    board.group.updateMatrixWorld(true)
+    const alto = pieces.landingY(snap, 4)
+    const e = (30 * Math.PI) / 180
+    const origen = new THREE.Vector3(0, 8 * Math.sin(e), 8 * Math.cos(e))
+    // Apuntar a media altura del totem, no a su base.
+    const dir = new THREE.Vector3(0, alto * 0.6, 0).sub(origen).normalize()
+    const hits = new THREE.Raycaster(origen, dir).intersectObjects(board.pickables, false)
+    assert.equal(hits[0]?.object.userData.index, 4, 'tocar el totem no selecciono su celda')
+  })
+
+  await t.test('una celda vacia no levanta una columna invisible', () => {
+    board.setCellHeights((c) => pieces.landingY(snapVacio, c))
+    for (const p of board.stackPickers) {
+      assert.ok(p.scale.y < 0.01, `una celda vacia levanta una columna de ${p.scale.y}`)
+    }
+    for (const p of board.cellPickers) {
+      assert.ok(p.scale.y < 0.2, `la losa mide ${p.scale.y} y tapa lo que hay detras`)
+    }
+  })
+})
+
+test('las cajas de la mano no dejan huecos entre piezas', () => {
   const { board } = setup()
-  const cellBox = board.pickables.find((p) => p.userData.kind === 'cell')
-  const h = cellBox.geometry.parameters.height
-  // Tocar la pieza de arriba de un totem alto tiene que seleccionar ESA celda,
-  // no la celda vacia que hay detras.
-  assert.ok(h > geo.MAX_STACK_HEIGHT, `la caja (${h}) no cubre la pila maxima (${geo.MAX_STACK_HEIGHT})`)
+  const caja = board.handPickers[0][0].geometry.parameters.width
+  assert.ok(caja >= geo.TRAY_PITCH - 0.1,
+    `caja de ${caja} con paso de ${geo.TRAY_PITCH}: queda un hueco de ${(geo.TRAY_PITCH - caja).toFixed(2)} ` +
+    'donde el toque no registra, y esa pieza se siente como que "no se deja seleccionar"')
+  assert.ok(caja < geo.TRAY_PITCH, 'pero no se pueden superponer entre si')
 })
 
 test('las piezas se apilan a la altura correcta', () => {

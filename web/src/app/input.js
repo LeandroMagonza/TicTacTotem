@@ -71,6 +71,15 @@ export function createInput({ canvas, camera, pickables, onTap, onDrag }) {
 
   return {
     get dragging() { return !!active?.dragging },
+    /** Expuesto para diagnostico headless: que hay bajo un punto de pantalla. */
+    pickAt(clientX, clientY) {
+      const r = canvas.getBoundingClientRect()
+      ndc.x = ((clientX - r.left) / r.width) * 2 - 1
+      ndc.y = -((clientY - r.top) / r.height) * 2 + 1
+      raycaster.setFromCamera(ndc, camera)
+      return raycaster.intersectObjects(pickables(), false)
+        .map((h) => ({ ...h.object.userData, dist: h.distance, y: h.point.y }))
+    },
   }
 }
 

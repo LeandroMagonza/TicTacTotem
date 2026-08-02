@@ -8,6 +8,7 @@
     "preview": "vite preview",
     "preview:subpath": "vite preview --base /TicTacTotem/",
     "test": "node --test \"test/**/*.test.js\"",
+    "test:picking": "node test/picking.mjs",
     "oracle": "node test/generate-fixtures.js"
   },
   "dependencies": {

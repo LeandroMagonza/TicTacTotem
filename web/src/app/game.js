@@ -78,6 +78,14 @@ export async function startGame(canvas, uiRoot, onFatal) {
   function syncInstant() {
     pieceSet.applyInstant(state.snapshot, state.layout)
     state.exploded = null
+    // Las cajas de picking de cada celda se ajustan a la altura REAL de su pila.
+    // Es lo que hace que tocar la fila del fondo con la camara baja no termine
+    // jugando en la fila de adelante.
+    board.setCellHeights((cell) => pieceSet.landingY(state.snapshot, cell))
+    board.setHandHeights((side, slot) => {
+      const id = (state.snapshot.hands[side] ?? [])[slot]
+      return id == null ? 0 : pieceSet.byId.get(id).userData.thickness
+    })
     // Los pickers de mano se reasignan en cada sync: los slots se reordenan a
     // medida que se gastan las piezas, asi que el slot k no es siempre la misma
     // pieza.
@@ -86,7 +94,8 @@ export async function startGame(canvas, uiRoot, onFatal) {
       board.handPickers[side].forEach((p, k) => {
         p.userData.pieceId = hand[k] ?? -1
         const { x, z } = traySlotToWorld(side, k, state.layout)
-        p.position.set(x, 0.31, z)
+        p.position.x = x
+        p.position.z = z
       })
     }
     refreshHighlights()
@@ -251,6 +260,34 @@ export async function startGame(canvas, uiRoot, onFatal) {
     state.phase = 'playing'
   }
 
+  /** Azimut de antes de la orbita de celebracion, para poder volver. */
+  let azimuthAntesDeCelebrar = null
+
+  /**
+   * Devuelve la camara a donde estaba antes de la celebracion, por el camino
+   * corto. Sin esto la revancha arranca con el tablero girado a cualquier lado,
+   * que era el estado en que la orbita quedo cuando apretaste el boton.
+   */
+  function devolverCamara() {
+    if (azimuthAntesDeCelebrar == null) return
+    const destino = azimuthAntesDeCelebrar
+    azimuthAntesDeCelebrar = null
+    const desde = rig.state.azimuth
+    // Camino corto: normalizar la diferencia a (-PI, PI].
+    let d = (destino - desde) % (Math.PI * 2)
+    if (d > Math.PI) d -= Math.PI * 2
+    if (d < -Math.PI) d += Math.PI * 2
+    if (Math.abs(d) < 1e-3) { rig.state.azimuth = destino; rig.fit(world.camera.aspect); return }
+    tweens.add({
+      dur: 600,
+      step: (k) => {
+        rig.state.azimuth = desde + d * k
+        rig.fit(world.camera.aspect)
+        world.invalidate()
+      },
+    })
+  }
+
   function finish() {
     state.phase = 'over'
     refreshHighlights()
@@ -261,7 +298,8 @@ export async function startGame(canvas, uiRoot, onFatal) {
     // la rotacion (2,35 x 1,75): girando 90 grados cambia lo que entra, y sin
     // reencuadrar las bandejas se salen de pantalla.
     const t0 = performance.now()
-    const az0 = rig.state.azimuth
+    azimuthAntesDeCelebrar = rig.state.azimuth
+    const az0 = azimuthAntesDeCelebrar
     world.steppers.push((now) => {
       if (state.phase !== 'over') return false
       rig.state.azimuth = az0 + ((now - t0) / 24000) * Math.PI * 2
@@ -349,7 +387,8 @@ export async function startGame(canvas, uiRoot, onFatal) {
     hud.hideResult()
     hud.showMenu(false)
     state.selection = null
-    state.phase = 'playing'
+    state.phase = 'playing'      // corta la orbita de celebracion
+    devolverCamara()
 
     const res = await engine.newGame({
       white: WHITE_SET,
@@ -488,7 +527,7 @@ export async function startGame(canvas, uiRoot, onFatal) {
     openMenu,
   })
 
-  createInput({
+  const input = createInput({
     canvas,
     camera: world.camera,
     pickables: () => board.pickables,
@@ -537,7 +576,12 @@ export async function startGame(canvas, uiRoot, onFatal) {
 
   // `tap` va expuesto para que un test headless pueda jugar una partida entera
   // de forma determinista y sin depender de pixeles.
-  return { state, newGame, openMenu, engine, jumpTo, rig, tweens, tap: onTap, undo, highlights }
+  return {
+    state, newGame, openMenu, engine, jumpTo, rig, tweens, tap: onTap, undo, highlights,
+    // Para que un test headless pueda proyectar una celda a coordenadas de
+    // pantalla y disparar un click DE VERDAD, ejercitando el raycast completo.
+    camera: world.camera, canvas, board, input,
+  }
 }
 
 export { ELEVATION_LOW, ELEVATION_HIGH }

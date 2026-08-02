@@ -1,8 +1,11 @@
 import * as THREE from 'three'
 import {
-  BOARD_HALF, BOARD_THICKNESS, TILE_SIZE, TILE_THICKNESS, MAX_STACK_HEIGHT,
-  cellToWorld, traySlotToWorld, TRAY_SLOTS, COLLAR_RADIUS,
+  BOARD_HALF, BOARD_THICKNESS, TILE_SIZE, TILE_THICKNESS,
+  cellToWorld, traySlotToWorld, TRAY_SLOTS, TRAY_PITCH, COLLAR_RADIUS,
 } from './geometry.js'
+
+/** Alto de la caja de una celda vacia: algo de cuerpo para tocar, sin tapar. */
+const EMPTY_CELL_PICK = 0.14
 
 /**
  * Tablero, baldosas, contornos de bandeja y las cajas invisibles de picking.
@@ -60,25 +63,82 @@ export function createBoard(mats) {
 
   // --- Cajas de picking, invisibles ---------------------------------------
   //
-  // 9 de celda + 10 de slot de mano = 19. La de celda es ALTA (cubre la pila
-  // maxima mas aire) a proposito: tocar el aguila arriba de un totem de 4 tiene
-  // que seleccionar ESA celda, no la celda vacia que hay detras.
+  // 9 losas de celda + 9 columnas de pila + 10 slots de mano = 28.
+  //
+  // LA REGLA DE TODAS: ninguna caja puede ocupar mas espacio del que ocupa lo
+  // que representa. Toda geometria invisible de mas es oclusion que el jugador
+  // no ve y no puede anticipar, y se siente como que el juego no registra donde
+  // tocaste. Por eso las alturas se ajustan en cada sync a la pila y a la pieza
+  // reales, en vez de usar un maximo teorico.
   /** @type {THREE.Mesh[]} */
   const pickables = []
   const pickMat = new THREE.MeshBasicMaterial({ visible: false })
 
-  const cellPickGeo = new THREE.BoxGeometry(0.95, MAX_STACK_HEIGHT + 0.5, 0.95)
+  // DOS cajas por celda:
+  //
+  //   - una LOSA plana del ancho de la baldosa, siempre. Da un objetivo comodo
+  //     para tocar la casilla, y es tan baja que no tapa nada de lo que hay
+  //     detras.
+  //   - una COLUMNA angosta, del ancho de la pieza y del alto REAL de la pila.
+  //     Es lo que hace que tocar la punta de un totem seleccione su casilla.
+  //
+  // La columna se dimensiona con el collar y no con la baldosa a proposito: asi
+  // un totem tapa exactamente lo que se ve que tapa. Con una sola caja ancha y
+  // alta —que era el diseño anterior— la geometria invisible tapaba mucho mas
+  // que las piezas, y con la camara baja tocabas la fila del fondo pero jugaba
+  // en la de adelante.
+  const cellPickGeo = new THREE.BoxGeometry(1, 1, 1)
+  /** @type {THREE.Mesh[]} */
+  const cellPickers = []
+  /** @type {THREE.Mesh[]} */
+  const stackPickers = []
   for (let i = 0; i < 9; i++) {
-    const box = new THREE.Mesh(cellPickGeo, pickMat)
     const { x, z } = cellToWorld(i)
-    box.position.set(x, (MAX_STACK_HEIGHT + 0.5) / 2, z)
-    box.visible = false
-    box.userData = { kind: 'cell', index: i }
-    pickables.push(box)
-    group.add(box)
+
+    const losa = new THREE.Mesh(cellPickGeo, pickMat)
+    losa.position.set(x, EMPTY_CELL_PICK / 2, z)
+    losa.scale.set(0.95, EMPTY_CELL_PICK, 0.95)
+    losa.visible = false
+    losa.userData = { kind: 'cell', index: i }
+    cellPickers.push(losa)
+    pickables.push(losa)
+    group.add(losa)
+
+    const columna = new THREE.Mesh(cellPickGeo, pickMat)
+    columna.position.set(x, 0, z)
+    columna.scale.set(COLLAR_RADIUS * 2.05, 0.0001, COLLAR_RADIUS * 2.05)
+    columna.visible = false
+    columna.userData = { kind: 'cell', index: i }
+    stackPickers.push(columna)
+    pickables.push(columna)
+    group.add(columna)
   }
 
-  const handPickGeo = new THREE.BoxGeometry(0.62, 0.62, 0.62)
+  /**
+   * Ajusta la columna de cada celda al alto real de su pila. Sin pila, la
+   * columna se aplasta a cero y solo queda la losa.
+   * @param {(cell:number)=>number} stackHeight
+   */
+  function setCellHeights(stackHeight) {
+    for (let i = 0; i < 9; i++) {
+      // Margen chico y a proposito: cada milimetro de mas es oclusion invisible
+      // que el jugador no puede ver ni anticipar.
+      const h = stackHeight(i)
+      const alto = h > 0 ? h + 0.015 : 0.0001
+      stackPickers[i].scale.y = alto
+      stackPickers[i].position.y = alto / 2
+    }
+  }
+
+  // Cajas de mano, tambien unitarias y escaladas (ver applyLayout / setHandHeights):
+  //
+  //   - A LO LARGO de la bandeja son casi tan anchas como el paso (0,95). Con
+  //     cubos de 0,62 quedaba un hueco de 0,33 entre pieza y pieza donde el toque
+  //     no registraba, y se sentia como que esa pieza "no se dejaba seleccionar".
+  //   - A LO ANCHO y en ALTO se ciñen a la pieza. Si sobresalen, con la camara
+  //     baja la bandeja se mete en la linea de vision de la fila de casillas mas
+  //     cercana y te roba esos toques.
+  const handPickGeo = new THREE.BoxGeometry(1, 1, 1)
   /** @type {THREE.Mesh[][]} */
   const handPickers = [[], []]
   for (let side = 0; side < 2; side++) {
@@ -94,14 +154,41 @@ export function createBoard(mats) {
 
   /** Reubica bandejas y sus pickers cuando cambia la orientacion de la pantalla. */
   function applyLayout(layout) {
+    // El lado largo de la caja sigue el eje de la bandeja: en vertical corre a lo
+    // largo de x, en horizontal a lo largo de z.
+    const largo = TRAY_PITCH - 0.06
+    const ancho = COLLAR_RADIUS * 2.05
     for (let side = 0; side < 2; side++) {
       for (let k = 0; k < TRAY_SLOTS; k++) {
         const { x, z } = traySlotToWorld(side, k, layout)
         traySlots[side][k].position.set(x, 0.004, z)
-        handPickers[side][k].position.set(x, 0.31, z)
+        const p = handPickers[side][k]
+        p.position.x = x
+        p.position.z = z
+        if (layout === 'portrait') p.scale.x = largo, p.scale.z = ancho
+        else p.scale.x = ancho, p.scale.z = largo
       }
     }
   }
 
-  return { group, tiles, traySlots, handPickers, pickables, applyLayout }
+  /**
+   * Ajusta el alto de cada caja de mano a la pieza que representa. Un slot vacio
+   * se aplasta a cero para que no robe toques.
+   * @param {(side:number, slot:number) => number} pieceHeight  0 si el slot esta vacio
+   */
+  function setHandHeights(pieceHeight) {
+    for (let side = 0; side < 2; side++) {
+      for (let k = 0; k < TRAY_SLOTS; k++) {
+        const h = pieceHeight(side, k)
+        const alto = h > 0 ? h + 0.03 : 0.0001
+        handPickers[side][k].scale.y = alto
+        handPickers[side][k].position.y = alto / 2
+      }
+    }
+  }
+
+  return {
+    group, tiles, traySlots, handPickers, cellPickers, stackPickers,
+    pickables, applyLayout, setCellHeights, setHandHeights,
+  }
 }
