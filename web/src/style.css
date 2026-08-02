@@ -1,0 +1,61 @@
+:root {
+  color-scheme: dark;
+  --amber: #e8a33d;
+  --slate: #4a7fb5;
+  --ink: #eceef2;
+  --ink-dim: #9aa1ad;
+  --bg: #1b1d21;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Sin esto iOS hace rubber-band y saca el tablero de abajo del dedo. */
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  /* Lo que impide que iOS scrollee y haga zoom con doble tap sobre el tablero.
+     Sin esto el juego es injugable en celular y parece que el input esta roto. */
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* El overlay no come eventos; cada hijo se los gana con pointer-events:auto. */
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Cartel de error fatal: un worker que explota al importar falla en silencio
+   y te queda un tablero que no responde y nada visible en consola. */
+#fatal {
+  pointer-events: auto;
+  position: fixed;
+  inset: auto 0 0 0;
+  margin: 0;
+  padding: 12px 16px;
+  background: #7a2233;
+  color: #fff;
+  font-size: 14px;
+  white-space: pre-wrap;
+}

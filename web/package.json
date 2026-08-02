@@ -1,0 +1,19 @@
+{
+  "name": "tictactotem",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "preview:subpath": "vite preview --base /TicTacTotem/",
+    "test": "node --test \"test/**/*.test.js\"",
+    "oracle": "node test/generate-fixtures.js"
+  },
+  "dependencies": {
+    "three": "0.181.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}

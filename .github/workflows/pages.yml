@@ -1,0 +1,76 @@
+name: Deploy to GitHub Pages
+
+# Publica el juego nuevo (web/) en la raiz del sitio y conserva el build de
+# Unity de 2022 en /legacy/. Ningun archivo del repo se borra: el build de
+# Unity se copia dentro del artefacto desde los archivos que siguen trackeados.
+#
+# Requiere UN paso manual, una sola vez, en la web de GitHub:
+#   Settings -> Pages -> Source: GitHub Actions
+#
+# Rollback total: volver esa opcion a "Deploy from a branch: master / (root)"
+# y el sitio queda exactamente como estaba.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'web/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Sin sparse-checkout cada corrida baja los ~19.600 archivos de
+          # Library/ al pedo. Con esto son unas decenas mas los blobs del
+          # build de Unity.
+          sparse-checkout: |
+            web
+            Build
+            TemplateData
+            StreamingAssets
+            index.html
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+        working-directory: web
+
+      - run: npm run build
+        working-directory: web
+
+      - name: Preservar el build de Unity en /legacy/
+        run: |
+          mkdir -p web/dist/legacy
+          cp -r index.html Build TemplateData StreamingAssets web/dist/legacy/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
