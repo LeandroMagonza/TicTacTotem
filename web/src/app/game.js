@@ -298,9 +298,13 @@ export async function startGame(canvas, uiRoot, onFatal) {
 
     const moves = s.legalMoves.filter((m) => sourceKey(m) === key)
     if (moves.length === 0) {
-      // Ni modal ni cartel: un temblor de 120 ms sobre el objeto y listo.
-      shake(hit)
+      // Si no se puede mover pero hay algo apilado, se explota igual para poder
+      // MIRAR. Atarlo a que la pila sea seleccionable dejaba afuera justo el caso
+      // en que mas queres saber que hay debajo: la pila del rival.
       clearSelection()
+      if (hit.kind === 'cell' && s.stacks[hit.index].length >= 2) explode(hit.index)
+      // Ni modal ni cartel: un temblor de 120 ms sobre el objeto y listo.
+      else shake(hit)
       return
     }
     state.selection = { key, moves }
