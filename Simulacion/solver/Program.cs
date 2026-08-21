@@ -14,15 +14,20 @@ public static class Program {
         if (args.Length == 0) { Usage(); return 1; }
         var opts = ParseOptions(args.Skip(1).ToArray());
         switch (args[0]) {
-            case "selftest": return SelfTest.Run() ? 0 : 1;
+            case "selftest":
+                return (Flag(opts, "libre") ? SelfTestLibre.Run() : SelfTest.Run()) ? 0 : 1;
             case "verify":
                 return Verify.Run(ParseSet(Str(opts, "white", "122335")),
                                   ParseSet(Str(opts, "black", "12246")),
-                                  Int(opts, "max-depth", 9)) ? 0 : 1;
+                                  Int(opts, "max-depth", 9),
+                                  Flag(opts, "libre"), Flag(opts, "pegado"),
+                                  Flag(opts, "pegado-orto"), Flag(opts, "pegado-siempre")) ? 0 : 1;
             case "solve": return Solve(opts);
             case "openings": return Openings(opts);
             case "libertad": return Libertad(opts);
             case "practica": return Practica(opts);
+            case "practicas": return Practicas(opts);
+            case "trampas": return Trampas(opts);
             case "sweep": return Sweep(opts);
             default: Usage(); return 1;
         }
@@ -45,6 +50,17 @@ Solver exacto para el TaTeTi con Esteroides.
          [--sum-window 4] [--limit 0] [--max-depth 14] [--budget-ms 60000]
          [--tt-bits 22] [--out balance.csv]
       Barre combinaciones de sets y escribe un CSV comparativo.
+
+  --libre   (en cualquier comando)
+      Variante sin tablero: el 3x3 no existe de antemano, lo delimitan las
+      piezas. Todo lo puesto tiene que entrar en algun 3x3, y esa caja se
+      puede redefinir durante la partida. El resto de las reglas no cambia.
+
+  --pegado [--pegado-orto] [--pegado-siempre]   (con --libre)
+      Sub-variante: la pieza que se coloca desde la mano tiene que tocar a
+      alguna ya puesta. Por defecto vale tocar en diagonal y la exigencia
+      se levanta apenas la caja llega a 3x3; --pegado-orto exige tocar por
+      un lado y --pegado-siempre la mantiene toda la partida.
 
 Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
 ");
@@ -71,6 +87,14 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
 
     private static bool Flag(Dictionary<string, string> o, string k) => o.ContainsKey(k);
 
+    /// <summary>Construye el juego con la variante y sub-variantes que pidio la linea de comandos.</summary>
+    private static GameSpec Spec(Dictionary<string, string> o, int[] white, int[] black) =>
+        new GameSpec(white, black,
+                     libre: Flag(o, "libre"),
+                     pegado: Flag(o, "pegado"),
+                     pegadoOrto: Flag(o, "pegado-orto"),
+                     pegadoSiempre: Flag(o, "pegado-siempre"));
+
     private static int[] ParseSet(string s) =>
         s.Where(char.IsDigit).Select(c => c - '0').OrderBy(x => x).ToArray();
 
@@ -84,10 +108,13 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
         long budget = Int(o, "budget-ms", 0);
         bool repetition = !Flag(o, "no-repetition");
 
-        var spec = new GameSpec(white, black);
+        bool libre = Flag(o, "libre");
+
+        var spec = Spec(o, white, black);
         Console.WriteLine($"Blancas (mueven primero): {spec.WhiteLabel}   suma {white.Sum()}");
         Console.WriteLine($"Negras:                   {spec.BlackLabel}   suma {black.Sum()}");
         Console.WriteLine($"Repeticion = tablas: {(repetition ? "si" : "no")}   tabla: 2^{ttBits} entradas");
+        if (libre) Console.WriteLine("Variante SIN TABLERO: el 3x3 lo delimitan las piezas (caja de 3x3 como maximo).");
         Console.WriteLine();
         Console.WriteLine($"{"plies",6} {"veredicto",-14} {"nodos",16} {"seg",8}");
 
@@ -119,15 +146,31 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
         if (Flag(o, "pv") && reached > 0) {
             Console.WriteLine();
             Console.WriteLine("Linea principal:");
-            Console.WriteLine("  " + searcher.PrincipalVariation(reached));
+            if (Flag(o, "trace")) {
+                Console.WriteLine("  " + searcher.PrincipalVariation(reached, (ply, pos, mover) => {
+                    var (alto, ancho) = spec.Caja(pos);
+                    Console.WriteLine();
+                    Console.WriteLine($"  ply {ply}  ({(mover == GameSpec.White ? "arranca" : "segundo")})   caja {alto}x{ancho}");
+                    foreach (var linea in spec.Describe(pos).TrimEnd().Split('\n'))
+                        Console.WriteLine("    " + linea.TrimEnd());
+                }));
+            } else {
+                Console.WriteLine("  " + searcher.PrincipalVariation(reached));
+            }
         }
         return 0;
     }
 
     // --------------------------------------------------------------- openings
 
-    private static string TipoDeCasilla(int cell) =>
-        cell == 4 ? "centro" : (cell % 2 == 0 ? "esquina" : "lado");
+    /// <summary>
+    /// Donde cae la primera pieza. En la variante sin tablero no hay donde: todavia no hay
+    /// casillas, asi que todas las colocaciones son la misma jugada y la unica eleccion real
+    /// es con que pieza abrir.
+    /// </summary>
+    private static string TipoDeCasilla(GameSpec spec, int cell) =>
+        spec.Libre ? "cualquiera"
+        : cell == 4 ? "centro" : (cell % 2 == 0 ? "esquina" : "lado");
 
     /// <summary>
     /// Evalua todas las jugadas iniciales por separado. Sirve para medir si el juego tiene
@@ -141,7 +184,7 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
         int ttBits = Int(o, "tt-bits", 24);
         long budget = Int(o, "budget-ms", 0);
 
-        var spec = new GameSpec(white, black);
+        var spec = Spec(o, white, black);
         ulong start = spec.InitialPosition();
         Console.WriteLine($"Aperturas de {spec.WhiteLabel} (arranca) contra {spec.BlackLabel}");
         Console.WriteLine($"Hasta {maxDepth} plies. Las jugadas equivalentes por simetria se cuentan una vez.");
@@ -152,20 +195,20 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
         var vistos = new HashSet<ulong>();
         var unicos = new List<int>();
         for (int i = 0; i < n; i++) {
-            ulong child = GameSpec.ApplyMove(start, buf[i]);
+            ulong child = spec.Apply(start, buf[i]);
             if (vistos.Add(spec.Canonical(child))) unicos.Add(buf[i]);
         }
 
         var filas = new (int rank, int cell, Outcome res, int plies)[unicos.Count];
         Parallel.For(0, unicos.Count, i => {
             int mv = unicos[i];
-            ulong child = GameSpec.ApplyMove(start, mv);
+            ulong child = spec.Apply(start, mv);
             var searcher = new Searcher(spec, ttBits);
             Outcome res; int plies;
             try {
                 (res, plies) = searcher.SolveFrom(child, GameSpec.Black, maxDepth - 1, budget);
             } catch (SearchAborted) { res = Outcome.Draw; plies = maxDepth - 1; }
-            filas[i] = (spec.Rank[mv >> 4], mv & 0xF, res, plies + 1);
+            filas[i] = (spec.Rank[spec.PieceOf(mv)], mv & 0xF, res, plies + 1);
         });
 
         var mejor = filas.Any(f => f.res == Outcome.WhiteWin) ? Outcome.WhiteWin
@@ -177,14 +220,14 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
         foreach (var f in filas.OrderBy(f => f.res == mejor ? 0 : 1)
                                .ThenByDescending(f => f.plies).ThenBy(f => f.rank)) {
             string marca = f.res == mejor ? "  <-- conserva lo mejor" : "";
-            Console.WriteLine($"{f.rank,6} {TipoDeCasilla(f.cell),10} {Verdict(f.res),-16} {f.plies,6}{marca}");
+            Console.WriteLine($"{f.rank,6} {TipoDeCasilla(spec, f.cell),10} {Verdict(f.res),-16} {f.plies,6}{marca}");
         }
 
         Console.WriteLine();
         Console.WriteLine($"Aperturas distintas (sin simetrias): {filas.Length}");
         Console.WriteLine($"Conservan el mejor resultado ({Verdict(mejor)}): {buenas}  ({100.0 * buenas / filas.Length:F0} %)");
         Console.WriteLine();
-        foreach (var g in filas.GroupBy(f => TipoDeCasilla(f.cell)).OrderBy(g => g.Key)) {
+        foreach (var g in filas.GroupBy(f => TipoDeCasilla(spec, f.cell)).OrderBy(g => g.Key)) {
             int ok = g.Count(f => f.res == mejor);
             Console.WriteLine($"  {g.Key,-8} {ok}/{g.Count()} conservan lo mejor" +
                               (ok > 0 ? $"   (mejor profundidad {g.Where(f => f.res == mejor).Max(f => f.plies)} plies)" : ""));
@@ -208,7 +251,7 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
         int maxPlies = Int(o, "plies", 9);
         int ttBits = Int(o, "tt-bits", 23);
 
-        var spec = new GameSpec(white, black);
+        var spec = Spec(o, white, black);
         ulong p = spec.InitialPosition();
         int turn = GameSpec.White;
 
@@ -228,14 +271,14 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
             var vistos = new HashSet<ulong>();
             var unicos = new List<int>();
             for (int i = 0; i < n; i++) {
-                ulong c = GameSpec.ApplyMove(p, buf[i]);
+                ulong c = spec.Apply(p, buf[i]);
                 if (vistos.Add(spec.Canonical(c))) unicos.Add(buf[i]);
             }
 
             var res = new (Outcome r, int d)[unicos.Count];
             ulong pp = p; int tt = turn, rr = restante;
             Parallel.For(0, unicos.Count, i => {
-                ulong c = GameSpec.ApplyMove(pp, unicos[i]);
+                ulong c = spec.Apply(pp, unicos[i]);
                 Outcome? term = spec.WinnerAfter(c, tt);
                 if (term != null) { res[i] = (term.Value, 1); return; }
                 var s = new Searcher(spec, ttBits);
@@ -296,7 +339,7 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
                 Console.WriteLine($"       {string.Join("   ", hist)}");
             }
 
-            p = GameSpec.ApplyMove(p, unicos[elegido]);
+            p = spec.Apply(p, unicos[elegido]);
             if (spec.WinnerAfter(p, turn) != null) {
                 Console.WriteLine($"     -> termina en el ply {ply}");
                 break;
@@ -335,12 +378,20 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
         var profundidades = Str(o, "depths", "2,4,6")
             .Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToArray();
 
-        var spec = new GameSpec(white, black);
-        Console.WriteLine($"{spec.WhiteLabel} (arranca) contra {spec.BlackLabel}");
+        var spec = Spec(o, white, black);
+        Console.WriteLine($"{spec.WhiteLabel} (arranca) contra {spec.BlackLabel}"
+                          + (spec.Libre ? "   [variante sin tablero]" : ""));
         Console.WriteLine($"{games} partidas por nivel de vision, eligiendo al azar entre jugadas equivalentes.");
         Console.WriteLine();
         Console.WriteLine($"{"ve",4} {"gana el 1o",12} {"gana el 2o",12} {"sin definir",12} {"turnos",8}");
         Console.WriteLine(new string('-', 52));
+
+        // En la variante interesa ademas si el tablero flotante se nota durante la partida o
+        // se clava enseguida y el resto se juega como el de siempre: cuando queda definido el
+        // 3x3 por primera vez, cuantos turnos pasan sin definir, y si vuelve a soltarse.
+        var pinPrimero = new List<int>();
+        var pliesSinDefinir = new List<int>();
+        int redefiniciones = 0, partidasQueRedefinen = 0;
 
         foreach (int vision in profundidades) {
             int w = 0, b = 0, nada = 0;
@@ -354,6 +405,8 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
                 int turn = GameSpec.White;
                 int ply = 0;
                 int? ganador = null;
+                int pin = -1, sinDefinir = 0, sueltas = 0;
+                bool estuvoPinchado = false;
 
                 while (ply < maxPlies) {
                     var buf = new int[256];
@@ -366,7 +419,7 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
                     int mio = turn == GameSpec.White ? 1 : -1;
                     var valores = new int[n];
                     for (int i = 0; i < n; i++) {
-                        ulong c = GameSpec.ApplyMove(p, buf[i]);
+                        ulong c = spec.Apply(p, buf[i]);
                         Outcome? term = spec.WinnerAfter(c, turn);
                         valores[i] = term != null ? (int)term.Value * mio
                                    : (int)searcher.SolveFrom(c, 1 - turn, vision - 1).result * mio;
@@ -375,8 +428,18 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
                     var opciones = Enumerable.Range(0, n).Where(i => valores[i] == mejor).ToList();
                     int mv = buf[opciones[rng.Next(opciones.Count)]];
 
-                    p = GameSpec.ApplyMove(p, mv);
+                    p = spec.Apply(p, mv);
                     ply++;
+
+                    if (spec.Libre) {
+                        var (alto, ancho) = spec.Caja(p);
+                        bool definido = alto == 3 && ancho == 3;
+                        if (!definido) sinDefinir++;
+                        if (definido && pin < 0) pin = ply;
+                        if (definido) estuvoPinchado = true;
+                        else if (estuvoPinchado) { sueltas++; estuvoPinchado = false; }
+                    }
+
                     Outcome? fin = spec.WinnerAfter(p, turn);
                     if (fin != null) { ganador = (int)fin.Value; break; }
                     turn = 1 - turn;
@@ -387,6 +450,12 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
                     else if (ganador == -1) b++;
                     else nada++;
                     turnos += ply;
+                    if (spec.Libre) {
+                        if (pin > 0) pinPrimero.Add(pin);
+                        pliesSinDefinir.Add(sinDefinir);
+                        redefiniciones += sueltas;
+                        if (sueltas > 0) partidasQueRedefinen++;
+                    }
                 }
             });
 
@@ -396,6 +465,241 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
         Console.WriteLine();
         Console.WriteLine("'ve' = cuantos plies calcula cada jugador hacia adelante.");
         Console.WriteLine("Con vision infinita el resultado seria 100/0 para uno de los dos.");
+
+        if (spec.Libre && pliesSinDefinir.Count > 0) {
+            int total = pliesSinDefinir.Count;
+            Console.WriteLine();
+            Console.WriteLine("El tablero flotante, medido sobre esas mismas partidas:");
+            Console.WriteLine($"  queda definido el 3x3 en el ply         {(pinPrimero.Count > 0 ? pinPrimero.Average() : 0),5:F1}   " +
+                              $"(nunca en el {100.0 * (total - pinPrimero.Count) / total:F0} % de las partidas)");
+            Console.WriteLine($"  turnos jugados con el 3x3 sin definir   {pliesSinDefinir.Average(),5:F1}");
+            Console.WriteLine($"  partidas donde vuelve a soltarse        {100.0 * partidasQueRedefinen / total,5:F1} %   " +
+                              $"({(double)redefiniciones / total:F2} veces por partida)");
+        }
+        return 0;
+    }
+
+    // ------------------------------------------------------------- practicas
+
+    /// <summary>
+    /// Una partida simulada con jugadores de vision limitada. Es el nucleo de `practica`,
+    /// extraido para poder correr muchos enfrentamientos y muchas reglas en un solo proceso.
+    /// Devuelve +1 gana el primero, -1 gana el segundo, 0 sin definir, y los plies jugados.
+    /// </summary>
+    private static (int ganador, int plies) UnaPartida(GameSpec spec, Searcher searcher, Random rng,
+                                                       int vision, int maxPlies) {
+        ulong p = spec.InitialPosition();
+        int turn = GameSpec.White, ply = 0;
+        var buf = new int[256];
+
+        while (ply < maxPlies) {
+            int n = spec.GenerateMoves(p, turn, buf.AsSpan());
+            if (n == 0) return (turn == GameSpec.White ? -1 : 1, ply);   // ahogado
+
+            int mio = turn == GameSpec.White ? 1 : -1;
+            var valores = new int[n];
+            for (int i = 0; i < n; i++) {
+                ulong c = spec.Apply(p, buf[i]);
+                Outcome? term = spec.WinnerAfter(c, turn);
+                valores[i] = term != null ? (int)term.Value * mio
+                           : (int)searcher.SolveFrom(c, 1 - turn, vision - 1).result * mio;
+            }
+            int mejor = valores.Max();
+            var opciones = Enumerable.Range(0, n).Where(i => valores[i] == mejor).ToList();
+
+            p = spec.Apply(p, buf[opciones[rng.Next(opciones.Count)]]);
+            ply++;
+            Outcome? fin = spec.WinnerAfter(p, turn);
+            if (fin != null) return ((int)fin.Value, ply);
+            turn = 1 - turn;
+        }
+        return (0, ply);
+    }
+
+    /// <summary>
+    /// El reparto real de muchos enfrentamientos y de las dos reglas en una sola corrida, para
+    /// poder buscar una configuracion que sirva a las dos: que con tablero se incline al
+    /// segundo y sin tablero al primero. Lee pares "blancas negras" de un archivo.
+    /// </summary>
+    private static int Practicas(Dictionary<string, string> o) {
+        string pairsFile = Str(o, "pairs-file", "");
+        int games = Int(o, "games", 2000);
+        int maxPlies = Int(o, "max-plies", 40);
+        int seed = Int(o, "seed", 20260727);
+        string outPath = Str(o, "out", "practico.csv");
+        var visiones = Str(o, "depths", "4")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToArray();
+
+        var pares = new List<(int[] w, int[] b)>();
+        foreach (var linea in File.ReadAllLines(pairsFile)) {
+            var t = linea.Split(new[] { ' ', '\t', ',' }, StringSplitOptions.RemoveEmptyEntries);
+            if (t.Length < 2 || linea.TrimStart().StartsWith("#")) continue;
+            pares.Add((ParseSet(t[0]), ParseSet(t[1])));
+        }
+
+        // Las reglas a comparar: el juego de siempre y la variante tal como la pidan las banderas.
+        var reglas = new List<(string nombre, bool libre)> { ("fijo", false), ("libre", true) };
+        var tareas = (from par in pares from reg in reglas from v in visiones
+                      select (par, reg, v)).ToList();
+
+        Console.WriteLine($"{pares.Count} enfrentamientos x {reglas.Count} reglas x {visiones.Length} visiones " +
+                          $"= {tareas.Count} corridas de {games} partidas.");
+
+        var filas = new ConcurrentBag<(string w, string b, string regla, int v, double g1, double g2, double nd, double t)>();
+        int hechas = 0;
+        var clock = Stopwatch.StartNew();
+
+        Parallel.ForEach(tareas, tarea => {
+            var (par, reg, vision) = tarea;
+            var spec = new GameSpec(par.w, par.b, reg.libre,
+                                    pegado: Flag(o, "pegado"), pegadoOrto: Flag(o, "pegado-orto"),
+                                    pegadoSiempre: Flag(o, "pegado-siempre"));
+            var searcher = new Searcher(spec, 18);
+            int w = 0, b = 0, nada = 0; long turnos = 0;
+            for (int g = 0; g < games; g++) {
+                var rng = new Random(seed + g * 7919 + vision * 104729);
+                var (ganador, plies) = UnaPartida(spec, searcher, rng, vision, maxPlies);
+                if (ganador == 1) w++; else if (ganador == -1) b++; else nada++;
+                turnos += plies;
+            }
+            filas.Add((spec.WhiteLabel, spec.BlackLabel, reg.nombre, vision,
+                       100.0 * w / games, 100.0 * b / games, 100.0 * nada / games, (double)turnos / games));
+
+            int d = System.Threading.Interlocked.Increment(ref hechas);
+            if (d % 20 == 0 || d == tareas.Count)
+                Console.WriteLine($"  {d,5}/{tareas.Count}  ({clock.Elapsed.TotalSeconds:F0}s)");
+        });
+
+        using (var f = new StreamWriter(outPath)) {
+            f.WriteLine("white,black,regla,ve,gana1,gana2,sindef,turnos");
+            foreach (var r in filas.OrderBy(r => r.w).ThenBy(r => r.b).ThenBy(r => r.regla).ThenBy(r => r.v))
+                f.WriteLine(string.Join(",", r.w, r.b, r.regla, r.v,
+                    r.g1.ToString("F2", CultureInfo.InvariantCulture),
+                    r.g2.ToString("F2", CultureInfo.InvariantCulture),
+                    r.nd.ToString("F2", CultureInfo.InvariantCulture),
+                    r.t.ToString("F2", CultureInfo.InvariantCulture)));
+        }
+        Console.WriteLine($"Escrito {outPath} ({filas.Count} filas, {clock.Elapsed.TotalSeconds:F0}s)");
+        return 0;
+    }
+
+    // --------------------------------------------------------------- trampas
+
+    /// <summary>
+    /// Mide lo que `libertad` no ve. `libertad` recorre la linea optima y cuenta opciones; esto
+    /// juega partidas de verdad y, en cada turno, compara lo que el jugador ve con lo que pasa
+    /// en realidad. Distingue tres cosas que no son lo mismo:
+    ///
+    ///  - **forzado**: en la posicion hay una sola jugada que conserva lo mejor. Puede estar a
+    ///    la vista o no.
+    ///  - **trampa**: ademas de forzada, esa jugada le parece *igual* a otras que pierden, con
+    ///    lo cual el jugador la puede errar sin enterarse. Es el caso que preocupa.
+    ///  - **riesgo**: la probabilidad de errarle en ese turno, o sea que fraccion de lo que al
+    ///    jugador le parece optimo en realidad pierde.
+    ///
+    /// Solo se cuentan los turnos en que el jugador todavia no esta perdido: si ya perdio con
+    /// juego perfecto, que haya una sola jugada "mejor" no significa nada.
+    /// </summary>
+    private static int Trampas(Dictionary<string, string> o) {
+        var white = ParseSet(Str(o, "white", "13344"));
+        var black = ParseSet(Str(o, "black", "12345"));
+        int games = Int(o, "games", 300);
+        int vision = Int(o, "vision", 4);
+        int verdad = Int(o, "verdad", 8);
+        int maxPlies = Int(o, "max-plies", 40);
+        int seed = Int(o, "seed", 20260727);
+
+        var spec = Spec(o, white, black);
+        Console.WriteLine($"{spec.WhiteLabel} (arranca) contra {spec.BlackLabel}" +
+                          (spec.Libre ? "   [sin tablero]" : "   [con tablero]"));
+        Console.WriteLine($"{games} partidas. El jugador ve {vision} plies; la verdad se mide a {verdad}.");
+
+        var totales = new long[2];
+        var forzados = new long[2];
+        var trampas = new long[2];
+        var riesgo = new double[2];
+        var perdidos = new long[2];
+        long plies = 0;
+        object candado = new();
+
+        Parallel.For(0, games, g => {
+            var rng = new Random(seed + g * 7919);
+            var corto = new Searcher(spec, 18);
+            var largo = new Searcher(spec, 20);
+            ulong p = spec.InitialPosition();
+            int turn = GameSpec.White, ply = 0;
+            var buf = new int[256];
+            var t = new long[2]; var f = new long[2]; var tr = new long[2]; var ri = new double[2];
+            var pe = new long[2];
+
+            while (ply < maxPlies) {
+                int n = spec.GenerateMoves(p, turn, buf.AsSpan());
+                if (n == 0) break;
+                int mio = turn == GameSpec.White ? 1 : -1;
+
+                var vCorto = new int[n];
+                var vLargo = new int[n];
+                for (int i = 0; i < n; i++) {
+                    ulong c = spec.Apply(p, buf[i]);
+                    Outcome? term = spec.WinnerAfter(c, turn);
+                    if (term != null) { vCorto[i] = vLargo[i] = (int)term.Value * mio; continue; }
+                    vCorto[i] = (int)corto.SolveFrom(c, 1 - turn, vision - 1).result * mio;
+                    vLargo[i] = (int)largo.SolveFrom(c, 1 - turn, verdad - 1).result * mio;
+                }
+
+                int mejorLargo = vLargo.Max();
+                int mejorCorto = vCorto.Max();
+                var creeOptimas = Enumerable.Range(0, n).Where(i => vCorto[i] == mejorCorto).ToList();
+
+                // Solo tiene sentido hablar de jugada forzada si todavia hay algo que salvar.
+                if (mejorLargo > -1) {
+                    int salvan = Enumerable.Range(0, n).Count(i => vLargo[i] == mejorLargo);
+                    int malasQueCreeBuenas = creeOptimas.Count(i => vLargo[i] != mejorLargo);
+                    t[turn]++;
+                    if (salvan == 1) f[turn]++;
+                    if (salvan == 1 && malasQueCreeBuenas > 0) tr[turn]++;
+                    ri[turn] += (double)malasQueCreeBuenas / creeOptimas.Count;
+                } else pe[turn]++;   // ya perdido a la profundidad de la verdad
+
+                p = spec.Apply(p, buf[creeOptimas[rng.Next(creeOptimas.Count)]]);
+                ply++;
+                if (spec.WinnerAfter(p, turn) != null) break;
+                turn = 1 - turn;
+            }
+
+            lock (candado) {
+                for (int k = 0; k < 2; k++) {
+                    totales[k] += t[k]; forzados[k] += f[k]; trampas[k] += tr[k];
+                    riesgo[k] += ri[k]; perdidos[k] += pe[k];
+                }
+                plies += ply;
+            }
+        });
+
+        Console.WriteLine();
+        Console.WriteLine($"Plies por partida: {(double)plies / games:F1}");
+        Console.WriteLine();
+        Console.WriteLine($"{"",-10} {"turnos",8} {"ya perdido",11} {"forzados",12} {"trampas",12} {"riesgo/turno",14}");
+        Console.WriteLine(new string('-', 72));
+        for (int k = 0; k < 2; k++) {
+            string quien = k == GameSpec.White ? "arranca" : "segundo";
+            Console.WriteLine($"{quien,-10} {totales[k],8:N0} " +
+                              $"{100.0 * perdidos[k] / (totales[k] + perdidos[k]),10:F1}% " +
+                              $"{100.0 * forzados[k] / totales[k],11:F1}% " +
+                              $"{100.0 * trampas[k] / totales[k],11:F1}% " +
+                              $"{100.0 * riesgo[k] / totales[k],13:F1}%");
+        }
+        long tt = totales[0] + totales[1];
+        long pp = perdidos[0] + perdidos[1];
+        Console.WriteLine($"{"los dos",-10} {tt,8:N0} " +
+                          $"{100.0 * pp / (tt + pp),10:F1}% " +
+                          $"{100.0 * (forzados[0] + forzados[1]) / tt,11:F1}% " +
+                          $"{100.0 * (trampas[0] + trampas[1]) / tt,11:F1}% " +
+                          $"{100.0 * (riesgo[0] + riesgo[1]) / tt,13:F1}%");
+        Console.WriteLine();
+        Console.WriteLine("'ya perdido' = turnos en que no queda nada que salvar, excluidos del resto.");
+        Console.WriteLine("forzados = una sola jugada conserva lo mejor.  trampas = ademas es indistinguible");
+        Console.WriteLine("de otra que pierde, para el que ve " + vision + " plies.  riesgo = chance de errarle ese turno.");
         return 0;
     }
 
@@ -421,6 +725,8 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
         int limit = Int(o, "limit", 0);
         int sumWindow = Int(o, "sum-window", 4);
         string outPath = Str(o, "out", "balance.csv");
+        bool libre = Flag(o, "libre");
+        bool pegadoS = Flag(o, "pegado"), pegadoOrtoS = Flag(o, "pegado-orto"), pegadoSiempreS = Flag(o, "pegado-siempre");
 
         List<int[]> whites, blacks;
         if (o.ContainsKey("white-sets") && o.ContainsKey("black-sets")) {
@@ -443,7 +749,8 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
             }
         if (limit > 0 && pairs.Count > limit) pairs = pairs.Take(limit).ToList();
 
-        Console.WriteLine($"Barriendo {pairs.Count:N0} enfrentamientos, hasta {maxDepth} plies, {budget} ms cada uno.");
+        Console.WriteLine($"Barriendo {pairs.Count:N0} enfrentamientos, hasta {maxDepth} plies, {budget} ms cada uno."
+                          + (libre ? "  [variante sin tablero]" : ""));
         Console.WriteLine($"Hilos: {Environment.ProcessorCount}");
 
         var rows = new ConcurrentBag<string>();
@@ -451,7 +758,8 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
         var clock = Stopwatch.StartNew();
 
         Parallel.ForEach(pairs, pair => {
-            var spec = new GameSpec(pair.w, pair.b);
+            var spec = new GameSpec(pair.w, pair.b, libre,
+                                    pegado: pegadoS, pegadoOrto: pegadoOrtoS, pegadoSiempre: pegadoSiempreS);
             var searcher = new Searcher(spec, ttBits);
             Outcome result = Outcome.Draw;
             int reached = 0;

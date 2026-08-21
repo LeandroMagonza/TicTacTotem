@@ -15,7 +15,7 @@ public enum Outcome { BlackWin = -1, Draw = 0, WhiteWin = 1 }
 /// rango estrictamente mayor, asi que una celda nunca tiene dos piezas del mismo rango
 /// y la pila esta siempre ordenada de menor a mayor de abajo hacia arriba.
 /// </summary>
-public sealed class GameSpec {
+public sealed partial class GameSpec {
     public const int Hand = 15;
     public const int Cells = 9;
     public const int White = 0;
@@ -44,7 +44,20 @@ public sealed class GameSpec {
     public readonly string WhiteLabel;
     public readonly string BlackLabel;
 
-    public GameSpec(IEnumerable<int> whitePieces, IEnumerable<int> blackPieces) {
+    /// <summary>Variante sin tablero fijo: el 3x3 lo delimitan las piezas. Ver Libre.cs.</summary>
+    public readonly bool Libre;
+
+    /// <summary>Sub-variante: la pieza que se coloca tiene que tocar a alguna ya puesta.</summary>
+    public readonly bool Pegado;
+    /// <summary>Tocar sólo en ortogonal (por defecto tambien vale en diagonal).</summary>
+    public readonly bool PegadoOrto;
+    /// <summary>Exigir el pegado tambien despues de que el 3x3 quedo delimitado.</summary>
+    public readonly bool PegadoSiempre;
+
+    public GameSpec(IEnumerable<int> whitePieces, IEnumerable<int> blackPieces, bool libre = false,
+                    bool pegado = false, bool pegadoOrto = false, bool pegadoSiempre = false) {
+        Libre = libre;
+        Pegado = pegado; PegadoOrto = pegadoOrto; PegadoSiempre = pegadoSiempre;
         var white = whitePieces.OrderBy(r => r).ToArray();
         var black = blackPieces.OrderBy(r => r).ToArray();
         WhiteLabel = string.Concat(white);
@@ -151,6 +164,7 @@ public sealed class GameSpec {
 
     /// <summary>Una jugada codificada como (indiceDePieza &lt;&lt; 4) | celdaDestino.</summary>
     public int GenerateMoves(ulong p, int turn, Span<int> moves) {
+        if (Libre) return GenerateMovesLibre(p, turn, moves);
         Span<int> top = stackalloc int[Cells];
         ComputeTops(p, top);
         int n = 0;
@@ -182,11 +196,18 @@ public sealed class GameSpec {
 
     public static ulong ApplyMove(ulong p, int move) => WithLoc(p, move >> 4, move & 0xF);
 
+    /// <summary>Aplica una jugada segun la variante. En el juego normal es ApplyMove.</summary>
+    public ulong Apply(ulong p, int move) => Libre ? ApplyLibre(p, move) : ApplyMove(p, move);
+
+    /// <summary>Indice de pieza y casilla destino de una jugada, segun la codificacion de la variante.</summary>
+    public int PieceOf(int move) => Libre ? move >> 5 : move >> 4;
+
     /// <summary>
     /// Representante canonico bajo las 8 simetrias del tablero y el intercambio de piezas
     /// identicas. Reduce la tabla de transposicion cerca de 8x.
     /// </summary>
     public ulong Canonical(ulong p) {
+        if (Libre) return CanonicalLibre(p);
         Span<int> loc = stackalloc int[PieceCount];
         for (int i = 0; i < PieceCount; i++) loc[i] = Loc(p, i);
 
@@ -235,6 +256,7 @@ public sealed class GameSpec {
     }
 
     public string DescribeMove(ulong p, int move, int turn) {
+        if (Libre) return DescribeMoveLibre(p, move, turn);
         int piece = move >> 4, to = move & 0xF;
         int from = Loc(p, piece);
         string who = turn == White ? "W" : "B";

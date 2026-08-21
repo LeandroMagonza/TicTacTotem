@@ -32,7 +32,7 @@ public sealed class Searcher {
     }
 
     private const int MaxPly = 64;
-    private const int MaxMoves = 128;
+    private const int MaxMoves = 256;
 
     private readonly GameSpec _spec;
     private readonly TtEntry[] _tt;
@@ -133,7 +133,7 @@ public sealed class Searcher {
         int qn = 0;
         bool anyLoss = false;
         for (int i = 0; i < n; i++) {
-            ulong child = GameSpec.ApplyMove(p, moves[i]);
+            ulong child = _spec.Apply(p, moves[i]);
             Outcome? w = _spec.WinnerAfter(child, turn);
             if (w == null) quiet[qn++] = moves[i];
             else if ((int)w.Value == winValue) return winValue;
@@ -151,7 +151,7 @@ public sealed class Searcher {
 
         try {
             for (int i = 0; i < qn; i++) {
-                ulong child = GameSpec.ApplyMove(p, quiet[i]);
+                ulong child = _spec.Apply(p, quiet[i]);
                 int v = Search(child, 1 - turn, depth - 1, alpha, beta, out bool childTainted);
                 tainted |= childTainted;
 
@@ -210,7 +210,7 @@ public sealed class Searcher {
 
     /// <summary>Valor de una jugada concreta, respetando el historial ya jugado.</summary>
     private int ChildValue(ulong p, int move, int turn, int depth, ulong[] histKey, int[] histTurn, int histLen) {
-        ulong child = GameSpec.ApplyMove(p, move);
+        ulong child = _spec.Apply(p, move);
         Outcome? w = _spec.WinnerAfter(child, turn);
         if (w != null) return (int)w.Value;
         if (depth <= 1) return 0;
@@ -229,7 +229,7 @@ public sealed class Searcher {
     /// jugadas de valor optimo, a que profundidad minima se decide cada una: el que gana
     /// elige la mas corta y el que pierde la mas larga.
     /// </summary>
-    public string PrincipalVariation(int maxDepth) {
+    public string PrincipalVariation(int maxDepth, Action<int, ulong, int>? traza = null) {
         var sb = new System.Text.StringBuilder();
         ulong p = _spec.InitialPosition();
         int turn = GameSpec.White;
@@ -271,11 +271,12 @@ public sealed class Searcher {
             if (bestMove < 0) break;
 
             sb.Append(_spec.DescribeMove(p, bestMove, turn));
+            traza?.Invoke(ply + 1, _spec.Apply(p, bestMove), turn);
             histKey[histLen] = _spec.Canonical(p);
             histTurn[histLen] = turn;
             histLen++;
 
-            p = GameSpec.ApplyMove(p, bestMove);
+            p = _spec.Apply(p, bestMove);
             Outcome? end = _spec.WinnerAfter(p, turn);
             if (end != null) {
                 sb.Append(end == Outcome.WhiteWin ? "  -> gana BLANCO" : "  -> gana NEGRO");

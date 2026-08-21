@@ -20,7 +20,7 @@ public static class Verify {
         ulong key = s.Canonical(p);
         if (path.Contains((key, turn))) return 0;
 
-        var buf = new int[128];
+        var buf = new int[256];
         int n = s.GenerateMoves(p, turn, buf.AsSpan());
         if (n == 0) return turn == GameSpec.White ? -1 : 1;   // ahogado: el que no puede mover pierde
 
@@ -28,7 +28,7 @@ public static class Verify {
         bool maximizing = turn == GameSpec.White;
         int best = maximizing ? -2 : 2;
         for (int i = 0; i < n; i++) {
-            ulong child = GameSpec.ApplyMove(p, buf[i]);
+            ulong child = s.Apply(p, buf[i]);
             Outcome? w = s.WinnerAfter(child, turn);
             int v = w != null ? (int)w.Value : Naive(s, child, 1 - turn, depth - 1, path);
             if (maximizing) { if (v > best) best = v; }
@@ -38,9 +38,11 @@ public static class Verify {
         return best == 2 || best == -2 ? 0 : best;
     }
 
-    public static bool Run(int[] white, int[] black, int maxDepth) {
-        var spec = new GameSpec(white, black);
-        Console.WriteLine($"Contraste minimax pelado vs buscador optimizado  W={spec.WhiteLabel} B={spec.BlackLabel}");
+    public static bool Run(int[] white, int[] black, int maxDepth, bool libre = false,
+                           bool pegado = false, bool pegadoOrto = false, bool pegadoSiempre = false) {
+        var spec = new GameSpec(white, black, libre, pegado, pegadoOrto, pegadoSiempre);
+        Console.WriteLine($"Contraste minimax pelado vs buscador optimizado  W={spec.WhiteLabel} B={spec.BlackLabel}"
+                        + (libre ? "   [variante sin tablero]" : ""));
         Console.WriteLine($"{"plies",6} {"pelado",-14} {"optimizado",-14} {"nodos pelado",16} {"nodos opt",14}");
 
         bool ok = true;
