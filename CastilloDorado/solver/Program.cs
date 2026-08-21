@@ -44,8 +44,9 @@ Simulador del juego de los cuatro edificios (tablero 4x4).
       Profundizacion iterativa buscando victorias forzadas desde la posicion
       inicial. Un veredicto de victoria es real; ""no se"" no dice nada.
 
-  partida [--plies 4] [--semilla 1] [--azar]
-      Juega una sola partida y la imprime jugada por jugada.
+  partida [--plies 4] [--semilla 1] [--azar] [--json]
+      Juega una sola partida y la imprime jugada por jugada. Con --json saca
+      la secuencia entera de posiciones para poder dibujarla en otro lado.
 
   comparar [--partidas 20000] [--plies 4] [--partidas-practica 300]
       Corre todas las disposiciones iniciales y las variantes de regla y arma
@@ -206,14 +207,37 @@ Reglas (en cualquier comando):
         int prof = Int(o, "plies", 4);
         Politica pol = Flag(o, "azar") ? new PoliticaAzar() : (Politica)new PoliticaBusqueda(new Busqueda(g, 22), prof);
         var rng = new Rng((ulong)Int(o, "semilla", 1));
+        bool json = Flag(o, "json");
 
-        Console.WriteLine($"Disposicion {r.Etiqueta()}, ambos con {pol.Nombre}");
-        Console.WriteLine(Juego.Dibujar(g.Inicial()));
+        var lineas = new List<string> { Juego.Linea(g.Inicial()) };
+        var jugadas = new List<string>();
+
+        if (!json) {
+            Console.WriteLine($"Disposicion {r.Etiqueta()}, ambos con {pol.Nombre}");
+            Console.WriteLine(Juego.Dibujar(g.Inicial()));
+        }
         var reg = mesa.Jugar(pol, pol, ref rng, (ply, turno, desc, b) => {
+            lineas.Add(Juego.Linea(b));
+            jugadas.Add($"{{\"ply\":{ply},\"turno\":\"{(turno == Juego.Blanco ? "blanco" : "negro")}\",\"texto\":\"{desc}\"}}");
+            if (json) return;
             Console.WriteLine($"  {ply,3}. {(turno == Juego.Blanco ? "BLANCO" : "negro ")}  {desc}");
             Console.WriteLine(Juego.Dibujar(b));
         });
-        Console.WriteLine($"  {reg.Res} por {Balance.NombreFinal[(int)reg.Fin]} en {reg.Plies} plies");
+
+        if (json) {
+            Console.WriteLine("{");
+            Console.WriteLine($"  \"inicio\": \"{r.Etiqueta()}\",");
+            Console.WriteLine($"  \"politica\": \"{pol.Nombre}\",");
+            Console.WriteLine($"  \"semilla\": {Int(o, "semilla", 1)},");
+            Console.WriteLine($"  \"resultado\": \"{reg.Res}\",");
+            Console.WriteLine($"  \"final\": \"{Balance.NombreFinal[(int)reg.Fin]}\",");
+            Console.WriteLine($"  \"plies\": {reg.Plies},");
+            Console.WriteLine($"  \"posiciones\": [{string.Join(", ", lineas.ConvertAll(x => $"\"{x}\""))}],");
+            Console.WriteLine($"  \"jugadas\": [{string.Join(", ", jugadas)}]");
+            Console.WriteLine("}");
+        } else {
+            Console.WriteLine($"  {reg.Res} por {Balance.NombreFinal[(int)reg.Fin]} en {reg.Plies} plies");
+        }
         return 0;
     }
 

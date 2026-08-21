@@ -40,9 +40,11 @@ Tres cosas más, todas medidas:
   jugando primero y el **100%** jugando segundo. El juego tiene profundidad; el problema
   no es que sea plano, es que entre iguales no se puede cerrar.
 
-Y una regla entera que nunca se usa: **la derrota por quedarse sin constructor y sin taller
-no ocurrió ni una sola vez en 2.000.000 de partidas**, repartidas en las cuatro
-disposiciones y las cinco lecturas de regla. Está en la sección 5.
+Y una regla entera que no se puede usar: **la derrota por quedarse sin constructor y sin
+taller es inalcanzable**, y no por poco probable sino por imposible. Sólo podés entrar a un
+edificio que no tenés, los dos arrancan con taller, y nada saca un edificio del tablero: el
+taller no puede cambiar de manos nunca. Cero derrotas así en 2.000.000 de partidas, que es
+lo que la prueba anticipa. Está en la sección 5.
 
 ---
 
@@ -80,12 +82,17 @@ sacar unidades, y sin constructor no hay quien levante nada. Probé cuatro dispo
 todas simétricas por giro de 180 grados para que ninguna le dé ventaja posicional a nadie:
 
 ```
-  esquinas        frentes         diagonal        centro
-  T C . .         . T C .         T . . .         . . . .
-  . . . .         . . . .         . C . .         C T . .
-  . . . .         . . . .         . . c .         . . t c
-  . . c t         . c t .         . . . t         . . . .
+  esquinas        frentes         diagonal        centro          solo-taller
+  T C . .         . T C .         T . . .         . . . .         T . . .
+  . . . .         . . . .         . C . .         C T . .         . . . .
+  . . . .         . . . .         . . c .         . . t c         . . . .
+  . . c t         . c t .         . . . t         . . . .         . . . t
 ```
+
+`solo-taller` es la lectura de que se arranca sólo con el taller y el primer turno se gasta
+en desplegar al constructor. Da casi lo mismo que `esquinas`: 50,9 de reparto contra 50,8
+al azar, y 49,9 contra 49,9 con los dos mirando 14 plies. Traba un poco menos (42,7% de
+empates al azar contra 48,0%), pero no cambia ninguna conclusión.
 
 Mayúscula es el primer jugador, minúscula el segundo. `T`=taller, `C`=constructor,
 `Q`=cuartel, `I`=iglesia, `G`=guerrero, `S`=sacerdote, `*`=castillo.
@@ -213,25 +220,34 @@ alguna vez.
 constructor y sin taller. Ni al azar ni con búsqueda, en ninguna disposición, con ninguna
 variante de regla activada.
 
-No es mala suerte, es aritmética de turnos. Para matar a alguien necesitás las dos cosas a
-la vez: su constructor fuera del tablero **y** su taller tomado. Pero:
+Y no es mala suerte: es imposible, y se demuestra en tres renglones.
 
-1. Matás el constructor con tu guerrero. Te costó un turno.
-2. **En su turno siguiente lo vuelve a sacar del taller, gratis.**
-3. Tu guerrero nunca llega a tomar el taller antes de que el constructor esté de vuelta.
+Para perder hace falta quedarse sin constructor **y** sin taller. El constructor vuelve a
+salir del taller al turno siguiente de morir, gratis, así que la única derrota real pasa
+por perder el taller. Ahora bien:
 
-Y si tomás el taller primero, el constructor sigue vivo en el tablero y simplemente
-construye otro taller. La única forma de que salga es que el taller tenga **todas** sus
-casillas adyacentes ocupadas en el momento exacto en que el constructor está muerto, y eso
-nunca pasó solo.
+1. Al taller sólo se le puede entrar con el guerrero, y **sólo podés entrar a un edificio
+   que no tenés**.
+2. Los dos arrancan con taller.
+3. Ninguna otra jugada saca un edificio del tablero: los edificios sólo cambian de dueño.
+
+O sea que nadie carece nunca de taller, así que nadie puede entrar al del otro, así que
+nadie pierde nunca el suyo. **El taller es inmortal por inducción desde la primera jugada**,
+y la derrota por eliminación es inalcanzable, no rara.
+
+La medición coincide con la prueba: en 200.000 partidas al azar hubo **49.120 tomas de
+edificio y ninguna fue de un taller**. El selftest lo comprueba en las dos direcciones (con
+taller propio no se puede entrar, sin taller propio sí) y barre los primeros 8 plies desde
+la posición inicial verificando que nadie pierde nunca el suyo.
 
 El guerrero igual se usa: hay al menos una matanza en el 64% de las partidas al azar y en
 el 86% a 8 plies. Lo que no existe es la **victoria** por eliminación. Matar sirve para
 ganar tiempo, no para ganar.
 
-Si querés que esa vía exista, lo que hay que tocar es el redespliegue: que salir de un
-edificio cueste más de un turno, que no se pueda desplegar el turno inmediato a la muerte,
-o que cada unidad tenga un número limitado de vidas.
+Si querés que esa vía exista hay que romper el candado por algún lado: que el guerrero
+pueda entrar a cualquier edificio aunque ya tenga uno de ese tipo, que los edificios se
+puedan demoler, o que arranque sin taller alguno. Y aparte hay que encarecer el
+redespliegue, porque si no matar al constructor sigue deshaciéndose en un turno.
 
 ---
 
@@ -326,14 +342,40 @@ En orden de cuánto cambian el juego, de menos a más:
    es 13. El 4x4 no está apretado, está exactamente en el límite. **Ojo que esto no está
    implementado**: el tablero entra en un `ulong` de 64 bits justo porque son 16 casillas
    de 4 bits, y 25 casillas no entran.
-5. **Arreglar el redespliegue** para que la eliminación exista (sección 5).
+5. **Que el castillo haya que tomarlo, no sólo levantarlo.** Idea tuya, anotada acá para no
+   perderla: se construye el castillo, y ganás si al turno siguiente entrás en él, y sólo
+   podés entrar teniendo los otros tres edificios. Le da al rival una ventana de un turno
+   para romper la jugada, y de paso le devuelve trabajo al sacerdote y al guerrero, que hoy
+   no tienen forma de tocar la condición de victoria. **Sin implementar**: antes de medirla
+   hay que decidir quién entra (¿cualquier unidad?, ¿sólo el constructor?) y qué pasa si le
+   toman un edificio con el castillo ya puesto.
+6. **Arreglar el candado del taller y el redespliegue** para que la eliminación exista
+   (sección 5).
 
 Lo que **no** recomiendo es sacar el no-pegado: es lo único que evita que el primer jugador
 gane forzado en 5 o 7 plies.
 
 ---
 
-## 10. Cómo correrlo
+## 10. Ver una partida
+
+Hay dos partidas completas anotadas jugada por jugada, con el tablero paso a paso, acá:
+
+**https://claude.ai/code/artifact/271c812f-4da6-491a-9c3a-d758f4827622**
+
+- *La que se gana*: 19 plies, gana el primero con el castillo. Tiene una toma de edificio,
+  una muerte del constructor con su reaparición inmediata al turno siguiente, y una jugada
+  ganadora que no es un ataque sino correr al guerrero para desocupar la única casilla donde
+  entraba el castillo.
+- *La que se traba*: 18 plies, empate. El primero se sella el constructor con su propio
+  tercer edificio en la jugada 5, y los trece plies que siguen no cambian nada.
+
+Las dos salen de `castillo partida --json`, así que las posiciones son exactamente las que
+calcula el motor.
+
+---
+
+## 11. Cómo correrlo
 
 ```bash
 cd CastilloDorado/solver
@@ -343,7 +385,7 @@ dotnet build -c Release
 
 | Comando | Qué hace |
 |---|---|
-| `selftest` | 41 tests, uno por regla. Si cambiás una regla, cambiá el test que la nombra. |
+| `selftest` | 45 tests, uno por regla. Si cambiás una regla, cambiá el test que la nombra. |
 | `perft --prof 8` | Árbol completo hasta esa profundidad. Da el factor de ramificación. |
 | `azar --partidas 200000` | Los dos al azar. La forma cruda del juego. |
 | `practica --plies 12 --partidas 1200` | Los dos miran N plies con evaluación de material. |
@@ -355,7 +397,7 @@ dotnet build -c Release
 Banderas de regla, válidas en cualquier comando:
 
 ```
---inicio esquinas|frentes|diagonal|centro
+--inicio esquinas|frentes|diagonal|centro|solo-taller
 --sacerdote-edificios     el sacerdote tambien convierte edificios
 --guerrero-queda          el guerrero no entra al edificio que toma
 --obra-libre              se cae la regla del no-pegado
@@ -371,7 +413,7 @@ Banderas de regla, válidas en cualquier comando:
 | `Juego.cs` | Codificación, generación de jugadas, aplicación, finales, simetrías, disposiciones. |
 | `Busqueda.cs` | Alfa-beta con tabla de transposición. Dos modos: práctico (evalúa) y exacto (sólo prueba victorias). |
 | `Partida.cs` | Corre partidas enteras, cuenta repeticiones, acumula el diagnóstico. |
-| `SelfTest.cs` | Los 41 tests de reglas más un barrido exhaustivo de 6 plies. |
+| `SelfTest.cs` | Los 45 tests de reglas más un barrido exhaustivo de 6 plies. |
 | `Program.cs` | La línea de comandos. |
 
 ### Cómo está guardada una posición

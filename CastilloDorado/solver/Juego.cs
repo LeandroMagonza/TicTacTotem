@@ -350,6 +350,15 @@ public sealed class Juego {
         return Dueno(cod) == Blanco ? l : char.ToLowerInvariant(l);
     }
 
+    /// <summary>Las 16 casillas en una linea, para exportar.</summary>
+    public static string Linea(ulong b) {
+        var sb = new StringBuilder(Casillas);
+        for (int c = 0; c < Casillas; c++) sb.Append(Simbolo(En(b, c)));
+        return sb.ToString();
+    }
+
+    public static readonly string[] NombreJugada = { "mover", "matar", "tomar", "construir", "desplegar", "convertir", "coronar" };
+
     public static string Dibujar(ulong b) {
         var sb = new StringBuilder();
         for (int f = 0; f < 4; f++) {
@@ -360,7 +369,7 @@ public sealed class Juego {
         return sb.ToString();
     }
 
-    private static string Casilla(int c) => $"{(char)('a' + c % 4)}{4 - c / 4}";
+    public static string Casilla(int c) => $"{(char)('a' + c % 4)}{4 - c / 4}";
 
     private static readonly string[] NombreTipo = { "constructor", "guerrero", "sacerdote", "taller", "cuartel", "iglesia" };
 
