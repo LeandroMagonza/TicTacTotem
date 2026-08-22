@@ -7,6 +7,14 @@ TaTeTi con Esteroides: vive en esta carpeta aparte y no comparte nada de código
 El motor está en `solver/`. Es C# sobre .NET 9, con generación de jugadas exacta,
 búsqueda alfa-beta y tests que comprueban regla por regla.
 
+> **Hay una segunda versión del juego, y es mejor.** El juego del rey está en
+> [`rey/`](rey/README.md), con su propio motor y su propio README. Arregla las tres cosas
+> que este documento demuestra que están rotas: el empate se derrumba de 48% a **0,83%**,
+> los ahogados de 15,3% a **0,01%** y el constructor no se tapia nunca más, porque los
+> edificios pasaron a ser terreno por el que se camina. A cambio trae un problema nuevo —el
+> primero gana— que también tiene arreglo medido. Lo que sigue acá abajo es el juego
+> original, que sigue andando y sigue siendo de donde salieron todos los diagnósticos.
+
 ---
 
 ## 1. Lo que salió
