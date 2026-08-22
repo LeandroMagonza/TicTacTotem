@@ -21,6 +21,7 @@ public struct Registro {
     public int TomasTaller;              // de esas, cuantas fueron de un taller
     public int Conversiones;             // jugadas CONVERTIR
     public int Obras;                    // jugadas CONSTRUIR
+    public int Entradas;                 // jugadas ENTRAR (reclamos del castillo)
 }
 
 /// <summary>Como elige una jugada un jugador. La mesa ya genero la lista y descarto el ahogado.</summary>
@@ -117,6 +118,7 @@ public sealed class Mesa {
                     break;
                 case Juego.CONVERTIR: reg.Conversiones++; break;
                 case Juego.CONSTRUIR: reg.Obras++; break;
+                case Juego.ENTRAR: reg.Entradas++; break;
             }
 
             _historia.Add(b);
@@ -148,7 +150,7 @@ public sealed class Balance {
     public int MasCorta = int.MaxValue, MasLarga;
     public readonly int[] EdificiosMax = new int[4];   // histograma del mejor de los dos
     public long TresSinCoronar, TresYCoronar, Tapiado, SinConstructor;
-    public long Matanzas, Tomas, TomasTaller, Conversiones, Obras;
+    public long Matanzas, Tomas, TomasTaller, Conversiones, Obras, Entradas;
     public int ConAlgunaMatanza, ConAlgunaToma, ConAlgunaConversion;
 
     public void Sumar(in Registro r) {
@@ -168,7 +170,7 @@ public sealed class Balance {
         Tapiado += r.TurnosTapiado;
         SinConstructor += r.TurnosSinConstructor;
         Matanzas += r.Matanzas; Tomas += r.Tomas; TomasTaller += r.TomasTaller;
-        Conversiones += r.Conversiones; Obras += r.Obras;
+        Conversiones += r.Conversiones; Obras += r.Obras; Entradas += r.Entradas;
         if (r.Matanzas > 0) ConAlgunaMatanza++;
         if (r.Tomas > 0) ConAlgunaToma++;
         if (r.Conversiones > 0) ConAlgunaConversion++;
@@ -183,7 +185,7 @@ public sealed class Balance {
         TresSinCoronar += o.TresSinCoronar; TresYCoronar += o.TresYCoronar;
         Tapiado += o.Tapiado; SinConstructor += o.SinConstructor;
         Matanzas += o.Matanzas; Tomas += o.Tomas; TomasTaller += o.TomasTaller;
-        Conversiones += o.Conversiones; Obras += o.Obras;
+        Conversiones += o.Conversiones; Obras += o.Obras; Entradas += o.Entradas;
         ConAlgunaMatanza += o.ConAlgunaMatanza; ConAlgunaToma += o.ConAlgunaToma;
         ConAlgunaConversion += o.ConAlgunaConversion;
         if (o.Partidas > 0) {
@@ -235,5 +237,6 @@ public sealed class Balance {
         Console.WriteLine($"    obras {(double)Obras / Partidas,5:F2}   matanzas {(double)Matanzas / Partidas,5:F2}   tomas {(double)Tomas / Partidas,5:F2}   conversiones {(double)Conversiones / Partidas,5:F2}");
         Console.WriteLine($"    partidas con al menos una:  matanza {100.0 * ConAlgunaMatanza / Partidas,5:F1}%   toma {100.0 * ConAlgunaToma / Partidas,5:F1}%   conversion {100.0 * ConAlgunaConversion / Partidas,5:F1}%");
         Console.WriteLine($"    de las {Tomas:N0} tomas de edificio, tomas de un TALLER: {TomasTaller:N0}");
+        if (Entradas > 0) Console.WriteLine($"    entradas al castillo {(double)Entradas / Partidas,5:F2} por partida");
     }
 }

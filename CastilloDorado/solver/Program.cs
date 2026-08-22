@@ -56,8 +56,13 @@ Reglas (en cualquier comando):
   --inicio esquinas|frentes|diagonal|centro   disposicion inicial (por defecto esquinas)
   --sacerdote-edificios    el sacerdote tambien convierte edificios enemigos
   --guerrero-queda         al tomar un edificio el guerrero no entra, se queda afuera
+  --toma-libre             el guerrero entra a cualquier edificio enemigo, incluso de un tipo
+                           que ya tenga: podes terminar con dos iguales, y el taller se toma
   --obra-libre             se cae la regla de que dos edificios no pueden estar pegados
   --castillo-libre         el no-pegado vale para los tres edificios pero no para el castillo
+  --castillo-claim         el castillo se levanta neutral y en cualquier momento; gana el que
+                           tenga los tres edificios Y una unidad metida adentro del castillo
+  --sacerdote-reubica      el sacerdote convierte aunque ya tenga esa pieza: la muda ahi
   --repeticiones 3         cuantas repeticiones de una posicion son empate
   --plies-max 300          tope de plies antes de dar la partida por no resuelta
 ");
@@ -86,8 +91,11 @@ Reglas (en cualquier comando):
         Inicio = Str(o, "inicio", "esquinas"),
         SacerdoteEdificios = Flag(o, "sacerdote-edificios"),
         GuerreroQueda = Flag(o, "guerrero-queda"),
+        TomaLibre = Flag(o, "toma-libre"),
         ObraLibre = Flag(o, "obra-libre"),
         CastilloLibre = Flag(o, "castillo-libre"),
+        CastilloClaim = Flag(o, "castillo-claim"),
+        SacerdoteReubica = Flag(o, "sacerdote-reubica"),
         RepeticionesEmpate = Int(o, "repeticiones", 3),
         PliesMax = Int(o, "plies-max", 300),
     };
@@ -253,8 +261,11 @@ Reglas (en cualquier comando):
             ("base", _ => { }),
             ("sacerdote-edificios", x => x.SacerdoteEdificios = true),
             ("guerrero-queda", x => x.GuerreroQueda = true),
+            ("toma-libre", x => x.TomaLibre = true),
             ("obra-libre", x => x.ObraLibre = true),
             ("castillo-libre", x => x.CastilloLibre = true),
+            ("castillo-claim", x => x.CastilloClaim = true),
+            ("sacerdote-reubica", x => x.SacerdoteReubica = true),
         };
 
         Console.WriteLine($"Al azar, {partidasAzar:N0} partidas por fila");

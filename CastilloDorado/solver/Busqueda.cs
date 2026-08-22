@@ -72,6 +72,14 @@ public sealed class Busqueda {
             if (Juego.Hay(pres, d, Juego.Taller)) s += sg * 40;           // el taller es la vida
             if (Juego.Hay(pres, d, Juego.Constructor)) s += sg * 30;
         }
+        // El reclamo del castillo vale como un cuarto edificio, y mucho mas con los tres.
+        if (_g.R.CastilloClaim) {
+            int r = Juego.ReclamoCastillo(pres);
+            if (r >= 0) {
+                int sg = r == turno ? 1 : -1;
+                s += sg * (120 + (Juego.Edificios(pres, r) == 3 ? 400 : 0));
+            }
+        }
         // Un constructor sin donde construir no vale nada: contar los sitios de obra que tiene.
         for (int c = 0; c < Juego.Casillas; c++) {
             int v = Juego.En(b, c);
@@ -167,6 +175,7 @@ public sealed class Busqueda {
 
     private static int Prioridad(int j) {
         switch (Juego.JTipo(j)) {
+            case Juego.ENTRAR: return 7;
             case Juego.CORONAR: return 6;
             case Juego.TOMAR: return 5;
             case Juego.CONVERTIR: return 4;

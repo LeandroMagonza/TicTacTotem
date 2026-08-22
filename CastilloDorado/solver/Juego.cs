@@ -28,11 +28,32 @@ public sealed class Reglas {
     /// <summary>Al tomar un edificio el guerrero NO entra: se queda donde estaba.</summary>
     public bool GuerreroQueda = false;
 
+    /// <summary>
+    /// Se cae la restriccion de no poder entrar a un edificio del tipo que ya tenes. El
+    /// guerrero entra a cualquier edificio enemigo, y podes terminar con dos del mismo tipo
+    /// (el segundo no suma para ganar: sirve para negarselo al otro). Es la unica palanca
+    /// que abre el candado del taller y revive la regla de eliminacion.
+    /// </summary>
+    public bool TomaLibre = false;
+
     /// <summary>Se cae la regla de que dos edificios no pueden estar pegados.</summary>
     public bool ObraLibre = false;
 
     /// <summary>La regla del no-pegado sigue valiendo para los tres edificios, pero no para el castillo.</summary>
     public bool CastilloLibre = false;
+
+    /// <summary>
+    /// El castillo no se gana levantandolo: se levanta neutral y en cualquier momento, y
+    /// cualquier unidad puede meterse adentro para reclamarlo. Gana el que tenga los tres
+    /// edificios Y el reclamo del castillo al mismo tiempo.
+    /// </summary>
+    public bool CastilloClaim = false;
+
+    /// <summary>
+    /// El sacerdote convierte aunque ya tenga esa pieza: en vez de traerla de afuera,
+    /// la mueve desde donde estuviera. O sea que nunca termina con dos, la reubica.
+    /// </summary>
+    public bool SacerdoteReubica = false;
 
     /// <summary>Cuantas veces tiene que repetirse una posicion para que sea empate.</summary>
     public int RepeticionesEmpate = 3;
@@ -49,8 +70,11 @@ public sealed class Reglas {
         var sb = new StringBuilder(Inicio);
         if (SacerdoteEdificios) sb.Append("+sacerdote-edificios");
         if (GuerreroQueda) sb.Append("+guerrero-queda");
+        if (TomaLibre) sb.Append("+toma-libre");
         if (ObraLibre) sb.Append("+obra-libre");
         if (CastilloLibre) sb.Append("+castillo-libre");
+        if (CastilloClaim) sb.Append("+castillo-claim");
+        if (SacerdoteReubica) sb.Append("+sacerdote-reubica");
         return sb.ToString();
     }
 }
@@ -74,12 +98,14 @@ public sealed class Juego {
     public const int Taller = 3, Cuartel = 4, Iglesia = 5;
 
     public const int Vacio = 0;
-    public const int Castillo = 13;   // el castillo dorado no es de nadie
+    public const int Castillo = 13;         // el castillo dorado sin reclamar
+    public const int CastilloBlanco = 14;   // con una unidad blanca adentro
+    public const int CastilloNegro = 15;    // con una unidad negra adentro
 
     public const int MaxJugadas = 96;
 
     // Tipos de jugada
-    public const int MOVER = 0, MATAR = 1, TOMAR = 2, CONSTRUIR = 3, DESPLEGAR = 4, CONVERTIR = 5, CORONAR = 6;
+    public const int MOVER = 0, MATAR = 1, TOMAR = 2, CONSTRUIR = 3, DESPLEGAR = 4, CONVERTIR = 5, CORONAR = 6, ENTRAR = 7;
 
     public readonly Reglas R;
     public readonly int[][] Ady = new int[Casillas][];
@@ -117,9 +143,14 @@ public sealed class Juego {
     public static int Cod(int dueno, int tipo) => 1 + dueno * 6 + tipo;
     public static int Tipo(int cod) => (cod - 1) % 6;
     public static int Dueno(int cod) => (cod - 1) / 6;
-    public static bool EsPieza(int cod) => cod != Vacio && cod != Castillo;
+    public static bool EsPieza(int cod) => cod != Vacio && cod < Castillo;
     public static bool EsUnidad(int cod) => EsPieza(cod) && Tipo(cod) <= Sacerdote;
-    public static bool EsEdificio(int cod) => cod == Castillo || (EsPieza(cod) && Tipo(cod) >= Taller);
+    public static bool EsCastillo(int cod) => cod >= Castillo;
+    public static bool EsEdificio(int cod) => EsCastillo(cod) || (EsPieza(cod) && Tipo(cod) >= Taller);
+
+    /// <summary>Dueno del castillo, o -1 si esta vacio. Solo tiene sentido con CastilloClaim.</summary>
+    public static int DuenoCastillo(int cod) => cod == CastilloBlanco ? Blanco : cod == CastilloNegro ? Negro : -1;
+    public static int CodCastillo(int dueno) => dueno == Blanco ? CastilloBlanco : CastilloNegro;
 
     public static int En(ulong b, int c) => (int)((b >> (c * 4)) & 0xF);
     public static ulong Con(ulong b, int c, int v) => (b & ~(0xFUL << (c * 4))) | ((ulong)v << (c * 4));
@@ -132,6 +163,14 @@ public sealed class Juego {
     }
 
     public static bool Hay(int pres, int dueno, int tipo) => (pres & (1 << Cod(dueno, tipo))) != 0;
+
+    /// <summary>Hay un castillo en el tablero, reclamado o no.</summary>
+    public static bool HayCastillo(int pres) =>
+        (pres & ((1 << Castillo) | (1 << CastilloBlanco) | (1 << CastilloNegro))) != 0;
+
+    /// <summary>Quien tiene el reclamo del castillo, o -1 si no hay o esta vacio.</summary>
+    public static int ReclamoCastillo(int pres) =>
+        (pres & (1 << CastilloBlanco)) != 0 ? Blanco : (pres & (1 << CastilloNegro)) != 0 ? Negro : -1;
 
     /// <summary>Sin constructor en el tablero y sin taller propio no hay forma de volver a construir.</summary>
     public static bool Muerto(int pres, int dueno) =>
@@ -174,6 +213,7 @@ public sealed class Juego {
         int n = 0;
         int pres = Presentes(b);
         bool tieneLosTres = Edificios(pres, turno) == 3;
+        bool hayCastillo = HayCastillo(pres);
 
         for (int c = 0; c < Casillas; c++) {
             int v = En(b, c);
@@ -184,7 +224,12 @@ public sealed class Juego {
                 foreach (int a in Ady[c]) {
                     int w = En(b, a);
                     if (w == Vacio) { buf[n++] = Jug(MOVER, c, a, 0); continue; }
-                    if (w == Castillo) continue;
+                    if (EsCastillo(w)) {
+                        // Cualquier unidad puede meterse adentro y reclamarlo, salvo que
+                        // ya sea nuestro. Sin la regla del claim el castillo es intocable.
+                        if (R.CastilloClaim && DuenoCastillo(w) != turno) buf[n++] = Jug(ENTRAR, c, a, 0);
+                        continue;
+                    }
                     if (Dueno(w) == turno) continue;
                     int tw = Tipo(w);
 
@@ -192,13 +237,15 @@ public sealed class Juego {
                         // El guerrero mata unidades pisandolas, y toma edificios metiendose
                         // adentro, pero solo si no tiene ya uno de ese tipo.
                         if (tw <= Sacerdote) buf[n++] = Jug(MATAR, c, a, 0);
-                        else if (!Hay(pres, turno, tw)) buf[n++] = Jug(TOMAR, c, a, 0);
+                        else if (!Hay(pres, turno, tw) || R.TomaLibre) buf[n++] = Jug(TOMAR, c, a, 0);
                     } else if (t == Sacerdote) {
                         // El sacerdote reemplaza la pieza enemiga por la propia del mismo
-                        // tipo, que tiene que estar fuera del tablero.
+                        // tipo, que tiene que estar fuera del tablero. Con SacerdoteReubica
+                        // tambien vale tenerla en el tablero: en ese caso se muda ahi.
                         bool edificio = tw >= Taller;
                         if (edificio && !R.SacerdoteEdificios) continue;
-                        if (!Hay(pres, turno, tw)) buf[n++] = Jug(CONVERTIR, c, a, 0);
+                        if (!Hay(pres, turno, tw) || (R.SacerdoteReubica && !edificio))
+                            buf[n++] = Jug(CONVERTIR, c, a, 0);
                     }
                 }
 
@@ -207,7 +254,10 @@ public sealed class Juego {
                         if (SitioDeObra(b, a, false))
                             for (int tb = Taller; tb <= Iglesia; tb++)
                                 if (!Hay(pres, turno, tb)) buf[n++] = Jug(CONSTRUIR, c, a, tb);
-                        if (tieneLosTres && SitioDeObra(b, a, true)) buf[n++] = Jug(CORONAR, c, a, 0);
+                        // Levantar el castillo con la regla clasica gana la partida y pide los
+                        // tres edificios. Con el claim no gana nada, asi que se puede cuando sea.
+                        if ((tieneLosTres || R.CastilloClaim) && !hayCastillo && SitioDeObra(b, a, true))
+                            buf[n++] = Jug(CORONAR, c, a, 0);
                     }
                 }
             } else {
@@ -238,11 +288,22 @@ public sealed class Juego {
             case CONSTRUIR:
                 return Con(b, hasta, Cod(turno, extra));
             case CORONAR:
+                // Con el claim el castillo nace neutral y el constructor se queda afuera.
                 return Con(b, hasta, Castillo);
+            case ENTRAR:
+                return Con(Con(b, desde, Vacio), hasta, CodCastillo(turno));
             case DESPLEGAR:
                 return Con(b, hasta, Cod(turno, extra));
-            case CONVERTIR:
-                return Con(b, hasta, Cod(turno, Tipo(En(b, hasta))));
+            case CONVERTIR: {
+                int tw = Tipo(En(b, hasta));
+                ulong nb = Con(b, hasta, Cod(turno, tw));
+                if (!R.SacerdoteReubica) return nb;
+                // Si ya teniamos esa pieza en el tablero no aparece una segunda: se muda.
+                int mio = Cod(turno, tw);
+                for (int c = 0; c < Casillas; c++)
+                    if (c != hasta && En(b, c) == mio) return Con(nb, c, Vacio);
+                return nb;
+            }
             default:
                 throw new InvalidOperationException("tipo de jugada desconocido");
         }
@@ -256,7 +317,13 @@ public sealed class Juego {
     /// </summary>
     public (Resultado res, Final fin)? Terminal(ulong b, int turno) {
         int pres = Presentes(b);
-        if ((pres & (1 << Castillo)) != 0) {
+        if (R.CastilloClaim) {
+            // Levantarlo no gana nada. Gana el que tenga los tres edificios y ademas el
+            // reclamo del castillo, o sea cuatro edificios distintos bajo su control.
+            int r = ReclamoCastillo(pres);
+            if (r >= 0 && Edificios(pres, r) == 3)
+                return (r == Blanco ? Resultado.Blanco : Resultado.Negro, Final.Castillo);
+        } else if (HayCastillo(pres)) {
             // El castillo lo levanto el que acaba de jugar, o sea el rival del turno.
             int ganador = 1 - turno;
             return (ganador == Blanco ? Resultado.Blanco : Resultado.Negro, Final.Castillo);
@@ -346,6 +413,8 @@ public sealed class Juego {
     public static char Simbolo(int cod) {
         if (cod == Vacio) return '.';
         if (cod == Castillo) return '*';
+        if (cod == CastilloBlanco) return 'D';
+        if (cod == CastilloNegro) return 'd';
         char l = Letra[Tipo(cod)];
         return Dueno(cod) == Blanco ? l : char.ToLowerInvariant(l);
     }
@@ -357,7 +426,7 @@ public sealed class Juego {
         return sb.ToString();
     }
 
-    public static readonly string[] NombreJugada = { "mover", "matar", "tomar", "construir", "desplegar", "convertir", "coronar" };
+    public static readonly string[] NombreJugada = { "mover", "matar", "tomar", "construir", "desplegar", "convertir", "coronar", "entrar" };
 
     public static string Dibujar(ulong b) {
         var sb = new StringBuilder();
@@ -381,7 +450,8 @@ public sealed class Juego {
             case MATAR: return $"{quien} {Casilla(desde)}x{Casilla(hasta)} mata {NombreTipo[Tipo(En(b, hasta))]}";
             case TOMAR: return $"{quien} {Casilla(desde)} toma {NombreTipo[Tipo(En(b, hasta))]} en {Casilla(hasta)}";
             case CONSTRUIR: return $"construye {NombreTipo[extra]} en {Casilla(hasta)}";
-            case CORONAR: return $"CASTILLO DORADO en {Casilla(hasta)}";
+            case CORONAR: return $"levanta el CASTILLO DORADO en {Casilla(hasta)}";
+            case ENTRAR: return $"{quien} {Casilla(desde)} entra al CASTILLO en {Casilla(hasta)}";
             case DESPLEGAR: return $"despliega {NombreTipo[extra]} de {Casilla(desde)} a {Casilla(hasta)}";
             case CONVERTIR: return $"sacerdote {Casilla(desde)} convierte {NombreTipo[Tipo(En(b, hasta))]} en {Casilla(hasta)}";
             default: return "?";
