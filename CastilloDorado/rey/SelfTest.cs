@@ -150,6 +150,22 @@ public static class SelfTest {
         Check("y sin cuartel sigue teniendo el poder del guerrero, como pediste",
               Tiene(ge, sinCuartel, B, Juego.MATAR, 5));
 
+        // Cuarta lectura: hace falta no tener NI la unidad NI el edificio.
+        var gr = new Juego(new Reglas { ReyReino = true });
+        Check("con --rey-reino, teniendo taller y constructor el rey no construye",
+              !TieneDesde(gr, guarnecido, B, Juego.CONSTRUIR, 5, 6));
+        Pos sinCon = new Pos(guarnecido.Ed, Juego.Con(guarnecido.Un, 0, 0));
+        Check("le matan el constructor pero le queda el taller: sigue sin poder, desplegara otro",
+              !TieneDesde(gr, sinCon, B, Juego.CONSTRUIR, 5, 6) &&
+              TieneTipo(gr, sinCon, B, Juego.DESPLEGAR));
+        Pos sinConNiTaller = U(sinCon, N, Juego.Guerrero, 0);
+        Check("le matan el constructor Y le ocupan el taller: ahi si vuelve a construir",
+              TieneDesde(gr, sinConNiTaller, B, Juego.CONSTRUIR, 5, 6));
+        Check("y con el constructor vivo pero el taller ocupado, sigue sin poder",
+              !TieneDesde(gr, U(guarnecido, N, Juego.Guerrero, 1), B, Juego.CONSTRUIR, 5, 6));
+        Check("con --rey-por-edificio, en cambio, alcanza con perder el taller",
+              TieneDesde(ge, U(guarnecido, N, Juego.Guerrero, 0), B, Juego.CONSTRUIR, 5, 6));
+
         Console.WriteLine("Los edificios son terreno");
 
         Pos terreno = U(U(vacio, B, Juego.Constructor, 4), B, Juego.Rey, 12);
@@ -173,14 +189,33 @@ public static class SelfTest {
         Console.WriteLine("Quien controla que");
 
         Check("edificio propio y vacio: lo controlas vos",
-              Juego.Controla(E(vacio, B, Juego.Taller, 5), 5) == B);
+              g.Controla(E(vacio, B, Juego.Taller, 5), 5) == B);
         Check("edificio propio con una unidad enemiga encima: lo controla el enemigo",
-              Juego.Controla(U(E(vacio, B, Juego.Taller, 5), N, Juego.Guerrero, 5), 5) == N);
+              g.Controla(U(E(vacio, B, Juego.Taller, 5), N, Juego.Guerrero, 5), 5) == N);
         Check("edificio enemigo ocupado por tu unidad: lo controlas vos",
-              Juego.Controla(entro, 5) == B);
-        Check("el castillo vacio no es de nadie", Juego.Controla(Cast(vacio, 5), 5) == -1);
+              g.Controla(entro, 5) == B);
+        Check("el castillo vacio no es de nadie", g.Controla(Cast(vacio, 5), 5) == -1);
         Check("controlar cuenta TIPOS: dos edificios del mismo tipo son uno solo",
-              Juego.Edificios(E(E(vacio, B, Juego.Taller, 0), B, Juego.Taller, 3), B) == 1);
+              g.Edificios(E(E(vacio, B, Juego.Taller, 0), B, Juego.Taller, 3), B) == 1);
+
+        // Solo el guerrero da vuelta el control de un edificio.
+        var gcg = new Juego(new Reglas { ControlGuerrero = true });
+        Pos miTaller = E(vacio, B, Juego.Taller, 5);
+        Check("con --control-guerrero, un constructor enemigo encima no te saca el control",
+              gcg.Controla(U(miTaller, N, Juego.Constructor, 5), 5) == B);
+        Check("un sacerdote enemigo tampoco",
+              gcg.Controla(U(miTaller, N, Juego.Sacerdote, 5), 5) == B);
+        Check("ni el rey enemigo",
+              gcg.Controla(U(miTaller, N, Juego.Rey, 5), 5) == B);
+        Check("el guerrero enemigo si",
+              gcg.Controla(U(miTaller, N, Juego.Guerrero, 5), 5) == N);
+        Check("pero el que pisa igual bloquea el despliegue, aunque no mande",
+              !TieneTipo(gcg, U(E(U(vacio, B, Juego.Rey, 9), B, Juego.Taller, 5),
+                                N, Juego.Constructor, 5), B, Juego.DESPLEGAR));
+        Pos matando = E(U(U(vacio, B, Juego.Guerrero, 1), N, Juego.Constructor, 5), N, Juego.Taller, 5);
+        matando = U(U(matando, B, Juego.Rey, 12), N, Juego.Rey, 15);
+        Check("el guerrero mata al de adentro y se queda con el control en la misma jugada",
+              gcg.Controla(gcg.Aplicar(matando, B, Juego.Jug(Juego.MATAR, 1, 5, 0)), 5) == B);
 
         Console.WriteLine("El castillo");
 
@@ -225,7 +260,7 @@ public static class SelfTest {
         Pos dentro = g.Aplicar(truco, B, Juego.Jug(Juego.MATAR, 1, 5, 0));
         Check("queda adentro del castillo pero todavia no gana: le falta un edificio",
               Juego.En(dentro.Un, 5) == Juego.CodU(B, Juego.Rey) &&
-              Juego.Edificios(dentro, B) == 2 && g.Terminal(dentro, N) == null);
+              g.Edificios(dentro, B) == 2 && g.Terminal(dentro, N) == null);
         Pos gana = g.Aplicar(dentro, B, Juego.Jug(Juego.CONSTRUIR, 13, 9, Juego.Cuartel));
         Check("y gana en cuanto el constructor levanta el cuartel que faltaba",
               g.Terminal(gana, N) is (Resultado.Blanco, Final.Castillo));

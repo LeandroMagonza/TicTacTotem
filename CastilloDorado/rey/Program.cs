@@ -52,6 +52,8 @@ public static class Program {
         Inicio = o.TryGetValue("inicio", out string? i) ? i : "esquinas",
         ReyGuarnicion = !Flag(o, "rey-pierde-poder"),
         ReyPorEdificio = Flag(o, "rey-por-edificio"),
+        ReyReino = Flag(o, "rey-reino"),
+        ControlGuerrero = Flag(o, "control-guerrero"),
         NoPegado = Flag(o, "no-pegado"),
         SacerdoteReubica = Flag(o, "sacerdote-reubica"),
         ReyNoMata = Flag(o, "rey-no-mata"),
@@ -96,6 +98,9 @@ Reglas (en cualquier comando):
                         en vez de conservarlo mientras la unidad este en su edificio
   --rey-por-edificio    el rey pierde el poder por CONTROLAR el edificio, no por tener la
                         unidad: matarsela al otro ya no se lo devuelve
+  --rey-reino           el rey pierde el poder si tiene la unidad O el edificio; solo lo
+                        recupera cuando no le queda ninguno de los dos
+  --control-guerrero    solo el guerrero toma el control de un edificio parandose encima
   --no-pegado           vuelve la regla de que dos edificios no pueden tocarse
   --sacerdote-reubica   el sacerdote convierte aunque ya tenga esa pieza: la muda ahi
   --rey-no-mata         el rey nunca mata, aunque tenga el poder del guerrero
@@ -275,6 +280,8 @@ Reglas (en cualquier comando):
             ("base", _ => { }),
             ("rey-pierde-poder", x => x.ReyGuarnicion = false),
             ("rey-por-edificio", x => x.ReyPorEdificio = true),
+            ("rey-reino", x => x.ReyReino = true),
+            ("control-guerrero", x => x.ControlGuerrero = true),
             ("no-pegado", x => x.NoPegado = true),
             ("sacerdote-reubica", x => x.SacerdoteReubica = true),
             ("rey-no-mata", x => x.ReyNoMata = true),

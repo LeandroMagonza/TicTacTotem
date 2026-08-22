@@ -37,6 +37,19 @@ public sealed class Reglas {
     /// </summary>
     public bool ReyPorEdificio = false;
 
+    /// <summary>
+    /// Cuarta lectura, la mas estricta: el rey pierde el poder de una unidad si tiene la
+    /// unidad O el edificio en su reino. Solo lo recupera cuando no le queda ninguno de los
+    /// dos, o sea cuando le mataron la unidad Y le ocuparon el edificio. Pisa a las otras.
+    /// </summary>
+    public bool ReyReino = false;
+
+    /// <summary>
+    /// Solo el guerrero toma el control de un edificio parandose encima. Las demas unidades
+    /// pueden pisarlo y estorbar, pero el edificio lo sigue mandando el que lo construyo.
+    /// </summary>
+    public bool ControlGuerrero = false;
+
     /// <summary>Vuelve la regla de que dos edificios no pueden estar pegados.</summary>
     public bool NoPegado = false;
 
@@ -67,8 +80,10 @@ public sealed class Reglas {
 
     public string Etiqueta() {
         var sb = new StringBuilder(Inicio);
-        if (ReyPorEdificio) sb.Append("+rey-por-edificio");
+        if (ReyReino) sb.Append("+rey-reino");
+        else if (ReyPorEdificio) sb.Append("+rey-por-edificio");
         else if (!ReyGuarnicion) sb.Append("+rey-pierde-poder");
+        if (ControlGuerrero) sb.Append("+control-guerrero");
         if (NoPegado) sb.Append("+no-pegado");
         if (SacerdoteReubica) sb.Append("+sacerdote-reubica");
         if (ReyNoMata) sb.Append("+rey-no-mata");
@@ -213,15 +228,17 @@ public sealed class Juego {
     /// nadie. Manda quien lo ocupa; si esta vacio, manda quien lo construyo. El castillo no
     /// lo construye nadie, asi que vacio no es de nadie.
     /// </summary>
-    public static int Controla(Pos p, int c) {
+    public int Controla(Pos p, int c) {
         int e = En(p.Ed, c);
         if (e == 0) return -1;
         int u = En(p.Un, c);
-        if (u != 0) return DuenoU(u);
+        // Con ControlGuerrero solo el guerrero da vuelta el control: las demas unidades
+        // pisan el edificio y estorban, pero no lo mandan.
+        if (u != 0 && (!R.ControlGuerrero || TipoU(u) == Guerrero)) return DuenoU(u);
         return EsCastillo(e) ? -1 : DuenoE(e);
     }
 
-    public static bool ControlaTipo(Pos p, int dueno, int tipoEd) {
+    public bool ControlaTipo(Pos p, int dueno, int tipoEd) {
         for (int c = 0; c < Casillas; c++) {
             int e = En(p.Ed, c);
             if (e == 0 || EsCastillo(e) || TipoE(e) != tipoEd) continue;
@@ -231,7 +248,7 @@ public sealed class Juego {
     }
 
     /// <summary>Cuantos TIPOS distintos de edificio controla. Es lo que habilita el castillo.</summary>
-    public static int Edificios(Pos p, int dueno) {
+    public int Edificios(Pos p, int dueno) {
         int n = 0;
         for (int t = Taller; t <= Iglesia; t++) if (ControlaTipo(p, dueno, t)) n++;
         return n;
@@ -247,6 +264,9 @@ public sealed class Juego {
     public bool PoderDelRey(Pos p, int presU, int turno, int t) {
         // Por edificio: el rey conserva el poder solo mientras no controle el edificio que
         // lo delega. Matarle la unidad al otro ya no le devuelve el poder al rey.
+        // Reino: hace falta no tener NINGUNO de los dos. Que te conviertan la unidad no le
+        // devuelve el poder al rey si todavia controlas el edificio, porque desplegas otra.
+        if (R.ReyReino) return !Hay(presU, turno, t) && !ControlaTipo(p, turno, t - 1);
         if (R.ReyPorEdificio) return !ControlaTipo(p, turno, t - 1);
         if (!Hay(presU, turno, t)) return true;
         if (!R.ReyGuarnicion) return false;

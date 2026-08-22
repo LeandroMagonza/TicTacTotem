@@ -70,7 +70,7 @@ public sealed class Mesa {
 
             if (reg.Plies >= _g.R.PliesMax) { reg.Res = Resultado.Empate; reg.Fin = Final.Limite; return reg; }
 
-            if (Juego.Edificios(p, turno) == 3) reg.TurnosConTres++;
+            if (_g.Edificios(p, turno) == 3) reg.TurnosConTres++;
             int cc = Juego.CasillaCastillo(p.Ed);
             if (cc >= 0 && Juego.En(p.Un, cc) != 0 && Juego.TipoU(Juego.En(p.Un, cc)) == Juego.Rey)
                 reg.TurnosReyEnCastillo++;

@@ -64,7 +64,7 @@ public sealed class Busqueda {
 
         for (int d = 0; d < 2; d++) {
             int sg = d == turno ? 1 : -1;
-            int ed = Juego.Edificios(p, d);
+            int ed = _g.Edificios(p, d);
             s += sg * 130 * ed;
             if (ed == 3) s += sg * 260;                       // habilitado a levantar el castillo
             for (int t = Juego.Constructor; t <= Juego.Sacerdote; t++)

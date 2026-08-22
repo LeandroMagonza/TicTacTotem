@@ -8,9 +8,10 @@ anterior, que sigue funcionando con sus 80 tests en `../solver/`.
 nueva.** El empate se derrumbó de 48% a **0,83%** y los ahogados de 15,3% a **0,01%**,
 pero el primer jugador gana entre el 74% y el 92%.
 
-Y lo segundo que hay que saber: **eso se arregla**, y con dos banderas que salen de cosas
-que ya habías dicho vos. `--rey-por-edificio --castillo-aguanta` deja el reparto en 53,5
-con 34% de empates, sin perder ni la decisión ni la profundidad. Sección 5.
+Y lo segundo que hay que saber: **eso se arregla, y con una sola regla**. `--rey-reino`
+—el rey pierde el poder de una unidad si tiene la unidad **o** el edificio— deja el reparto
+en **53,4** con 27% de empates, contra 80,8 y 12% del juego pelado. Es la palanca más
+eficiente de todas las que probé, en los dos juegos. Sección 5.
 
 ---
 
@@ -55,7 +56,11 @@ Y hay dos cosas más que salieron bien:
 - **Cada edificio viene con su unidad adentro**: el taller trae el constructor, el cuartel
   el guerrero, la iglesia el sacerdote. La unidad aparece parada sobre el edificio nuevo.
 - **Cualquier unidad entra a un edificio vacío**, sea de quien sea. **A uno ocupado sólo
-  entra el guerrero**, matando al que estaba adentro.
+  entra el guerrero**, matando al que estaba adentro y quedándose con el control en la
+  misma jugada.
+- Por defecto, cualquiera que se pare encima toma el control. Con **`--control-guerrero`**
+  sólo el guerrero lo toma: las demás unidades pisan el edificio y estorban —bloquean el
+  despliegue— pero el edificio lo sigue mandando el que lo construyó.
 - **Los edificios son terreno**: se pasa por arriba. Sólo te traba una unidad, tuya o del
   otro, nunca un edificio vacío.
 - **El edificio nunca cambia de dueño ni se destruye.** Lo que cambia es quién lo
@@ -81,13 +86,19 @@ Y hay dos cosas más que salieron bien:
    |---|---|
    | (por defecto) | X no esté suelta: o está muerta, o está parada sobre su edificio |
    | `--rey-pierde-poder` | X no exista en el tablero |
-   | `--rey-por-edificio` | **no controles el edificio de X** |
+   | `--rey-por-edificio` | no controles el edificio de X |
+   | **`--rey-reino`** | **no tengas NI la unidad X NI el edificio de X** |
 
-   La tercera es mía y sale de notar que las dos tuyas se cumplen a la vez con ella:
+   La tercera y la cuarta salen de que las dos frases tuyas se cumplen a la vez con ellas:
    levantás el taller y el rey no construye más (frase 1), y sin cuartel el rey conserva
    para siempre el poder del guerrero, que es tu ejemplo del castillo defendido (frase 3).
-   La que no cumple es la frase 2. **Es además la que da el juego más parejo, y por bastante
-   (sección 5).**
+
+   **`--rey-reino` es la buena**, y es la que describiste después: si te convierten el
+   constructor pero seguís controlando el taller, el rey no recupera nada porque desplegás
+   otro; recién cuando te matan el constructor **y** te ocupan el taller vuelve a construir.
+   Tu razonamiento entero está en cuatro tests, incluido el de que un edificio propio pero
+   ocupado ya no cuenta como tuyo. Y es la que **más empareja el juego, por lejos**
+   (sección 5).
 4. **La regla del no-pegado se cayó.** En el juego anterior existía para que los edificios
    no bloquearan; ahora no bloquean nada. Está en `--no-pegado` y resulta que es la palanca
    de equilibrio más fuerte que hay (sección 5).
@@ -97,7 +108,10 @@ Y hay dos cosas más que salieron bien:
 6. **Un rey muerto no vuelve.** No tiene edificio de dónde salir, y perder el rey es
    perder la partida.
 7. **La victoria se cobra en el momento**, no al turno siguiente. La versión "hay que
-   aguantar un turno" está en `--castillo-aguanta` y es media solución al desbalance.
+   aguantar un turno" está en `--castillo-aguanta`.
+8. **El guerrero que se para encima retiene el control mientras siga ahí**, no se lleva el
+   edificio para siempre. Es lo que hace que `--control-guerrero` tenga precio: tenés un
+   solo guerrero, así que sólo podés negar un edificio a la vez y lo dejás clavado ahí.
 
 ---
 
@@ -184,23 +198,39 @@ más parejo.
 
 | Variante | Reparto | Desvío | Empate |
 |---|---|---|---|
-| base | 80,8 | 30,8 | **12,1%** |
+| base | 80,8 | 30,8 | 12,1% |
+| `--control-guerrero` | 74,3 | 24,3 | **10,2%** |
 | `--castillo-aguanta` | 62,0 | 12,0 | 40,3% |
 | `--rey-por-edificio` | 57,2 | 7,2 | 32,9% |
+| `--rey-reino --control-guerrero` | 56,0 | 6,0 | 25,2% |
 | `--castillo-aguanta --rey-pierde-poder` | 55,6 | 5,6 | 51,5% |
-| **`--rey-por-edificio --castillo-aguanta`** | **53,5** | **3,5** | **34,1%** |
+| `--rey-por-edificio --castillo-aguanta` | 53,5 | 3,5 | 34,1% |
+| **`--rey-reino`** | **53,4** | **3,4** | **27,2%** |
+| **`--rey-reino --control-guerrero --castillo-aguanta`** | **52,9** | **2,9** | **26,8%** |
+| `--rey-reino --castillo-aguanta` | 51,2 | **1,2** | 31,9% |
 | `--no-pegado` | 48,7 | 1,3 | 58,0% |
-| `--castillo-aguanta --no-pegado` | 48,0 | **2,0** | 73,2% |
+| `--castillo-aguanta --no-pegado` | 48,0 | 2,0 | 73,2% |
 | `--compensa --rey-pierde-poder` | 37,2 | 12,8 | 34,2% |
 | `--compensa --castillo-aguanta` | 23,5 | 26,5 | 33,2% |
 
-**La mejor combinación que encontré es `--rey-por-edificio --castillo-aguanta`**: reparto
-53,5 con 34% de empates. Le gana en las dos columnas a la otra candidata, que empareja
-parecido (55,6) pero empata el 51,5%. Y sigue teniendo todo lo bueno: la habilidad decide
-igual (el que ve 8 plies le gana al que ve 2 el **96,5%** de primero y el **89,0%** de
-segundo) y nadie gana por la fuerza en 17 plies.
+**`--rey-reino` sola arregla el desbalance**: de 30,8 de desvío a 3,4, y con 27% de empates
+en vez de 12%. Una regla, una línea del motor. Es la palanca más eficiente que apareció en
+los dos juegos.
 
-Fuera de esa, el canje es limpio y va en una sola dirección: todo lo demás que empareja el
+**Y las dos ideas tuyas son complementarias, cada una arregla un eje distinto:**
+
+- **`--rey-reino` arregla el equilibrio.** Desvío de 30,8 a 3,4.
+- **`--control-guerrero` arregla el empate.** Sola baja los empates al **10,2%**, el número
+  más bajo de todo lo que probé, y sube los finales por castillo de 38,1% a 40,7%. Lo que
+  no hace es emparejar (74,3): al contrario, hacer más difícil negarle un edificio al otro
+  afila todavía más la carrera.
+
+Juntas, `--rey-reino --control-guerrero --castillo-aguanta` da **52,9 de reparto con 26,8%
+de empates**, que es el mejor punto del frente. Y sigue teniendo todo lo bueno: la habilidad
+decide igual (el que ve 8 plies le gana al que ve 2 el **95,0%** de primero y el **92,5%**
+de segundo) y nadie gana por la fuerza en 17 plies, 28,4 millones de nodos.
+
+Fuera de esas, el canje es limpio y va en una sola dirección: todo lo demás que empareja el
 juego lo hace alargando o ensuciando la carrera, y una carrera más larga es más empate.
 
 - **`--castillo-aguanta`** (entrar al castillo no gana: hay que seguir adentro cuando te
@@ -211,9 +241,10 @@ juego lo hace alargando o ensuciando la carrera, y una carrera más larga es má
   razón: hace la construcción difícil, así que la carrera se alarga y estorbar se vuelve
   rentable. Cuesta 58% de empates, y las partidas terminan matando al rey (88%) en vez de
   con el castillo (10%), que es otro juego.
-- **`--rey-por-edificio`** empareja porque el rey deja de poder rematar la carrera solo: en
-  cuanto tenés el taller, construir es trabajo del constructor, y el constructor camina.
-  Baja el desvío de 31 a 7 y sube el empate apenas al 33%, que es de lejos el mejor canje.
+- **`--rey-reino` y `--rey-por-edificio`** emparejan por el mismo motivo: el rey deja de
+  poder rematar la carrera solo. En cuanto tenés el taller, construir es trabajo del
+  constructor, y el constructor camina. `--rey-reino` lo hace mejor porque es más difícil de
+  romper: para devolverle el poder al rey hay que quitarle las dos cosas a la vez.
 - **`--compensa`** pasa de largo: da vuelta el desbalance en vez de arreglarlo.
 
 Y una que no mueve casi nada: **`--rey-no-mata`** (reparto 60-77, empate 17-28%). Sacarle
@@ -237,12 +268,20 @@ sigue construyendo todo lo demás. El constructor nunca juega.
 | guarnición (por defecto) | 76,3% | 54% |
 | `--rey-pierde-poder` | 68,4% | 56% |
 | `--rey-por-edificio` | 68,2% | 57% |
+| `--rey-reino` | 67,6% | 57% |
 
-Las tres quedan en 54-57% con búsqueda: **son indistinguibles**. La razón es que el poder
+Las cuatro quedan en 54-57% con búsqueda: **son indistinguibles**. La razón es que el poder
 del rey no se pierde, se presta: vuelve cada vez que se corta el vínculo. Con la guarnición
 vuelve cuando matan al constructor —y se mata mucho, 2,7 muertes por partida—. Con
 `--rey-por-edificio` vuelve cuando te ocupan el taller, y ocupar edificios ajenos pasa 4,08
-veces por partida.
+veces por partida. `--rey-reino` pide que pasen las dos cosas a la vez, y aun así el 57%:
+sube a 5,4 ocupaciones por partida justamente porque quitarle el edificio al otro pasó a
+valer más.
+
+La cuenta de fondo es simple: de los tres edificios de cada uno, **el rey levanta siempre el
+taller** —antes del taller no tenés ni constructor ni taller, así que el poder es suyo por
+definición— y eso ya son 33 puntos que no se pueden bajar con ninguna lectura. El resto,
+unos 24 puntos, son recuperaciones.
 
 Visto así no es tan un agujero como una consecuencia: **los poderes del rey parpadean con el
 control del mapa.** Si el otro te quiebra el taller, tu rey vuelve a ser albañil. Eso es
@@ -281,9 +320,9 @@ pueda una vez por pieza).
    jugadas y cruzar el tablero son seis, el problema no es la carrera, es la velocidad de
    las piezas. **Que el guerrero se mueva dos casillas** deja la carrera intacta y hace
    que la amenaza llegue a tiempo. Es la que más ganas tengo de medir.
-2. **`--castillo-aguanta` con dos turnos de aguante** en vez de uno, sobre
-   `--rey-por-edificio`. Si un tempo vale la partida, el segundo tempo de defensa debería
-   llevar el 53,5 a rozar el 50 sin subir el empate como lo sube el no-pegado.
+2. **`--castillo-aguanta` con dos turnos de aguante** en vez de uno, sobre `--rey-reino`.
+   Si un tempo vale la partida, el segundo tempo de defensa debería terminar de cerrar el
+   2,9 que queda, sin subir el empate como lo sube el no-pegado.
 3. **La regla del pastel**: uno arma la posición inicial y el otro elige bando. No cambia
    ninguna mecánica y arregla desbalances de tempo por definición. Es lo que hacen los
    abstractos con este problema exacto (el Hex vive de esto). No se puede simular sin
@@ -294,6 +333,10 @@ pueda una vez por pieza).
    el costo: la posición son dos planos de 16 casillas de 4 bits, y 25 casillas no entran
    en un `ulong` — habría que pasar a cuatro.
 5. **Arreglar el ciclo de conversión** de la sección 6.
+6. **Que el guerrero se lleve el edificio para siempre**, en vez de controlarlo mientras
+   está parado encima. Es la regla del juego anterior y no la probé acá. Ojo: en el juego
+   anterior esa regla produjo un ciclo de 10 plies donde los dos se pasaban el mismo cuartel
+   de mano en mano, así que iría con cuidado.
 
 ---
 
@@ -307,7 +350,7 @@ dotnet build -c Release
 
 | Comando | Qué hace |
 |---|---|
-| `selftest` | 60 tests, uno por regla, más tres barridos exhaustivos de 5 plies. |
+| `selftest` | 71 tests, uno por regla, más tres barridos exhaustivos de 5 plies. |
 | `perft --prof 7` | Árbol completo. Da la ramificación. |
 | `azar --partidas 200000` | Los dos al azar. La forma cruda del juego. |
 | `practica --plies 8 --partidas 400` | Los dos miran N plies con evaluación de material. |
@@ -320,8 +363,10 @@ Banderas de regla, válidas en cualquier comando:
 
 ```
 --inicio esquinas|frentes|lados|centro
---rey-por-edificio    el rey pierde el poder por CONTROLAR el edificio, no por tener la
-                      unidad: matarsela al otro ya no se lo devuelve  (RECOMENDADA)
+--rey-reino           el rey pierde el poder si tiene la unidad O el edificio; solo lo
+                      recupera cuando no le queda ninguno de los dos   (RECOMENDADA)
+--control-guerrero    solo el guerrero toma el control de un edificio parandose encima
+--rey-por-edificio    el rey pierde el poder por CONTROLAR el edificio, no por tener la unidad
 --rey-pierde-poder    el rey pierde el poder apenas la unidad existe en el tablero
 --no-pegado           vuelve la regla de que dos edificios no pueden tocarse
 --castillo-aguanta    entrar al castillo no gana: hay que seguir adentro un turno despues
@@ -335,7 +380,13 @@ Banderas de regla, válidas en cualquier comando:
 La mejor versión medida, la de la sección 5:
 
 ```bash
-./bin/Release/net9.0/rey.exe practica --plies 8 --partidas 400 --rey-por-edificio --castillo-aguanta
+./bin/Release/net9.0/rey.exe practica --plies 8 --partidas 400     --rey-reino --control-guerrero --castillo-aguanta
+```
+
+Y la versión mínima, que arregla el desbalance con una sola regla:
+
+```bash
+./bin/Release/net9.0/rey.exe practica --plies 8 --partidas 400 --rey-reino
 ```
 
 Para reproducir el ciclo de conversión de la sección 6:
