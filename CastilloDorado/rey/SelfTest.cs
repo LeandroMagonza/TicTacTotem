@@ -47,7 +47,7 @@ public static class SelfTest {
         int B = Juego.Blanco, N = Juego.Negro;
         var g = new Juego(new Reglas());                                   // guarnicion prendida
         var gp = new Juego(new Reglas { ReyGuarnicion = false });          // el rey pierde el poder
-        var vacio = new Pos(0, 0);
+        var vacio = Pos.Vacia;
 
         // Casillas del 4x4:   0  1  2  3
         //                     4  5  6  7
@@ -58,7 +58,7 @@ public static class SelfTest {
 
         Pos ini = g.Inicial();
         Check("cada uno arranca con el rey solo y sin ningun edificio",
-              ini.Ed == 0 &&
+              ini.Ed == UInt128.Zero &&
               Juego.CasillaRey(ini.Un, B) >= 0 && Juego.CasillaRey(ini.Un, N) >= 0 &&
               !Juego.Hay(Juego.PresU(ini.Un), B, Juego.Constructor));
         Check("la posicion inicial no es terminal", g.Terminal(ini, B) == null);
@@ -67,11 +67,11 @@ public static class SelfTest {
         Check("las cuatro disposiciones son simetricas por giro de 180",
               Juego.Disposiciones.All(d => {
                   Pos a = Juego.Inicial(d);
-                  ulong un = 0;
-                  for (int c = 0; c < 16; c++) {
+                  UInt128 un = UInt128.Zero;
+                  for (int c = 0; c < Juego.Casillas; c++) {
                       int v = Juego.En(a.Un, c);
                       if (v == 0) continue;
-                      un = Juego.Con(un, 15 - c, Juego.CodU(1 - Juego.DuenoU(v), Juego.TipoU(v)));
+                      un = Juego.Con(un, Juego.Casillas - 1 - c, Juego.CodU(1 - Juego.DuenoU(v), Juego.TipoU(v)));
                   }
                   return un == a.Un;
               }));
@@ -185,6 +185,24 @@ public static class SelfTest {
               TieneDesde(g, entro, B, Juego.MOVER, 5, 6));
         Check("el edificio sigue siendo del que lo construyo aunque lo ocupe el otro",
               Juego.En(entro.Ed, 5) == Juego.CodE(N, Juego.Taller));
+
+        // La carga: dos casillas en linea recta, nunca en L ni saltando.
+        var gv = new Juego(new Reglas { GuerreroVeloz = true });
+        Pos carga = U(U(U(vacio, B, Juego.Guerrero, 12), B, Juego.Rey, 0), N, Juego.Rey, 3);
+        Check("el guerrero veloz llega a dos casillas en linea recta",
+              TieneDesde(gv, carga, B, Juego.MOVER, 12, 14) && TieneDesde(gv, carga, B, Juego.MOVER, 12, 4));
+        Check("y sin la regla no llega", !TieneDesde(g, carga, B, Juego.MOVER, 12, 14));
+        Check("no se mueve en L: dos casillas es en linea",
+              !TieneDesde(gv, carga, B, Juego.MOVER, 12, 9));
+        Check("no salta por encima de nadie",
+              !TieneDesde(gv, U(carga, N, Juego.Sacerdote, 13), B, Juego.MOVER, 12, 14));
+        Check("pero carga hasta matar al del fondo",
+              TieneDesde(gv, U(carga, N, Juego.Sacerdote, 14), B, Juego.MATAR, 12, 14));
+        Check("el guerrero veloz sigue matando de al lado",
+              TieneDesde(gv, U(carga, N, Juego.Sacerdote, 13), B, Juego.MATAR, 12, 13));
+        Check("y solo carga el guerrero, no el constructor",
+              !TieneDesde(gv, U(U(U(vacio, B, Juego.Constructor, 12), B, Juego.Rey, 0), N, Juego.Rey, 3),
+                          B, Juego.MOVER, 12, 14));
 
         Console.WriteLine("Quien controla que");
 
@@ -316,6 +334,70 @@ public static class SelfTest {
             foreach (string x in problemas.Take(3)) Console.WriteLine($"        {x}");
         }
 
+        // --------------------------------------------------------------------
+        // El 5x5. A partir de aca el tablero cambia de tamaño para todo el proceso,
+        // asi que este bloque va ultimo y no se mezcla con nada de arriba.
+        // --------------------------------------------------------------------
+        Console.WriteLine("Tablero de 5x5");
+        Juego.Configurar(5);
+        var g5 = new Juego(new Reglas { Lado = 5 });
+        var v5 = Pos.Vacia;
+
+        // Casillas del 5x5:   0  1  2  3  4
+        //                     5  6  7  8  9
+        //                    10 11 12 13 14
+        //                    15 16 17 18 19
+        //                    20 21 22 23 24
+
+        Check("el tablero tiene 25 casillas", Juego.Casillas == 25 && Juego.Lado == 5);
+        Check("la casilla 24 entra y se lee bien: 25x4 bits no cabrian en un ulong",
+              Juego.En(Juego.Con(v5.Un, 24, Juego.CodU(N, Juego.Rey)), 24) == Juego.CodU(N, Juego.Rey));
+        Check("la del medio tiene 4 vecinos y la esquina 2",
+              g5.Ady[12].Length == 4 && g5.Ady[0].Length == 2 && g5.Ady[24].Length == 2);
+        Check("las coordenadas siguen el tablero: 12 es c3 y 24 es e1",
+              Juego.Casilla(12) == "c3" && Juego.Casilla(24) == "e1" && Juego.Casilla(0) == "a5");
+        Check("las cuatro disposiciones siguen siendo simetricas por giro de 180",
+              Juego.Disposiciones.All(d => {
+                  Pos a5 = Juego.Inicial(d);
+                  UInt128 un = UInt128.Zero;
+                  for (int c = 0; c < Juego.Casillas; c++) {
+                      int v = Juego.En(a5.Un, c);
+                      if (v == 0) continue;
+                      un = Juego.Con(un, Juego.Casillas - 1 - c, Juego.CodU(1 - Juego.DuenoU(v), Juego.TipoU(v)));
+                  }
+                  return un == a5.Un;
+              }));
+        Check("el giro de 180 lleva la esquina 0 a la 24",
+              Juego.En(g5.Transformar(U(v5, B, Juego.Rey, 0), 3).Un, 24) == Juego.CodU(B, Juego.Rey));
+
+        // Rey en el medio (12) con su taller en 6. Los vecinos del taller son 1, 5, 7 y 11,
+        // asi que de las cuatro casillas donde el rey podria construir -7, 11, 13 y 17- las
+        // dos primeras tocan el taller y las dos ultimas no.
+        var g5np = new Juego(new Reglas { Lado = 5, NoPegado = true });
+        Pos obra = E(U(U(v5, B, Juego.Rey, 12), N, Juego.Rey, 24), B, Juego.Taller, 6);
+        Check("con --no-pegado no se puede construir pegado al taller",
+              !TieneDesde(g5np, obra, B, Juego.CONSTRUIR, 12, 7) &&
+              !TieneDesde(g5np, obra, B, Juego.CONSTRUIR, 12, 11));
+        Check("pero si se puede lejos, que en un 5x5 sigue habiendo lugar",
+              TieneDesde(g5np, obra, B, Juego.CONSTRUIR, 12, 13) &&
+              TieneDesde(g5np, obra, B, Juego.CONSTRUIR, 12, 17));
+        Check("y sin la regla las cuatro valen",
+              TieneDesde(g5, obra, B, Juego.CONSTRUIR, 12, 7) &&
+              TieneDesde(g5, obra, B, Juego.CONSTRUIR, 12, 11));
+
+        Pos gana5 = E(E(E(v5, B, Juego.Taller, 0), B, Juego.Cuartel, 4), B, Juego.Iglesia, 20);
+        gana5 = U(U(Cast(gana5, 12), B, Juego.Rey, 12), N, Juego.Rey, 24);
+        Check("el rey en el castillo del medio con los tres edificios gana igual",
+              g5.Terminal(gana5, N) is (Resultado.Blanco, Final.Castillo));
+
+        Console.WriteLine("Barrido exhaustivo de 4 plies en el 5x5");
+        foreach (var (nombre, juego) in new[] { ("base", g5), ("no-pegado", g5np) }) {
+            var problemas5 = new List<string>();
+            long nodos5 = Barrer(juego, juego.Inicial(), B, 4, problemas5);
+            Check($"{nombre}: ninguna posicion rompe una invariante ({nodos5:N0} nodos)", problemas5.Count == 0);
+            foreach (string x in problemas5.Take(3)) Console.WriteLine($"        {x}");
+        }
+
         Console.WriteLine();
         Console.WriteLine(_fallos == 0 ? "Todo en orden." : $"{_fallos} fallas.");
         return _fallos == 0;
@@ -338,7 +420,7 @@ public static class SelfTest {
 
             var cu = new int[16];
             var ce = new int[16];
-            for (int c = 0; c < 16; c++) { cu[Juego.En(np.Un, c)]++; ce[Juego.En(np.Ed, c)]++; }
+            for (int c = 0; c < Juego.Casillas; c++) { cu[Juego.En(np.Un, c)]++; ce[Juego.En(np.Ed, c)]++; }
 
             for (int cod = 9; cod < 16; cod++)
                 if (cu[cod] > 0) { problemas.Add($"codigo de unidad {cod} invalido"); return n; }

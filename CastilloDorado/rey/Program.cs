@@ -24,6 +24,8 @@ public static class Program {
 
         string cmd = sueltos.Count > 0 ? sueltos[0] : "ayuda";
         var reglas = LeerReglas(o);
+        // El tamaño del tablero es global y se fija una sola vez, antes de todo lo demas.
+        Juego.Configurar(reglas.Lado);
 
         switch (cmd) {
             case "selftest": return SelfTest.Run() ? 0 : 1;
@@ -50,10 +52,12 @@ public static class Program {
 
     private static Reglas LeerReglas(Dictionary<string, string> o) => new Reglas {
         Inicio = o.TryGetValue("inicio", out string? i) ? i : "esquinas",
+        Lado = Ent(o, "lado", 4),
         ReyGuarnicion = !Flag(o, "rey-pierde-poder"),
         ReyPorEdificio = Flag(o, "rey-por-edificio"),
         ReyReino = Flag(o, "rey-reino"),
         ControlGuerrero = Flag(o, "control-guerrero"),
+        GuerreroVeloz = Flag(o, "guerrero-veloz"),
         NoPegado = Flag(o, "no-pegado"),
         SacerdoteReubica = Flag(o, "sacerdote-reubica"),
         ReyNoMata = Flag(o, "rey-no-mata"),
@@ -93,6 +97,7 @@ los tres edificios bajo control, o matandole el rey al otro.
       Todas las disposiciones y las variantes de regla, en una tabla.
 
 Reglas (en cualquier comando):
+  --lado 4|5            tamaño del tablero
   --inicio esquinas|frentes|lados|centro   disposicion inicial
   --rey-pierde-poder    el rey pierde el poder apenas la unidad existe en el tablero,
                         en vez de conservarlo mientras la unidad este en su edificio
@@ -101,6 +106,7 @@ Reglas (en cualquier comando):
   --rey-reino           el rey pierde el poder si tiene la unidad O el edificio; solo lo
                         recupera cuando no le queda ninguno de los dos
   --control-guerrero    solo el guerrero toma el control de un edificio parandose encima
+  --guerrero-veloz      el guerrero carga: se mueve hasta dos casillas en linea recta
   --no-pegado           vuelve la regla de que dos edificios no pueden tocarse
   --sacerdote-reubica   el sacerdote convierte aunque ya tenga esa pieza: la muda ahi
   --rey-no-mata         el rey nunca mata, aunque tenga el poder del guerrero
@@ -207,7 +213,7 @@ Reglas (en cualquier comando):
         Pos p = g.Inicial();
         int turno = Juego.Blanco;
         var historia = new List<Pos> { p };
-        var vistas = new Dictionary<(ulong, ulong, int), int> { [(p.Ed, p.Un, turno)] = 1 };
+        var vistas = new Dictionary<(UInt128, UInt128, int), int> { [(p.Ed, p.Un, turno)] = 1 };
 
         var jsPos = new List<string> { Juego.Linea(p) };
         var jsJug = new List<string>();
@@ -282,6 +288,7 @@ Reglas (en cualquier comando):
             ("rey-por-edificio", x => x.ReyPorEdificio = true),
             ("rey-reino", x => x.ReyReino = true),
             ("control-guerrero", x => x.ControlGuerrero = true),
+            ("guerrero-veloz", x => x.GuerreroVeloz = true),
             ("no-pegado", x => x.NoPegado = true),
             ("sacerdote-reubica", x => x.SacerdoteReubica = true),
             ("rey-no-mata", x => x.ReyNoMata = true),

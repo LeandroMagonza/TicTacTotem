@@ -50,6 +50,13 @@ public sealed class Reglas {
     /// </summary>
     public bool ControlGuerrero = false;
 
+    /// <summary>
+    /// El guerrero carga: se mueve hasta DOS casillas en linea recta, atravesando una casilla
+    /// vacia. Es lo unico que probe que hace mas rapido estorbar en vez de mas lenta la
+    /// carrera, que es de donde sale la ventaja del que sale primero.
+    /// </summary>
+    public bool GuerreroVeloz = false;
+
     /// <summary>Vuelve la regla de que dos edificios no pueden estar pegados.</summary>
     public bool NoPegado = false;
 
@@ -72,6 +79,9 @@ public sealed class Reglas {
     /// </summary>
     public bool CastilloAguanta = false;
 
+    /// <summary>Lado del tablero: 4 o 5. Ver Juego.Configurar.</summary>
+    public int Lado = 4;
+
     public int RepeticionesEmpate = 3;
     public int PliesMax = 300;
     public string Inicio = "esquinas";
@@ -79,11 +89,12 @@ public sealed class Reglas {
     public Reglas Copia() => (Reglas)MemberwiseClone();
 
     public string Etiqueta() {
-        var sb = new StringBuilder(Inicio);
+        var sb = new StringBuilder($"{Lado}x{Lado}/{Inicio}");
         if (ReyReino) sb.Append("+rey-reino");
         else if (ReyPorEdificio) sb.Append("+rey-por-edificio");
         else if (!ReyGuarnicion) sb.Append("+rey-pierde-poder");
         if (ControlGuerrero) sb.Append("+control-guerrero");
+        if (GuerreroVeloz) sb.Append("+guerrero-veloz");
         if (NoPegado) sb.Append("+no-pegado");
         if (SacerdoteReubica) sb.Append("+sacerdote-reubica");
         if (ReyNoMata) sb.Append("+rey-no-mata");
@@ -94,15 +105,18 @@ public sealed class Reglas {
 }
 
 /// <summary>
-/// Una posicion son DOS planos de 16 casillas de 4 bits cada uno: uno de edificios y uno de
-/// unidades. Hacen falta los dos porque ahora una unidad puede estar parada sobre un
-/// edificio, que es justamente de lo que se trata el juego. No entra en un solo ulong.
+/// Una posicion son DOS planos de 4 bits por casilla: uno de edificios y uno de unidades.
+/// Hacen falta los dos porque una unidad puede estar parada sobre un edificio, que es de lo
+/// que se trata el juego. Cada plano es un UInt128 para que entre tambien el 5x5: 25
+/// casillas por 4 bits son 100 bits, que en un ulong no entran.
 /// </summary>
 public readonly struct Pos : IEquatable<Pos> {
-    public readonly ulong Ed;   // 0 vacio, 1-3 edificios del blanco, 4-6 del negro, 7 castillo
-    public readonly ulong Un;   // 0 vacio, 1-4 unidades del blanco, 5-8 del negro
+    public readonly UInt128 Ed;   // 0 vacio, 1-3 edificios del blanco, 4-6 del negro, 7 castillo
+    public readonly UInt128 Un;   // 0 vacio, 1-4 unidades del blanco, 5-8 del negro
 
-    public Pos(ulong ed, ulong un) { Ed = ed; Un = un; }
+    public Pos(UInt128 ed, UInt128 un) { Ed = ed; Un = un; }
+
+    public static readonly Pos Vacia = new Pos(UInt128.Zero, UInt128.Zero);
 
     public bool Equals(Pos o) => Ed == o.Ed && Un == o.Un;
     public override bool Equals(object? o) => o is Pos p && Equals(p);
@@ -110,16 +124,24 @@ public readonly struct Pos : IEquatable<Pos> {
     public static bool operator !=(Pos a, Pos b) => !a.Equals(b);
     public override int GetHashCode() => (int)Clave();
 
-    /// <summary>Mezcla de los dos planos. La tabla de transposicion guarda ademas los dos
-    /// ulong enteros, asi que una colision de clave no ensucia el resultado.</summary>
+    private static ulong Mezclar(ulong x) {
+        x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9UL;
+        x = (x ^ (x >> 27)) * 0x94D049BB133111EBUL;
+        return x ^ (x >> 31);
+    }
+
+    /// <summary>
+    /// Mezcla de los cuatro ulong que forman los dos planos. La tabla de transposicion
+    /// guarda esta clave entera para verificar, asi que una colision de indice no ensucia
+    /// el resultado; una colision de los 64 bits enteros es despreciable.
+    /// </summary>
     public ulong Clave() {
-        ulong a = (Ed + 0x9E3779B97F4A7C15UL) * 0xBF58476D1CE4E5B9UL;
-        a ^= a >> 31;
-        ulong b = (Un + 0x165667B19E3779F9UL) * 0x94D049BB133111EBUL;
-        b ^= b >> 29;
-        ulong h = a ^ b;
-        h *= 0xD6E8FEB86659FD93UL;
-        return h ^ (h >> 32);
+        ulong h = Mezclar((ulong)Ed + 0x9E3779B97F4A7C15UL);
+        h ^= Mezclar((ulong)(Ed >> 64) + 0x165667B19E3779F9UL);
+        h = (h << 7) | (h >> 57);
+        h ^= Mezclar((ulong)Un + 0xC2B2AE3D27D4EB4FUL);
+        h ^= Mezclar((ulong)(Un >> 64) + 0x27D4EB2F165667C5UL);
+        return Mezclar(h);
     }
 }
 
@@ -129,7 +151,20 @@ public readonly struct Pos : IEquatable<Pos> {
 /// bajo control, o matandole el rey al otro.
 /// </summary>
 public sealed class Juego {
-    public const int Casillas = 16;
+    /// <summary>
+    /// Lado y casillas del tablero. Son estaticos y se fijan UNA vez por proceso con
+    /// Configurar, antes de crear cualquier Juego y antes de arrancar los hilos: todo el
+    /// proceso corre siempre un solo tamaño de tablero.
+    /// </summary>
+    public static int Lado { get; private set; } = 4;
+    public static int Casillas { get; private set; } = 16;
+
+    public static void Configurar(int lado) {
+        if (lado != 4 && lado != 5) throw new ArgumentException("el tablero es 4x4 o 5x5");
+        Lado = lado;
+        Casillas = lado * lado;
+    }
+
     public const int Blanco = 0;
     public const int Negro = 1;
 
@@ -139,42 +174,68 @@ public sealed class Juego {
     public const int Taller = 0, Cuartel = 1, Iglesia = 2;
     public const int CastilloCod = 7;
 
-    public const int MaxJugadas = 160;
+    public const int MaxJugadas = 256;
 
     // Tipos de jugada
     public const int MOVER = 0, MATAR = 1, CONSTRUIR = 2, CORONAR = 3, DESPLEGAR = 4, CONVERTIR = 5;
 
     public readonly Reglas R;
-    public readonly int[][] Ady = new int[Casillas][];
+    public readonly int[][] Ady;
     public readonly int[][] Simetrias = new int[8][];
-    public readonly int[][] Dist = new int[Casillas][];
+    public readonly int[][] Dist;
+    /// <summary>Por casilla y direccion, las hasta dos casillas en linea recta. Para la carga.</summary>
+    public readonly int[][][] Rayos;
 
     public Juego(Reglas? reglas) {
         R = reglas ?? new Reglas();
+        if (R.Lado != Lado)
+            throw new InvalidOperationException(
+                $"Juego.Configurar({R.Lado}) tiene que llamarse antes de crear el Juego");
+
+        int L = Lado;
+        Ady = new int[Casillas][];
+        Dist = new int[Casillas][];
 
         for (int c = 0; c < Casillas; c++) {
-            int f = c / 4, col = c % 4;
+            int f = c / L, col = c % L;
             var v = new List<int>(4);
-            if (f > 0) v.Add(c - 4);
-            if (f < 3) v.Add(c + 4);
+            if (f > 0) v.Add(c - L);
+            if (f < L - 1) v.Add(c + L);
             if (col > 0) v.Add(c - 1);
-            if (col < 3) v.Add(c + 1);
+            if (col < L - 1) v.Add(c + 1);
             Ady[c] = v.ToArray();
 
             Dist[c] = new int[Casillas];
             for (int d = 0; d < Casillas; d++)
-                Dist[c][d] = Math.Abs(f - d / 4) + Math.Abs(col - d % 4);
+                Dist[c][d] = Math.Abs(f - d / L) + Math.Abs(col - d % L);
+        }
+
+        Rayos = new int[Casillas][][];
+        var pasos = new[] { (-1, 0), (1, 0), (0, -1), (0, 1) };
+        for (int c = 0; c < Casillas; c++) {
+            int f = c / L, col = c % L;
+            var dirs = new List<int[]>(4);
+            foreach (var (df, dc) in pasos) {
+                var linea = new List<int>(2);
+                for (int n = 1; n <= 2; n++) {
+                    int nf = f + df * n, nc = col + dc * n;
+                    if (nf < 0 || nf >= L || nc < 0 || nc >= L) break;
+                    linea.Add(nf * L + nc);
+                }
+                if (linea.Count > 0) dirs.Add(linea.ToArray());
+            }
+            Rayos[c] = dirs.ToArray();
         }
 
         for (int k = 0; k < 8; k++) {
             var m = new int[Casillas];
             for (int c = 0; c < Casillas; c++) {
-                int f = c / 4, col = c % 4;
+                int f = c / L, col = c % L;
                 int nf = f, nc = col;
                 if ((k & 4) != 0) { int t = nf; nf = nc; nc = t; }
-                if ((k & 1) != 0) nf = 3 - nf;
-                if ((k & 2) != 0) nc = 3 - nc;
-                m[c] = nf * 4 + nc;
+                if ((k & 1) != 0) nf = L - 1 - nf;
+                if ((k & 2) != 0) nc = L - 1 - nc;
+                m[c] = nf * L + nc;
             }
             Simetrias[k] = m;
         }
@@ -191,19 +252,21 @@ public sealed class Juego {
     public static int DuenoE(int cod) => (cod - 1) / 3;
     public static bool EsCastillo(int cod) => cod == CastilloCod;
 
-    public static int En(ulong plano, int c) => (int)((plano >> (c * 4)) & 0xF);
-    public static ulong Con(ulong plano, int c, int v) =>
-        (plano & ~(0xFUL << (c * 4))) | ((ulong)v << (c * 4));
+    private static readonly UInt128 Nibble = 0xF;
+
+    public static int En(UInt128 plano, int c) => (int)((plano >> (c * 4)) & Nibble);
+    public static UInt128 Con(UInt128 plano, int c, int v) =>
+        (plano & ~(Nibble << (c * 4))) | ((UInt128)(uint)v << (c * 4));
 
     /// <summary>Mascara de unidades presentes: bit i = hay una unidad de codigo i.</summary>
-    public static int PresU(ulong un) {
+    public static int PresU(UInt128 un) {
         int m = 0;
         for (int c = 0; c < Casillas; c++) m |= 1 << En(un, c);
         return m;
     }
 
     /// <summary>Mascara de edificios LEVANTADOS, por quien los construyo (no por quien los controla).</summary>
-    public static int PresE(ulong ed) {
+    public static int PresE(UInt128 ed) {
         int m = 0;
         for (int c = 0; c < Casillas; c++) m |= 1 << En(ed, c);
         return m;
@@ -211,15 +274,15 @@ public sealed class Juego {
 
     public static bool Hay(int presU, int dueno, int tipo) => (presU & (1 << CodU(dueno, tipo))) != 0;
     public static bool Levantado(int presE, int dueno, int tipo) => (presE & (1 << CodE(dueno, tipo))) != 0;
-    public static bool HayCastillo(ulong ed) => (PresE(ed) & (1 << CastilloCod)) != 0;
+    public static bool HayCastillo(UInt128 ed) => (PresE(ed) & (1 << CastilloCod)) != 0;
 
-    public static int CasillaDe(ulong plano, int cod) {
+    public static int CasillaDe(UInt128 plano, int cod) {
         for (int c = 0; c < Casillas; c++) if (En(plano, c) == cod) return c;
         return -1;
     }
 
-    public static int CasillaCastillo(ulong ed) => CasillaDe(ed, CastilloCod);
-    public static int CasillaRey(ulong un, int dueno) => CasillaDe(un, CodU(dueno, Rey));
+    public static int CasillaCastillo(UInt128 ed) => CasillaDe(ed, CastilloCod);
+    public static int CasillaRey(UInt128 un, int dueno) => CasillaDe(un, CodU(dueno, Rey));
 
     // ---------------------------------------------------------------- control
 
@@ -277,13 +340,14 @@ public sealed class Juego {
 
     // --------------------------------------------------------------- jugadas
 
+    // 3 bits de tipo, 5 de origen, 5 de destino, 4 de extra: entran las 25 casillas del 5x5.
     public static int Jug(int tipo, int desde, int hasta, int extra) =>
-        tipo | (desde << 3) | (hasta << 7) | (extra << 11);
+        tipo | (desde << 3) | (hasta << 8) | (extra << 13);
 
     public static int JTipo(int j) => j & 7;
-    public static int JDesde(int j) => (j >> 3) & 15;
-    public static int JHasta(int j) => (j >> 7) & 15;
-    public static int JExtra(int j) => (j >> 11) & 15;
+    public static int JDesde(int j) => (j >> 3) & 31;
+    public static int JHasta(int j) => (j >> 8) & 31;
+    public static int JExtra(int j) => (j >> 13) & 15;
 
     public bool SitioDeObra(Pos p, int c) {
         if (En(p.Un, c) != 0 || En(p.Ed, c) != 0) return false;
@@ -319,6 +383,17 @@ public sealed class Juego {
             bool puedeConstruir = t == Constructor || (esRey && reyConstruye);
             bool puedeConvertir = t == Sacerdote || (esRey && reyConvierte);
 
+            // La carga del guerrero: hasta dos casillas en linea recta, atravesando vacio.
+            if (R.GuerreroVeloz && t == Guerrero) {
+                foreach (int[] linea in Rayos[c]) {
+                    if (linea.Length < 2) continue;
+                    if (En(p.Un, linea[0]) != 0) continue;   // la primera tiene que estar libre
+                    int destino = linea[1], wd = En(p.Un, destino);
+                    if (wd == 0) buf[n++] = Jug(MOVER, c, destino, 0);
+                    else if (DuenoU(wd) != turno) buf[n++] = Jug(MATAR, c, destino, 0);
+                }
+            }
+
             foreach (int a in Ady[c]) {
                 int w = En(p.Un, a);
                 if (w == 0) {
@@ -349,7 +424,7 @@ public sealed class Juego {
 
     public Pos Aplicar(Pos p, int turno, int j) {
         int tipo = JTipo(j), desde = JDesde(j), hasta = JHasta(j), extra = JExtra(j);
-        ulong ed = p.Ed, un = p.Un;
+        UInt128 ed = p.Ed, un = p.Un;
         switch (tipo) {
             case MOVER:
             case MATAR: {
@@ -413,11 +488,11 @@ public sealed class Juego {
 
     public Pos Transformar(Pos p, int k) {
         int[] m = Simetrias[k];
-        ulong ed = 0, un = 0;
+        UInt128 ed = UInt128.Zero, un = UInt128.Zero;
         for (int c = 0; c < Casillas; c++) {
             int e = En(p.Ed, c), u = En(p.Un, c);
-            if (e != 0) ed |= (ulong)e << (m[c] * 4);
-            if (u != 0) un |= (ulong)u << (m[c] * 4);
+            if (e != 0) ed |= (UInt128)(uint)e << (m[c] * 4);
+            if (u != 0) un |= (UInt128)(uint)u << (m[c] * 4);
         }
         return new Pos(ed, un);
     }
@@ -450,15 +525,19 @@ public sealed class Juego {
     }
 
     public static Pos Inicial(string nombre) {
-        ulong un = 0;
-        switch (nombre) {
-            case "esquinas": un = Con(Con(un, 0, CodU(Blanco, Rey)), 15, CodU(Negro, Rey)); break;
-            case "frentes":  un = Con(Con(un, 1, CodU(Blanco, Rey)), 14, CodU(Negro, Rey)); break;
-            case "lados":    un = Con(Con(un, 4, CodU(Blanco, Rey)), 11, CodU(Negro, Rey)); break;
-            case "centro":   un = Con(Con(un, 5, CodU(Blanco, Rey)), 10, CodU(Negro, Rey)); break;
-            default: throw new ArgumentException($"disposicion inicial desconocida: {nombre}");
-        }
-        return new Pos(0, un);
+        // Cada casilla y su opuesta por giro de 180 grados: c y Casillas-1-c.
+        int c4 = Lado == 4 ? 1 : 0;
+        int donde = nombre switch {
+            "esquinas" => 0,                       // esquina contra esquina
+            "frentes"  => Lado == 4 ? 1 : 2,       // en el medio de la fila de arriba
+            "lados"    => Lado,                    // en el medio de la columna de la izquierda
+            "centro"   => Lado + 1,                // pegado al centro, en diagonal
+            _ => throw new ArgumentException($"disposicion inicial desconocida: {nombre}"),
+        };
+        _ = c4;
+        UInt128 un = Con(Con(UInt128.Zero, donde, CodU(Blanco, Rey)),
+                         Casillas - 1 - donde, CodU(Negro, Rey));
+        return new Pos(UInt128.Zero, un);
     }
 
     public static readonly string[] Disposiciones = { "esquinas", "frentes", "lados", "centro" };
@@ -483,17 +562,17 @@ public sealed class Juego {
 
     /// <summary>Las 16 casillas en 32 caracteres: edificio y unidad de cada una.</summary>
     public static string Linea(Pos p) {
-        var sb = new StringBuilder(32);
+        var sb = new StringBuilder(Casillas * 2);
         for (int c = 0; c < Casillas; c++) { sb.Append(SimboloE(En(p.Ed, c))); sb.Append(SimboloU(En(p.Un, c))); }
         return sb.ToString();
     }
 
     public static string Dibujar(Pos p) {
         var sb = new StringBuilder();
-        for (int f = 0; f < 4; f++) {
+        for (int f = 0; f < Lado; f++) {
             sb.Append("    ");
-            for (int c = 0; c < 4; c++) {
-                int i = f * 4 + c;
+            for (int c = 0; c < Lado; c++) {
+                int i = f * Lado + c;
                 sb.Append(SimboloE(En(p.Ed, i)));
                 sb.Append(SimboloU(En(p.Un, i)));
                 sb.Append(' ');
@@ -503,7 +582,7 @@ public sealed class Juego {
         return sb.ToString();
     }
 
-    public static string Casilla(int c) => $"{(char)('a' + c % 4)}{4 - c / 4}";
+    public static string Casilla(int c) => $"{(char)('a' + c % Lado)}{Lado - c / Lado}";
 
     public static readonly string[] NombreJugada = { "mover", "matar", "construir", "coronar", "desplegar", "convertir" };
     private static readonly string[] NombreU = { "rey", "constructor", "guerrero", "sacerdote" };

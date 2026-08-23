@@ -25,8 +25,7 @@ public sealed class Busqueda {
 
     private readonly Juego _g;
     private readonly int _bits;
-    private readonly ulong[] _ttEd;
-    private readonly ulong[] _ttUn;
+    private readonly ulong[] _ttClave;
     private readonly int[] _ttValor;
     private readonly sbyte[] _ttProf;
     private readonly byte[] _ttTipo;    // 0 vacio, 1 exacto, 2 cota inferior, 3 cota superior
@@ -40,8 +39,7 @@ public sealed class Busqueda {
         _g = g;
         _bits = bits;
         int n = 1 << bits;
-        _ttEd = new ulong[n];
-        _ttUn = new ulong[n];
+        _ttClave = new ulong[n];
         _ttValor = new int[n];
         _ttProf = new sbyte[n];
         _ttTipo = new byte[n];
@@ -137,8 +135,9 @@ public sealed class Busqueda {
         if (n == 0) return -(GANA - (100 - prof));        // ahogado: pierde el que no puede jugar
         if (prof <= 0) return Evaluar(p, turno);
 
+        ulong clave = p.Clave();
         int idx = Indice(p);
-        if (_ttTipo[idx] != 0 && _ttEd[idx] == p.Ed && _ttUn[idx] == p.Un && _ttProf[idx] >= prof) {
+        if (_ttTipo[idx] != 0 && _ttClave[idx] == clave && _ttProf[idx] >= prof) {
             int v = _ttValor[idx];
             if (_ttTipo[idx] == 1) return v;
             if (_ttTipo[idx] == 2 && v > alfa) alfa = v;
@@ -158,7 +157,7 @@ public sealed class Busqueda {
             if (alfa >= beta) break;
         }
 
-        _ttEd[idx] = p.Ed; _ttUn[idx] = p.Un;
+        _ttClave[idx] = clave;
         _ttValor[idx] = mejor;
         _ttProf[idx] = (sbyte)Math.Min(prof, 127);
         _ttTipo[idx] = (byte)(mejor <= alfa0 ? 3 : mejor >= beta ? 2 : 1);
@@ -187,8 +186,9 @@ public sealed class Busqueda {
         if (prof <= 0) return 0;
 
         Pos can = _g.Canonica(p);
+        ulong clave = can.Clave();
         int idx = Indice(can);
-        if (_ttTipo[idx] != 0 && _ttEd[idx] == can.Ed && _ttUn[idx] == can.Un && _ttProf[idx] >= prof) {
+        if (_ttTipo[idx] != 0 && _ttClave[idx] == clave && _ttProf[idx] >= prof) {
             int v = _ttValor[idx];
             if (_ttTipo[idx] == 1) return v;
             if (_ttTipo[idx] == 2 && v > alfa) alfa = v;
@@ -208,7 +208,7 @@ public sealed class Busqueda {
             if (alfa >= beta) break;
         }
 
-        _ttEd[idx] = can.Ed; _ttUn[idx] = can.Un;
+        _ttClave[idx] = clave;
         _ttValor[idx] = mejor;
         _ttProf[idx] = (sbyte)Math.Min(prof, 127);
         _ttTipo[idx] = (byte)(mejor <= alfa0 ? 3 : mejor >= beta ? 2 : 1);

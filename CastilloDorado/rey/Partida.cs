@@ -55,7 +55,7 @@ public sealed class PoliticaBusqueda : Politica {
 /// <summary>Corre partidas enteras y lleva la cuenta de las repeticiones.</summary>
 public sealed class Mesa {
     private readonly Juego _g;
-    private readonly Dictionary<(ulong, ulong, int), int> _vistas = new();
+    private readonly Dictionary<(UInt128, UInt128, int), int> _vistas = new();
     private readonly List<Pos> _historia = new();
 
     public Mesa(Juego g) { _g = g; }
