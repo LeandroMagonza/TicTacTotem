@@ -62,6 +62,7 @@ public static class Program {
         NoPegado = Flag(o, "no-pegado"),
         SacerdoteReubica = Flag(o, "sacerdote-reubica"),
         SacerdoteReleva = Flag(o, "sacerdote-releva"),
+        SacerdoteVuelve = Flag(o, "sacerdote-vuelve"),
         ReyNoMata = Flag(o, "rey-no-mata"),
         Compensa = Flag(o, "compensa"),
         CastilloAguanta = Flag(o, "castillo-aguanta"),
@@ -113,6 +114,8 @@ Reglas (en cualquier comando):
   --no-pegado           vuelve la regla de que dos edificios no pueden tocarse
   --sacerdote-reubica   el sacerdote convierte aunque ya tenga esa pieza: la muda ahi
   --sacerdote-releva    lo mismo, pero solo si tu pieza esta guarnecida en su edificio
+  --sacerdote-vuelve    despues de convertir el sacerdote deja la casilla: va a su iglesia si
+                        esta libre, y si no sale del tablero
   --rey-no-mata         el rey nunca mata, aunque tenga el poder del guerrero
   --compensa            el segundo arranca con el taller levantado y el constructor adentro
   --castillo-aguanta    no alcanza con entrar al castillo: hay que aguantar adentro un turno
@@ -297,6 +300,7 @@ Reglas (en cualquier comando):
             ("no-pegado", x => x.NoPegado = true),
             ("sacerdote-reubica", x => x.SacerdoteReubica = true),
             ("sacerdote-releva", x => x.SacerdoteReleva = true),
+            ("sacerdote-vuelve", x => x.SacerdoteVuelve = true),
             ("rey-no-mata", x => x.ReyNoMata = true),
             ("compensa", x => x.Compensa = true),
             ("castillo-aguanta", x => x.CastilloAguanta = true),

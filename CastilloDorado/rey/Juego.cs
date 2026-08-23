@@ -57,6 +57,14 @@ public sealed class Reglas {
     /// </summary>
     public bool GuerreroVeloz = false;
 
+    /// <summary>
+    /// Despues de convertir, el sacerdote SIEMPRE deja la casilla: si su iglesia esta libre
+    /// aterriza ahi, y si no, sale del tablero. Convierte pararse en la iglesia enemiga en
+    /// una jugada util para cualquier unidad, porque le vuelve sacrificio cada conversion.
+    /// Vale solo para el sacerdote de verdad, no para el rey usando el poder prestado.
+    /// </summary>
+    public bool SacerdoteVuelve = false;
+
     /// <summary>Vuelve la regla de que dos edificios no pueden estar pegados.</summary>
     public bool NoPegado = false;
 
@@ -114,6 +122,7 @@ public sealed class Reglas {
         if (NoPegado) sb.Append("+no-pegado");
         if (SacerdoteReubica) sb.Append("+sacerdote-reubica");
         if (SacerdoteReleva) sb.Append("+sacerdote-releva");
+        if (SacerdoteVuelve) sb.Append("+sacerdote-vuelve");
         if (ReyNoMata) sb.Append("+rey-no-mata");
         if (Compensa) sb.Append("+compensa");
         if (AdelantaSegundo) sb.Append("+adelanta-segundo");
@@ -478,11 +487,25 @@ public sealed class Juego {
             case DESPLEGAR:
                 return new Pos(ed, Con(un, hasta, CodU(turno, extra)));
             case CONVERTIR: {
+                bool loHizoElSacerdote = TipoU(En(p.Un, desde)) == Sacerdote;
                 int mio = CodU(turno, TipoU(En(un, hasta)));
                 un = Con(un, hasta, mio);
                 if (SacerdoteMuda)
                     for (int c = 0; c < Casillas; c++)
                         if (c != hasta && En(un, c) == mio) { un = Con(un, c, 0); break; }
+
+                if (R.SacerdoteVuelve && loHizoElSacerdote) {
+                    // El sacerdote deja la casilla si o si: a su iglesia si esta libre, y si
+                    // no, afuera del tablero. Volver a la iglesia es gratis; salir cuesta el
+                    // turno de redesplegarlo, y mientras tanto la iglesia queda sin nadie.
+                    int cod = CodU(turno, Sacerdote);
+                    int donde = CasillaDe(un, cod);
+                    if (donde >= 0) {
+                        int igl = CasillaDe(ed, CodE(turno, Iglesia));
+                        un = Con(un, donde, 0);
+                        if (igl >= 0 && En(un, igl) == 0) un = Con(un, igl, cod);
+                    }
+                }
                 return new Pos(ed, un);
             }
             default:

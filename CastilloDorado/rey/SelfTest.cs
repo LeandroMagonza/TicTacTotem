@@ -334,6 +334,47 @@ public static class SelfTest {
               !Tiene(gsu, U(U(U(vacio, B, Juego.Sacerdote, 5), B, Juego.Rey, 0), N, Juego.Rey, 6),
                      B, Juego.CONVERTIR, 6));
 
+        // El regreso del sacerdote: despues de convertir siempre deja la casilla.
+        var gv2 = new Juego(new Reglas { SacerdoteVuelve = true });
+        Pos vue = U(U(vacio, B, Juego.Sacerdote, 5), N, Juego.Guerrero, 6);
+        vue = E(U(U(vue, B, Juego.Rey, 0), N, Juego.Rey, 15), B, Juego.Iglesia, 13);
+
+        Pos tras = gv2.Aplicar(vue, B, Juego.Jug(Juego.CONVERTIR, 5, 6, 0));
+        Check("con la iglesia libre, el sacerdote aterriza ahi",
+              Juego.En(tras.Un, 13) == Juego.CodU(B, Juego.Sacerdote) && Juego.En(tras.Un, 5) == 0);
+        Check("y la conversion se hizo igual: el guerrero enemigo paso a ser tuyo",
+              Juego.En(tras.Un, 6) == Juego.CodU(B, Juego.Guerrero));
+
+        Pos tapada = U(vue, N, Juego.Constructor, 13);
+        Pos tras2 = gv2.Aplicar(tapada, B, Juego.Jug(Juego.CONVERTIR, 5, 6, 0));
+        Check("con la iglesia tapada por el enemigo, el sacerdote sale del tablero",
+              !Juego.Hay(Juego.PresU(tras2.Un), B, Juego.Sacerdote) &&
+              Juego.En(tras2.Un, 6) == Juego.CodU(B, Juego.Guerrero));
+        Check("y la iglesia sigue en pie, con el enemigo encima",
+              Juego.En(tras2.Ed, 13) == Juego.CodE(B, Juego.Iglesia) &&
+              Juego.En(tras2.Un, 13) == Juego.CodU(N, Juego.Constructor));
+
+        Pos propia = U(vue, B, Juego.Constructor, 13);
+        Check("tambien sale del tablero si la tapa una unidad propia",
+              !Juego.Hay(Juego.PresU(gv2.Aplicar(propia, B, Juego.Jug(Juego.CONVERTIR, 5, 6, 0)).Un),
+                         B, Juego.Sacerdote));
+
+        Pos sinIglesia = new Pos(Juego.Con(vue.Ed, 13, 0), vue.Un);
+        Check("y si no tenes iglesia, tambien: siempre deja la casilla",
+              !Juego.Hay(Juego.PresU(gv2.Aplicar(sinIglesia, B, Juego.Jug(Juego.CONVERTIR, 5, 6, 0)).Un),
+                         B, Juego.Sacerdote));
+
+        Check("una vez afuera, se lo redespliega desde la iglesia como a cualquiera",
+              Tiene(gv2, tras2 == tras ? tras2 : new Pos(tras2.Ed, Juego.Con(tras2.Un, 13, 0)),
+                    B, Juego.DESPLEGAR, 13, Juego.Sacerdote));
+
+        // El rey usando el poder prestado no se teletransporta: es la jugada del sacerdote.
+        Pos reyConv = E(U(U(vacio, B, Juego.Rey, 5), N, Juego.Guerrero, 6), B, Juego.Iglesia, 13);
+        reyConv = U(reyConv, N, Juego.Rey, 15);
+        Pos trasRey = gv2.Aplicar(reyConv, B, Juego.Jug(Juego.CONVERTIR, 5, 6, 0));
+        Check("el rey usando el poder del sacerdote no se mueve a la iglesia",
+              Juego.En(trasRey.Un, 5) == Juego.CodU(B, Juego.Rey) && Juego.En(trasRey.Un, 13) == 0);
+
         Console.WriteLine("El punto de aparicion");
 
         Pos muerto = E(U(vacio, B, Juego.Rey, 10), B, Juego.Taller, 0);
