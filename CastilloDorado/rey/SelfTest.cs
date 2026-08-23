@@ -375,6 +375,60 @@ public static class SelfTest {
         Check("el rey usando el poder del sacerdote no se mueve a la iglesia",
               Juego.En(trasRey.Un, 5) == Juego.CodU(B, Juego.Rey) && Juego.En(trasRey.Un, 13) == 0);
 
+        // Tu ejemplo exacto: constructor propio parado en la iglesia, convierto al constructor
+        // enemigo. El enemigo se va, el mio se muda a esa casilla, y el sacerdote entra a la
+        // iglesia que acaba de quedar vacia. Primero la conversion, despues el retroceso.
+        var gvr = new Juego(new Reglas { SacerdoteVuelve = true, SacerdoteReubica = true });
+        Pos cad = U(U(vacio, B, Juego.Sacerdote, 5), N, Juego.Constructor, 6);
+        cad = E(U(U(cad, B, Juego.Rey, 0), N, Juego.Rey, 15), B, Juego.Iglesia, 13);
+        cad = U(cad, B, Juego.Constructor, 13);          // el propio, parado en la iglesia
+        Pos cad2 = gvr.Aplicar(cad, B, Juego.Jug(Juego.CONVERTIR, 5, 6, 0));
+        Check("el constructor enemigo sale del tablero",
+              !Juego.Hay(Juego.PresU(cad2.Un), N, Juego.Constructor));
+        Check("el constructor propio se muda a la casilla donde estaba el del oponente",
+              Juego.En(cad2.Un, 6) == Juego.CodU(B, Juego.Constructor));
+        Check("y el sacerdote entra a la iglesia recien vaciada",
+              Juego.En(cad2.Un, 13) == Juego.CodU(B, Juego.Sacerdote) && Juego.En(cad2.Un, 5) == 0);
+
+        // Convertir un sacerdote no retrocede: si no, seria la unica conversion que no adelanta.
+        Pos csac = U(U(vacio, B, Juego.Sacerdote, 5), N, Juego.Sacerdote, 6);
+        csac = E(U(U(csac, B, Juego.Rey, 0), N, Juego.Rey, 15), B, Juego.Iglesia, 13);
+        Pos csac2 = gvr.Aplicar(csac, B, Juego.Jug(Juego.CONVERTIR, 5, 6, 0));
+        Check("convertir al sacerdote enemigo deja al tuyo en esa casilla, sin retroceso",
+              Juego.En(csac2.Un, 6) == Juego.CodU(B, Juego.Sacerdote) &&
+              Juego.En(csac2.Un, 13) == 0 && Juego.En(csac2.Un, 5) == 0);
+        Check("y el sacerdote enemigo desaparece: nunca hay dos",
+              !Juego.Hay(Juego.PresU(csac2.Un), N, Juego.Sacerdote));
+
+        // --vuelve-al-edificio: matar o convertir no saca del tablero, devuelve a casa.
+        var gve = new Juego(new Reglas { VuelveAlEdificio = true });
+        Pos mat = U(U(vacio, B, Juego.Guerrero, 5), N, Juego.Constructor, 6);
+        mat = E(U(U(mat, B, Juego.Rey, 0), N, Juego.Rey, 15), N, Juego.Taller, 11);
+        Pos mat2 = gve.Aplicar(mat, B, Juego.Jug(Juego.MATAR, 5, 6, 0));
+        Check("con --vuelve-al-edificio, el muerto reaparece parado sobre su taller",
+              Juego.En(mat2.Un, 11) == Juego.CodU(N, Juego.Constructor) &&
+              Juego.En(mat2.Un, 6) == Juego.CodU(B, Juego.Guerrero));
+        Check("sin la regla, el muerto queda afuera del tablero",
+              !Juego.Hay(Juego.PresU(g.Aplicar(mat, B, Juego.Jug(Juego.MATAR, 5, 6, 0)).Un),
+                         N, Juego.Constructor));
+        Check("si el edificio esta ocupado, el muerto si sale del tablero",
+              !Juego.Hay(Juego.PresU(gve.Aplicar(U(mat, N, Juego.Sacerdote, 11), B,
+                                                 Juego.Jug(Juego.MATAR, 5, 6, 0)).Un),
+                         N, Juego.Constructor));
+        Check("el rey nunca vuelve: matarlo sigue siendo ganar",
+              gve.Terminal(gve.Aplicar(U(U(U(vacio, B, Juego.Guerrero, 5), N, Juego.Rey, 6),
+                                         B, Juego.Rey, 0), B, Juego.Jug(Juego.MATAR, 5, 6, 0)), N)
+                  is (Resultado.Blanco, Final.ReyMuerto));
+
+        // Bloquearle la iglesia al rival le devuelve el poder del sacerdote a su rey.
+        var grr = new Juego(new Reglas { ReyReino = true });
+        Pos blo = E(U(U(vacio, N, Juego.Rey, 6), B, Juego.Rey, 0), N, Juego.Iglesia, 11);
+        blo = U(blo, B, Juego.Constructor, 5);          // victima adyacente al rey negro
+        Check("con su iglesia libre y sin sacerdote, el rey negro NO tiene el poder",
+              !Tiene(grr, blo, N, Juego.CONVERTIR, 5));
+        Check("pero si le bloqueas la iglesia, el rey negro recupera el poder",
+              Tiene(grr, U(blo, B, Juego.Guerrero, 11), N, Juego.CONVERTIR, 5));
+
         Console.WriteLine("El punto de aparicion");
 
         Pos muerto = E(U(vacio, B, Juego.Rey, 10), B, Juego.Taller, 0);

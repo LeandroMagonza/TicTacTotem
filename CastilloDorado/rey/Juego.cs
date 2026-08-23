@@ -65,6 +65,14 @@ public sealed class Reglas {
     /// </summary>
     public bool SacerdoteVuelve = false;
 
+    /// <summary>
+    /// Al morir o al ser convertida, una unidad NO sale del tablero: vuelve parada sobre su
+    /// propio edificio, si esa casilla esta libre. Si esta ocupada, ahi si sale. Le saca a
+    /// matar y a convertir el turno de ventaja que hoy dan, y de paso deja los edificios
+    /// defendidos casi siempre. El rey nunca vuelve: perderlo es perder.
+    /// </summary>
+    public bool VuelveAlEdificio = false;
+
     /// <summary>Vuelve la regla de que dos edificios no pueden estar pegados.</summary>
     public bool NoPegado = false;
 
@@ -123,6 +131,7 @@ public sealed class Reglas {
         if (SacerdoteReubica) sb.Append("+sacerdote-reubica");
         if (SacerdoteReleva) sb.Append("+sacerdote-releva");
         if (SacerdoteVuelve) sb.Append("+sacerdote-vuelve");
+        if (VuelveAlEdificio) sb.Append("+vuelve-al-edificio");
         if (ReyNoMata) sb.Append("+rey-no-mata");
         if (Compensa) sb.Append("+compensa");
         if (AdelantaSegundo) sb.Append("+adelanta-segundo");
@@ -378,6 +387,17 @@ public sealed class Juego {
     /// <summary>El sacerdote muda la pieza propia en vez de traerla de afuera.</summary>
     public bool SacerdoteMuda => R.SacerdoteReubica || R.SacerdoteReleva;
 
+    /// <summary>
+    /// La unidad que acaba de perder su dueño vuelve parada sobre su edificio, si esta libre.
+    /// Sin la regla no hace nada y la unidad queda afuera del tablero, como siempre.
+    /// </summary>
+    private UInt128 Devolver(UInt128 ed, UInt128 un, int dueno, int tipo) {
+        if (!R.VuelveAlEdificio || tipo == Rey) return un;
+        int b = CasillaDe(ed, CodE(dueno, tipo - 1));
+        if (b < 0 || En(un, b) != 0) return un;
+        return Con(un, b, CodU(dueno, tipo));
+    }
+
     // --------------------------------------------------------------- jugadas
 
     // 3 bits de tipo, 5 de origen, 5 de destino, 4 de extra: entran las 25 casillas del 5x5.
@@ -470,8 +490,10 @@ public sealed class Juego {
         switch (tipo) {
             case MOVER:
             case MATAR: {
-                int v = En(un, desde);
+                int v = En(un, desde), victima = En(un, hasta);
                 un = Con(Con(un, desde, 0), hasta, v);
+                if (tipo == MATAR && victima != 0)
+                    un = Devolver(ed, un, DuenoU(victima), TipoU(victima));
                 return new Pos(ed, un);
             }
             case CONSTRUIR: {
@@ -488,13 +510,19 @@ public sealed class Juego {
                 return new Pos(ed, Con(un, hasta, CodU(turno, extra)));
             case CONVERTIR: {
                 bool loHizoElSacerdote = TipoU(En(p.Un, desde)) == Sacerdote;
-                int mio = CodU(turno, TipoU(En(un, hasta)));
+                int victima = En(p.Un, hasta);
+                int tv = TipoU(victima);
+                int mio = CodU(turno, tv);
                 un = Con(un, hasta, mio);
                 if (SacerdoteMuda)
                     for (int c = 0; c < Casillas; c++)
                         if (c != hasta && En(un, c) == mio) { un = Con(un, c, 0); break; }
+                un = Devolver(ed, un, DuenoU(victima), tv);
 
-                if (R.SacerdoteVuelve && loHizoElSacerdote) {
+                // Convertir un sacerdote NO dispara el retroceso: si lo disparara, seria la
+                // unica conversion que no te deja adelantado, porque tu sacerdote llegaria a
+                // la casilla y se volveria en la misma jugada.
+                if (R.SacerdoteVuelve && loHizoElSacerdote && tv != Sacerdote) {
                     // El sacerdote deja la casilla si o si: a su iglesia si esta libre, y si
                     // no, afuera del tablero. Volver a la iglesia es gratis; salir cuesta el
                     // turno de redesplegarlo, y mientras tanto la iglesia queda sin nadie.

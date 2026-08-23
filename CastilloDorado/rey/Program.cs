@@ -63,6 +63,7 @@ public static class Program {
         SacerdoteReubica = Flag(o, "sacerdote-reubica"),
         SacerdoteReleva = Flag(o, "sacerdote-releva"),
         SacerdoteVuelve = Flag(o, "sacerdote-vuelve"),
+        VuelveAlEdificio = Flag(o, "vuelve-al-edificio"),
         ReyNoMata = Flag(o, "rey-no-mata"),
         Compensa = Flag(o, "compensa"),
         CastilloAguanta = Flag(o, "castillo-aguanta"),
@@ -115,7 +116,9 @@ Reglas (en cualquier comando):
   --sacerdote-reubica   el sacerdote convierte aunque ya tenga esa pieza: la muda ahi
   --sacerdote-releva    lo mismo, pero solo si tu pieza esta guarnecida en su edificio
   --sacerdote-vuelve    despues de convertir el sacerdote deja la casilla: va a su iglesia si
-                        esta libre, y si no sale del tablero
+                        esta libre, y si no sale del tablero. No aplica al convertir un sacerdote
+  --vuelve-al-edificio  al morir o ser convertida, la unidad vuelve parada sobre su edificio si
+                        esta libre, en vez de salir del tablero
   --rey-no-mata         el rey nunca mata, aunque tenga el poder del guerrero
   --compensa            el segundo arranca con el taller levantado y el constructor adentro
   --castillo-aguanta    no alcanza con entrar al castillo: hay que aguantar adentro un turno
@@ -301,6 +304,7 @@ Reglas (en cualquier comando):
             ("sacerdote-reubica", x => x.SacerdoteReubica = true),
             ("sacerdote-releva", x => x.SacerdoteReleva = true),
             ("sacerdote-vuelve", x => x.SacerdoteVuelve = true),
+            ("vuelve-al-edificio", x => x.VuelveAlEdificio = true),
             ("rey-no-mata", x => x.ReyNoMata = true),
             ("compensa", x => x.Compensa = true),
             ("castillo-aguanta", x => x.CastilloAguanta = true),
