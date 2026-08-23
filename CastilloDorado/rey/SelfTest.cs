@@ -295,6 +295,45 @@ public static class SelfTest {
               !Tiene(g, U(U(U(vacio, B, Juego.Sacerdote, 4), B, Juego.Rey, 12), N, Juego.Rey, 5),
                      B, Juego.CONVERTIR, 5));
 
+        // El releve del sacerdote: convertir la pieza que ya tenes, pero solo si la tuya
+        // esta guarnecida. El precio del poder es dejarla en casa.
+        var gsr = new Juego(new Reglas { SacerdoteReleva = true });
+        var gsu = new Juego(new Reglas { SacerdoteReubica = true });
+
+        // Sacerdote blanco en 5, constructor negro pegado en 6. Taller blanco en 10.
+        Pos rel = U(U(vacio, B, Juego.Sacerdote, 5), N, Juego.Constructor, 6);
+        rel = E(U(U(rel, B, Juego.Rey, 0), N, Juego.Rey, 15), B, Juego.Taller, 10);
+
+        Pos suelto2 = U(rel, B, Juego.Constructor, 9);          // el propio, fuera del taller
+        Pos enCasa = U(rel, B, Juego.Constructor, 10);          // el propio, guarnecido
+        Check("con la regla base, teniendo constructor propio no se convierte al enemigo",
+              !Tiene(g, suelto2, B, Juego.CONVERTIR, 6) && !Tiene(g, enCasa, B, Juego.CONVERTIR, 6));
+        Check("con --sacerdote-releva tampoco, si el constructor propio anda suelto",
+              !Tiene(gsr, suelto2, B, Juego.CONVERTIR, 6));
+        Check("pero si el constructor propio esta guarnecido en el taller, si",
+              Tiene(gsr, enCasa, B, Juego.CONVERTIR, 6));
+        Check("con --sacerdote-reubica vale igual, guarnecido o no: por eso es mas fuerte",
+              Tiene(gsu, suelto2, B, Juego.CONVERTIR, 6) && Tiene(gsu, enCasa, B, Juego.CONVERTIR, 6));
+
+        Pos releva = gsr.Aplicar(enCasa, B, Juego.Jug(Juego.CONVERTIR, 5, 6, 0));
+        Check("el enemigo sale del tablero y el propio se muda del taller a esa casilla",
+              Juego.En(releva.Un, 6) == Juego.CodU(B, Juego.Constructor) &&
+              Juego.En(releva.Un, 10) == 0 &&
+              !Juego.Hay(Juego.PresU(releva.Un), N, Juego.Constructor));
+        Check("nunca quedan dos constructores del mismo bando",
+              Enumerable.Range(0, Juego.Casillas)
+                        .Count(c => Juego.En(releva.Un, c) == Juego.CodU(B, Juego.Constructor)) == 1);
+        Check("el taller sigue en pie: el que se fue es el constructor, no el edificio",
+              Juego.En(releva.Ed, 10) == Juego.CodE(B, Juego.Taller));
+        Check("si el propio ya estaba fuera del tablero, se comporta como la regla base",
+              g.Aplicar(rel, B, Juego.Jug(Juego.CONVERTIR, 5, 6, 0)) ==
+              gsr.Aplicar(rel, B, Juego.Jug(Juego.CONVERTIR, 5, 6, 0)));
+        Check("y el rey sigue siendo inconvertible con cualquiera de las dos",
+              !Tiene(gsr, U(U(U(vacio, B, Juego.Sacerdote, 5), B, Juego.Rey, 0), N, Juego.Rey, 6),
+                     B, Juego.CONVERTIR, 6) &&
+              !Tiene(gsu, U(U(U(vacio, B, Juego.Sacerdote, 5), B, Juego.Rey, 0), N, Juego.Rey, 6),
+                     B, Juego.CONVERTIR, 6));
+
         Console.WriteLine("El punto de aparicion");
 
         Pos muerto = E(U(vacio, B, Juego.Rey, 10), B, Juego.Taller, 0);

@@ -60,8 +60,18 @@ public sealed class Reglas {
     /// <summary>Vuelve la regla de que dos edificios no pueden estar pegados.</summary>
     public bool NoPegado = false;
 
-    /// <summary>El sacerdote convierte aunque ya tenga esa pieza: la muda ahi.</summary>
+    /// <summary>
+    /// El sacerdote convierte aunque ya tengas esa pieza: en vez de aparecer una segunda, la
+    /// tuya se muda a esa casilla. Le saca la pieza al otro y reposiciona la tuya de un saque.
+    /// </summary>
     public bool SacerdoteReubica = false;
+
+    /// <summary>
+    /// Lo mismo, pero solo si tu pieza de ese tipo esta GUARNECIDA, o sea parada sobre un
+    /// edificio de su tipo. Es el mismo poder con un precio: para tenerlo disponible hay que
+    /// dejar la pieza en casa, sin usarla en el tablero.
+    /// </summary>
+    public bool SacerdoteReleva = false;
 
     /// <summary>El rey no puede matar nunca, aunque tenga el poder del guerrero.</summary>
     public bool ReyNoMata = false;
@@ -82,6 +92,12 @@ public sealed class Reglas {
     /// <summary>Lado del tablero: 4 o 5. Ver Juego.Configurar.</summary>
     public int Lado = 4;
 
+    /// <summary>
+    /// El rey del segundo arranca una fila mas adelante que el del primero. Es una
+    /// compensacion mucho mas chica que regalarle un edificio: vale media jugada, no una.
+    /// </summary>
+    public bool AdelantaSegundo = false;
+
     public int RepeticionesEmpate = 3;
     public int PliesMax = 300;
     public string Inicio = "esquinas";
@@ -97,8 +113,10 @@ public sealed class Reglas {
         if (GuerreroVeloz) sb.Append("+guerrero-veloz");
         if (NoPegado) sb.Append("+no-pegado");
         if (SacerdoteReubica) sb.Append("+sacerdote-reubica");
+        if (SacerdoteReleva) sb.Append("+sacerdote-releva");
         if (ReyNoMata) sb.Append("+rey-no-mata");
         if (Compensa) sb.Append("+compensa");
+        if (AdelantaSegundo) sb.Append("+adelanta-segundo");
         if (CastilloAguanta) sb.Append("+castillo-aguanta");
         return sb.ToString();
     }
@@ -324,6 +342,18 @@ public sealed class Juego {
     /// o esta fuera (muerta o sin edificio todavia), o esta guarnecida sobre un edificio de su
     /// tipo. Con ReyGuarnicion apagado solo vale el primer caso.
     /// </summary>
+    /// <summary>
+    /// La unidad t de ese bando esta parada sobre un edificio de su propio tipo. Sirve para
+    /// el poder prestado del rey y para el releve del sacerdote.
+    /// </summary>
+    public static bool Guarnecida(Pos p, int dueno, int t) {
+        if (t < Constructor || t > Sacerdote) return false;
+        int c = CasillaDe(p.Un, CodU(dueno, t));
+        if (c < 0) return false;
+        int e = En(p.Ed, c);
+        return e != 0 && !EsCastillo(e) && TipoE(e) == t - 1;
+    }
+
     public bool PoderDelRey(Pos p, int presU, int turno, int t) {
         // Por edificio: el rey conserva el poder solo mientras no controle el edificio que
         // lo delega. Matarle la unidad al otro ya no le devuelve el poder al rey.
@@ -333,10 +363,11 @@ public sealed class Juego {
         if (R.ReyPorEdificio) return !ControlaTipo(p, turno, t - 1);
         if (!Hay(presU, turno, t)) return true;
         if (!R.ReyGuarnicion) return false;
-        int c = CasillaDe(p.Un, CodU(turno, t));
-        int e = En(p.Ed, c);
-        return e != 0 && !EsCastillo(e) && TipoE(e) == t - 1;
+        return Guarnecida(p, turno, t);
     }
+
+    /// <summary>El sacerdote muda la pieza propia en vez de traerla de afuera.</summary>
+    public bool SacerdoteMuda => R.SacerdoteReubica || R.SacerdoteReleva;
 
     // --------------------------------------------------------------- jugadas
 
@@ -406,7 +437,9 @@ public sealed class Juego {
                 int tw = TipoU(w);
                 // A un edificio ocupado (y a una unidad suelta) solo se entra matando.
                 if (puedeMatar) buf[n++] = Jug(MATAR, c, a, 0);
-                if (puedeConvertir && tw != Rey && (!Hay(presU, turno, tw) || R.SacerdoteReubica))
+                if (puedeConvertir && tw != Rey &&
+                    (!Hay(presU, turno, tw) || R.SacerdoteReubica ||
+                     (R.SacerdoteReleva && Guarnecida(p, turno, tw))))
                     buf[n++] = Jug(CONVERTIR, c, a, 0);
             }
 
@@ -447,7 +480,7 @@ public sealed class Juego {
             case CONVERTIR: {
                 int mio = CodU(turno, TipoU(En(un, hasta)));
                 un = Con(un, hasta, mio);
-                if (R.SacerdoteReubica)
+                if (SacerdoteMuda)
                     for (int c = 0; c < Casillas; c++)
                         if (c != hasta && En(un, c) == mio) { un = Con(un, c, 0); break; }
                 return new Pos(ed, un);
@@ -515,6 +548,15 @@ public sealed class Juego {
     /// </summary>
     public Pos Inicial() {
         Pos p = Inicial(R.Inicio);
+
+        if (R.AdelantaSegundo) {
+            // El rey negro sube una fila hacia el centro, si hay lugar y esta libre.
+            int rn = CasillaRey(p.Un, Negro);
+            int destino = rn - Lado;
+            if (destino >= 0 && En(p.Un, destino) == 0)
+                p = new Pos(p.Ed, Con(Con(p.Un, rn, 0), destino, CodU(Negro, Rey)));
+        }
+
         if (!R.Compensa) return p;
         // El taller regalado va pegado al rey negro, en la primera casilla libre.
         int rey = CasillaRey(p.Un, Negro);
@@ -526,21 +568,20 @@ public sealed class Juego {
 
     public static Pos Inicial(string nombre) {
         // Cada casilla y su opuesta por giro de 180 grados: c y Casillas-1-c.
-        int c4 = Lado == 4 ? 1 : 0;
         int donde = nombre switch {
-            "esquinas" => 0,                       // esquina contra esquina
-            "frentes"  => Lado == 4 ? 1 : 2,       // en el medio de la fila de arriba
-            "lados"    => Lado,                    // en el medio de la columna de la izquierda
-            "centro"   => Lado + 1,                // pegado al centro, en diagonal
+            "esquinas"    => 0,                    // esquina contra esquina
+            "frentes"     => Lado / 2,             // en el medio de la fila del fondo
+            "adelantados" => Lado + Lado / 2,      // en el medio, pero una fila adentro
+            "lados"       => Lado,                 // en el medio de la columna de la izquierda
+            "centro"      => Lado + 1,             // pegado al centro, en diagonal
             _ => throw new ArgumentException($"disposicion inicial desconocida: {nombre}"),
         };
-        _ = c4;
         UInt128 un = Con(Con(UInt128.Zero, donde, CodU(Blanco, Rey)),
                          Casillas - 1 - donde, CodU(Negro, Rey));
         return new Pos(UInt128.Zero, un);
     }
 
-    public static readonly string[] Disposiciones = { "esquinas", "frentes", "lados", "centro" };
+    public static readonly string[] Disposiciones = { "esquinas", "frentes", "adelantados", "lados", "centro" };
 
     // ---------------------------------------------------------------- texto
 

@@ -53,6 +53,7 @@ public static class Program {
     private static Reglas LeerReglas(Dictionary<string, string> o) => new Reglas {
         Inicio = o.TryGetValue("inicio", out string? i) ? i : "esquinas",
         Lado = Ent(o, "lado", 4),
+        AdelantaSegundo = Flag(o, "adelanta-segundo"),
         ReyGuarnicion = !Flag(o, "rey-pierde-poder"),
         ReyPorEdificio = Flag(o, "rey-por-edificio"),
         ReyReino = Flag(o, "rey-reino"),
@@ -60,6 +61,7 @@ public static class Program {
         GuerreroVeloz = Flag(o, "guerrero-veloz"),
         NoPegado = Flag(o, "no-pegado"),
         SacerdoteReubica = Flag(o, "sacerdote-reubica"),
+        SacerdoteReleva = Flag(o, "sacerdote-releva"),
         ReyNoMata = Flag(o, "rey-no-mata"),
         Compensa = Flag(o, "compensa"),
         CastilloAguanta = Flag(o, "castillo-aguanta"),
@@ -98,7 +100,8 @@ los tres edificios bajo control, o matandole el rey al otro.
 
 Reglas (en cualquier comando):
   --lado 4|5            tamaño del tablero
-  --inicio esquinas|frentes|lados|centro   disposicion inicial
+  --inicio esquinas|frentes|adelantados|lados|centro   disposicion inicial
+  --adelanta-segundo    el rey del segundo arranca una fila mas adelante que el del primero
   --rey-pierde-poder    el rey pierde el poder apenas la unidad existe en el tablero,
                         en vez de conservarlo mientras la unidad este en su edificio
   --rey-por-edificio    el rey pierde el poder por CONTROLAR el edificio, no por tener la
@@ -109,6 +112,7 @@ Reglas (en cualquier comando):
   --guerrero-veloz      el guerrero carga: se mueve hasta dos casillas en linea recta
   --no-pegado           vuelve la regla de que dos edificios no pueden tocarse
   --sacerdote-reubica   el sacerdote convierte aunque ya tenga esa pieza: la muda ahi
+  --sacerdote-releva    lo mismo, pero solo si tu pieza esta guarnecida en su edificio
   --rey-no-mata         el rey nunca mata, aunque tenga el poder del guerrero
   --compensa            el segundo arranca con el taller levantado y el constructor adentro
   --castillo-aguanta    no alcanza con entrar al castillo: hay que aguantar adentro un turno
@@ -289,8 +293,10 @@ Reglas (en cualquier comando):
             ("rey-reino", x => x.ReyReino = true),
             ("control-guerrero", x => x.ControlGuerrero = true),
             ("guerrero-veloz", x => x.GuerreroVeloz = true),
+            ("adelanta-segundo", x => x.AdelantaSegundo = true),
             ("no-pegado", x => x.NoPegado = true),
             ("sacerdote-reubica", x => x.SacerdoteReubica = true),
+            ("sacerdote-releva", x => x.SacerdoteReleva = true),
             ("rey-no-mata", x => x.ReyNoMata = true),
             ("compensa", x => x.Compensa = true),
             ("castillo-aguanta", x => x.CastilloAguanta = true),

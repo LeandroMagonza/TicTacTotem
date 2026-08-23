@@ -22,6 +22,8 @@ public struct Registro {
 
     // Cuantas jugadas hizo cada tipo de unidad (el despliegue no lo hace ninguna).
     public int UsoRey, UsoConstructor, UsoGuerrero, UsoSacerdote;
+    // De esas, cuantas fueron simplemente caminar. El resto son habilidades.
+    public int AndarRey, AndarConstructor, AndarGuerrero, AndarSacerdote;
 
     // En que orden levanto sus tres edificios cada bando: indice de permutacion 0-5,
     // o -1 si no llego a levantar los tres. Ver Balance.NombreOrden.
@@ -113,12 +115,13 @@ public sealed class Mesa {
             // Quien hizo la jugada. El despliegue no lo hace ninguna unidad: sale del edificio.
             if (Juego.JTipo(jugada) != Juego.DESPLEGAR) {
                 int actor = Juego.En(p.Un, Juego.JDesde(jugada));
+                bool andar = Juego.JTipo(jugada) == Juego.MOVER;
                 if (actor != 0)
                     switch (Juego.TipoU(actor)) {
-                        case Juego.Rey: reg.UsoRey++; break;
-                        case Juego.Constructor: reg.UsoConstructor++; break;
-                        case Juego.Guerrero: reg.UsoGuerrero++; break;
-                        case Juego.Sacerdote: reg.UsoSacerdote++; break;
+                        case Juego.Rey: reg.UsoRey++; if (andar) reg.AndarRey++; break;
+                        case Juego.Constructor: reg.UsoConstructor++; if (andar) reg.AndarConstructor++; break;
+                        case Juego.Guerrero: reg.UsoGuerrero++; if (andar) reg.AndarGuerrero++; break;
+                        case Juego.Sacerdote: reg.UsoSacerdote++; if (andar) reg.AndarSacerdote++; break;
                     }
             }
 
@@ -175,6 +178,7 @@ public sealed class Balance {
     public long Matanzas, MatanzasDelRey, Obras, ObrasDelRey, Coronaciones, Conversiones, Despliegues, Ocupaciones;
     public long TurnosConTres, TurnosReyEnCastillo, Turnos;
     public long UsoRey, UsoConstructor, UsoGuerrero, UsoSacerdote;
+    public long AndarRey, AndarConstructor, AndarGuerrero, AndarSacerdote;
     public readonly long[] Ordenes = new long[6];
     public readonly long[] Primeros = new long[3];
     public long OrdenesCompletas;
@@ -200,6 +204,8 @@ public sealed class Balance {
         if (r.Coronaciones > 0) ConCastillo++;
         UsoRey += r.UsoRey; UsoConstructor += r.UsoConstructor;
         UsoGuerrero += r.UsoGuerrero; UsoSacerdote += r.UsoSacerdote;
+        AndarRey += r.AndarRey; AndarConstructor += r.AndarConstructor;
+        AndarGuerrero += r.AndarGuerrero; AndarSacerdote += r.AndarSacerdote;
         foreach (int o in new[] { r.OrdenBlanco, r.OrdenNegro })
             if (o >= 0) { Ordenes[o]++; OrdenesCompletas++; }
         foreach (int t in new[] { r.PrimeroBlanco, r.PrimeroNegro })
@@ -222,6 +228,8 @@ public sealed class Balance {
         ConCastillo += o.ConCastillo; ConAlgunaMatanza += o.ConAlgunaMatanza; ConAlgunaConversion += o.ConAlgunaConversion;
         UsoRey += o.UsoRey; UsoConstructor += o.UsoConstructor;
         UsoGuerrero += o.UsoGuerrero; UsoSacerdote += o.UsoSacerdote;
+        AndarRey += o.AndarRey; AndarConstructor += o.AndarConstructor;
+        AndarGuerrero += o.AndarGuerrero; AndarSacerdote += o.AndarSacerdote;
         for (int i = 0; i < 6; i++) Ordenes[i] += o.Ordenes[i];
         for (int i = 0; i < 3; i++) Primeros[i] += o.Primeros[i];
         OrdenesCompletas += o.OrdenesCompletas;
@@ -261,9 +269,15 @@ public sealed class Balance {
         Console.WriteLine($"    habia un rey parado en el castillo            {100.0 * TurnosReyEnCastillo / Math.Max(1, Turnos),5:F2}%");
 
         long usoTotal = Math.Max(1, UsoRey + UsoConstructor + UsoGuerrero + UsoSacerdote);
-        Console.WriteLine("  reparto de las jugadas entre las unidades:");
+        Console.WriteLine("  reparto de las jugadas entre las unidades (caminar y habilidad juntas):");
         Console.WriteLine($"    rey {100.0 * UsoRey / usoTotal,5:F1}%   constructor {100.0 * UsoConstructor / usoTotal,5:F1}%" +
                           $"   guerrero {100.0 * UsoGuerrero / usoTotal,5:F1}%   sacerdote {100.0 * UsoSacerdote / usoTotal,5:F1}%");
+        Console.WriteLine("  de las jugadas de cada unidad, cuantas fueron SOLO caminar:");
+        Console.WriteLine($"    rey {100.0 * AndarRey / Math.Max(1, UsoRey),5:F1}%   constructor {100.0 * AndarConstructor / Math.Max(1, UsoConstructor),5:F1}%" +
+                          $"   guerrero {100.0 * AndarGuerrero / Math.Max(1, UsoGuerrero),5:F1}%   sacerdote {100.0 * AndarSacerdote / Math.Max(1, UsoSacerdote),5:F1}%");
+        Console.WriteLine("  habilidades por partida, sin contar caminar:");
+        Console.WriteLine($"    rey {(double)(UsoRey - AndarRey) / Partidas,5:F2}   constructor {(double)(UsoConstructor - AndarConstructor) / Partidas,5:F2}" +
+                          $"   guerrero {(double)(UsoGuerrero - AndarGuerrero) / Partidas,5:F2}   sacerdote {(double)(UsoSacerdote - AndarSacerdote) / Partidas,5:F2}");
 
         if (OrdenesCompletas > 0) {
             Console.WriteLine($"  orden en que se levantan los tres edificios ({OrdenesCompletas:N0} bandos llegaron a los tres):");
