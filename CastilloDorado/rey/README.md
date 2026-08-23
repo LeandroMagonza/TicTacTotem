@@ -67,7 +67,9 @@ listadas para que no confundan cuando aparezcan en una tabla.
 | **`--rey-reino`** | El rey pierde el poder de una unidad si tiene **la unidad o el edificio**. Sólo lo recupera cuando no le queda ninguno de los dos: le mataron el guerrero **y** le ocuparon el cuartel. |
 | **`--castillo-aguanta`** | Entrar al castillo no gana en el acto: hay que seguir adentro cuando te vuelve a tocar jugar. El rival tiene un turno para desalojarte o robarte un edificio. |
 | **`--adelanta-segundo`** | El rey del segundo arranca una fila más adelante. Es una compensación mucho más chica que regalarle un edificio, y es la que mejor equilibra sin romper nada. |
-| **`--sacerdote-releva`** | El sacerdote convierte aunque ya tengas esa pieza: la tuya se muda ahí en vez de aparecer una segunda. Sólo mientras tu pieza esté guarnecida sobre su edificio. |
+| **`--sacerdote-reubica`** | El sacerdote convierte aunque ya tengas esa pieza: la tuya se muda ahí en vez de aparecer una segunda. |
+| **`--sacerdote-vuelve`** | Después de convertir, el sacerdote **siempre deja la casilla**: va a su iglesia si está libre, y si no sale del tablero. |
+| `--sacerdote-releva` | Como `--sacerdote-reubica` pero sólo mientras tu pieza esté guarnecida sobre su edificio. Versión intermedia. |
 | **`--guerrero-veloz`** | El guerrero carga: se mueve hasta dos casillas en línea recta, atravesando una casilla vacía. Arregla el equilibrio pero se come el juego (sección 3). |
 
 ### Las que no
@@ -79,7 +81,6 @@ listadas para que no confundan cuando aparezcan en una tabla.
 | `--control-guerrero` | Que sólo el guerrero tome control de un edificio. **Contradice la regla base** y la empeora: queda sólo por si hay que volver a mirarla. |
 | `--compensa` | El segundo arranca con el taller puesto. **No es una regla propuesta**: sirvió para probar que un tempo decide la partida. |
 | `--rey-no-mata` | El rey nunca mata. No mueve casi nada. |
-| `--sacerdote-reubica` | Lo mismo que `--sacerdote-releva` pero **sin el requisito de estar guarnecido**. Más fuerte, y en las mediciones no desequilibra: sección 5. |
 
 ---
 
@@ -197,11 +198,51 @@ Eso escondía lo importante:
 habilidad, exactamente como estaba la sospecha. Ahora el reporte lo muestra partido.
 
 El requisito de guarnición **duplica** el uso real de la habilidad, y quitarlo lo
-quintuplica. Ninguna de las dos toca el equilibrio (desvío 10,5 / 9,6 / 10,1), así que la
-elección es puramente de sabor: si querés que el poder cueste algo —tener la pieza en casa,
-sin usarla en el tablero— va `--sacerdote-releva`; si querés que el sacerdote sea una pieza
-protagónica, va `--sacerdote-reubica`, que además deja los empates un poco más abajo (21,3%
-contra 24,8%) y el castillo un poco más arriba (67,8% contra 61,9%).
+quintuplica.
+
+### El regreso a la iglesia
+
+`--sacerdote-vuelve`: después de convertir, el sacerdote **siempre deja la casilla**. Si su
+iglesia está libre aterriza ahí; si no, sale del tablero y cuesta un turno volver a
+desplegarlo, con la iglesia sin nadie mientras tanto. Una regla, sin ramas. Y le da a las
+unidades que no son el guerrero un trabajo que no tenían: **pararse en la iglesia enemiga
+convierte cada conversión del rival en un sacrificio**.
+
+Vale sólo para el sacerdote de verdad, no para el rey usando el poder prestado: mandar al
+rey adentro de un edificio sería un recurso de seguridad enorme y gratis.
+
+Todo sobre `--lado 5 --no-pegado --rey-reino --castillo-aguanta --adelanta-segundo`,
+promedio de 4 a 8 plies:
+
+| | Desvío | Empate | Castillo | Sacerdote: % jugadas / % sólo caminar / habilidades por partida |
+|---|---|---|---|---|
+| sin regla | **5,0** | 25,1% | 61,3% | 15,8% / 91,0% / 0,53 |
+| `+vuelve` sola | 9,4 | 23,8% | 62,2% | 14,0% / **92,8%** / **0,34** ⚠ |
+| `+releva` | 10,0 | 22,9% | 63,4% | 19,2% / 83,3% / 1,12 |
+| `+releva +vuelve` | 11,7 | 19,9% | 66,8% | 17,5% / 84,8% / 0,94 |
+| `+reubica` | 12,0 | 18,4% | 72,2% | 18,1% / 73,1% / 1,45 |
+| **`+reubica +vuelve`** | 10,3 | **13,6%** | **75,6%** | **19,7% / 76,8% / 1,46** |
+
+**Sola, la regla del regreso es contraproducente.** Baja las habilidades del sacerdote de
+0,53 a 0,34 por partida y le sube el caminar al 92,8%. La razón es la que se podía sospechar
+y ganó: mandar al sacerdote a casa hace que **cada conversión cueste un viaje de ida y
+vuelta**, y con búsqueda eso no paga. Sobrevivir importa menos que el tempo.
+
+**Pero encima de `--sacerdote-reubica` es exactamente el contrapeso que faltaba.** La
+reubicación sola hace la conversión muy fuerte —robás la pieza y reposicionás la tuya de un
+saque— y el regreso le pone el precio de tener que volver a salir. El resultado es el mejor
+punto medido del proyecto en dos de los cinco criterios: **13,6% de empates**, el número más
+bajo de todo, y **75,6% de finales por castillo**, contra 11% por matar al rey. Y el
+sacerdote pasa a ser la segunda pieza más usada del tablero.
+
+El orden de construcción tampoco se rompe, que era el riesgo: el orden más jugado queda en
+30,3% de seis, y el primer edificio reparte **35/33/32**, el reparto más parejo de todo el
+proyecto.
+
+**Lo que empeora es el equilibrio**: desvío 10,3 contra 5,0. Y el mecanismo es el mismo de
+siempre —un sacerdote fuerte acelera la partida, de 52 plies a 45-48, y una partida más
+rápida favorece al que sale primero—. O sea que la media jugada de `--adelanta-segundo`
+alcanzaba para el juego lento y no alcanza para éste.
 
 ---
 
@@ -223,12 +264,16 @@ contra 24,8%) y el castillo un poco más arriba (67,8% contra 61,9%).
 
 ## 5. Qué probaría después
 
-1. **Arreglar el ciclo de conversión**, que ahora es lo que más bloquea. Es lo que hace
+1. **Más compensación para el segundo.** `--adelanta-segundo` da media jugada y alcanzaba
+   para el juego lento; con el sacerdote fuerte la partida se acorta y hace falta más.
+   Adelantarlo dos filas en vez de una es lo más barato de probar, y es el único eje donde
+   está claro qué hay que mover y en qué dirección.
+2. **Arreglar el ciclo de conversión**, que ahora es lo que más bloquea. Es lo que hace
    inservible cualquier arranque cercano —y los arranques cercanos son lo que mejor
    equilibra— así que resolverlo desbloquea toda una familia de posiciones iniciales.
    Candidatos: que una pieza recién convertida sea inmune un turno, o que convertir cueste
    algo más que el turno.
-2. **Edificios que bloqueen**, para que la partida termine sola. Como los edificios sólo se
+3. **Edificios que bloqueen**, para que la partida termine sola. Como los edificios sólo se
    agregan, un edificio que además tape la casilla achica el tablero de manera monótona y
    fuerza un final: es la única familia de reglas que puede matar el empate sin agregar
    una regla de ida y vuelta. Hay que decidir cuál bloquea y a quién.
