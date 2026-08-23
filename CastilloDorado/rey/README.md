@@ -3,9 +3,15 @@
 Segunda versión del juego. Es un juego distinto al de `../solver/`: cambian las piezas, el
 movimiento y la victoria. Por eso tiene su propio motor y este README se lee solo.
 
-**Estado en una línea:** funciona, y hay un canje sin resolver entre **equilibrio** y **que
-el orden de construcción sea táctico**. El 4x4 está parejo pero el orden viene forzado; el
-5x5 tiene el orden más lindo pero gana el primero. Sección 3.
+**Estado en una línea:** la mejor versión medida es
+
+```
+--lado 5 --no-pegado --rey-reino --castillo-aguanta --adelanta-segundo
+```
+
+Orden de construcción táctico, 25% de empates, sin ahogados, el castillo como forma de
+ganar en dos de cada tres partidas, y el primero se lleva 54,6 de 100. Lo que queda por
+arreglar es ese 54,6 y bajar más los empates. Secciones 3 y 4.
 
 ---
 
@@ -60,6 +66,8 @@ listadas para que no confundan cuando aparezcan en una tabla.
 | **`--no-pegado`** | Dos edificios no pueden estar pegados. Es la regla del juego anterior. |
 | **`--rey-reino`** | El rey pierde el poder de una unidad si tiene **la unidad o el edificio**. Sólo lo recupera cuando no le queda ninguno de los dos: le mataron el guerrero **y** le ocuparon el cuartel. |
 | **`--castillo-aguanta`** | Entrar al castillo no gana en el acto: hay que seguir adentro cuando te vuelve a tocar jugar. El rival tiene un turno para desalojarte o robarte un edificio. |
+| **`--adelanta-segundo`** | El rey del segundo arranca una fila más adelante. Es una compensación mucho más chica que regalarle un edificio, y es la que mejor equilibra sin romper nada. |
+| **`--sacerdote-releva`** | El sacerdote convierte aunque ya tengas esa pieza: la tuya se muda ahí en vez de aparecer una segunda. Sólo mientras tu pieza esté guarnecida sobre su edificio. |
 | **`--guerrero-veloz`** | El guerrero carga: se mueve hasta dos casillas en línea recta, atravesando una casilla vacía. Arregla el equilibrio pero se come el juego (sección 3). |
 
 ### Las que no
@@ -71,7 +79,7 @@ listadas para que no confundan cuando aparezcan en una tabla.
 | `--control-guerrero` | Que sólo el guerrero tome control de un edificio. **Contradice la regla base** y la empeora: queda sólo por si hay que volver a mirarla. |
 | `--compensa` | El segundo arranca con el taller puesto. **No es una regla propuesta**: sirvió para probar que un tempo decide la partida. |
 | `--rey-no-mata` | El rey nunca mata. No mueve casi nada. |
-| `--sacerdote-reubica` | El sacerdote muda su propia pieza en vez de duplicarla. Traída del juego anterior. |
+| `--sacerdote-reubica` | Lo mismo que `--sacerdote-releva` pero **sin el requisito de estar guarnecido**. Más fuerte, y en las mediciones no desequilibra: sección 5. |
 
 ---
 
@@ -133,6 +141,70 @@ una carrera con estorbo y pasa a ser una cacería del rey. Se arregló el númer
 
 ---
 
+## 3.b Dónde arrancan los reyes: importa más que casi todo
+
+En el 5x5 sólo había medido esquina contra esquina, que es **la distancia máxima posible** y
+por lo tanto el peor caso para que el estorbo llegue a tiempo. Medido en serio, todas sobre
+`--lado 5 --no-pegado --rey-reino --castillo-aguanta`:
+
+| Inicio | Distancia entre reyes | Desvío | Empate | Castillo | Primer edificio T/C/I | Orden más jugado |
+|---|---|---|---|---|---|---|
+| `esquinas` | 8 | 10,5 | 24,2% | 67,2% | 29/38/33 | 22,9% |
+| **`esquinas --adelanta-segundo`** | **7** | **4,6** | **25,0%** | **65,6%** | **35/30/35** | **28,0%** |
+| `lados` | 6 | 5,4 | 27,3% | 48,4% | 10/43/46 | 29,4% |
+| `centro` | 6 | 5,1 | 35,1% | 50,8% | 4/55/41 | 50,0% |
+| `frentes` | 4 | 3,3 | 31,3% | 43,6% | 4/43/53 | 38,3% |
+| `frentes --adelanta-segundo` | 3 | 5,3 | 49,8% | 40,0% | 3/79/18 | 73,0% |
+| `adelantados` | 2 | — | **100%** ⚠ | 0% | — | — |
+
+Salen dos patrones limpios y opuestos:
+
+1. **Cuanto más cerca arrancan, mejor el equilibrio.** De 10,5 a 3,3. Confirma el
+   diagnóstico: la ventaja del primero es la distancia que tiene que cruzar el otro para
+   estorbar.
+2. **Pero cuanto más cerca, peor todo lo demás.** El orden de construcción se vuelve a
+   forzar (el taller pasa de primero el 29% de las veces al 4%) y el castillo deja de ser la
+   forma de ganar (67% → 44%). Acercarlos hace que la partida se resuelva peleando, no
+   construyendo.
+
+Y **acercar a los dos rompe el juego**: con los reyes a dos casillas, el 100% de las partidas
+empatan por el ciclo de conversión del hallazgo 3. Es el mismo agujero que aparecía en el
+4x4 con `--inicio centro`.
+
+**La que gana es adelantar sólo al segundo desde las esquinas.** Baja el desvío de 10,5 a
+4,6 sin tocar nada de lo bueno: los empates quedan igual (25,0%), el castillo sigue siendo la
+forma de ganar (65,6%) y el primer edificio queda **35/30/35**, el reparto más uniforme de
+toda la tabla. Es media jugada de compensación en vez de una entera, que es lo que
+`--compensa` demostró que sobra.
+
+*(Las corridas son de 250 a 400 partidas por celda: los números por profundidad tienen
+bastante ruido y hay que mirar los promedios, no cada punto.)*
+
+---
+
+## 3.c El sacerdote, y por qué la métrica de uso engañaba
+
+La cuenta de "uso por unidad" siempre contó **toda** jugada de la pieza, caminar incluido.
+Eso escondía lo importante:
+
+| | jugadas del sacerdote | de esas, sólo caminar | conversiones por partida |
+|---|---|---|---|
+| sin regla | 14,4% | **92,2%** | 0,43 |
+| `--sacerdote-releva` (con guarnición) | 17,1% | 88,4% | **0,86** |
+| `--sacerdote-reubica` (sin requisito) | 20,4% | 75,6% | **2,12** |
+
+**Nueve de cada diez jugadas del sacerdote eran caminar.** Metía presión sin usar nunca la
+habilidad, exactamente como estaba la sospecha. Ahora el reporte lo muestra partido.
+
+El requisito de guarnición **duplica** el uso real de la habilidad, y quitarlo lo
+quintuplica. Ninguna de las dos toca el equilibrio (desvío 10,5 / 9,6 / 10,1), así que la
+elección es puramente de sabor: si querés que el poder cueste algo —tener la pieza en casa,
+sin usarla en el tablero— va `--sacerdote-releva`; si querés que el sacerdote sea una pieza
+protagónica, va `--sacerdote-reubica`, que además deja los empates un poco más abajo (21,3%
+contra 24,8%) y el castillo un poco más arriba (67,8% contra 61,9%).
+
+---
+
 ## 4. Los tres hallazgos
 
 1. **Un tempo es la partida entera.** Regalarle al segundo exactamente una jugada
@@ -151,13 +223,15 @@ una carrera con estorbo y pasa a ser una cacería del rey. Se arregló el númer
 
 ## 5. Qué probaría después
 
-1. **La carga sin golpe.** El guerrero se mueve dos casillas pero **no puede matar al final
-   de una carga**: cierra distancia rápido y necesita un turno más para pegar. Debería
-   quedarse con lo bueno de `--guerrero-veloz` —que la amenaza llegue a tiempo— sin
-   convertir el juego en una cacería. Es la que más ganas tengo de medir y son dos líneas.
-2. **Aguantar dos turnos en el castillo** en vez de uno, sobre el 5x5. Es el otro lado del
-   mismo problema: en vez de acelerar el estorbo, darle al defensor un tempo más justo donde
-   se decide.
+1. **Arreglar el ciclo de conversión**, que ahora es lo que más bloquea. Es lo que hace
+   inservible cualquier arranque cercano —y los arranques cercanos son lo que mejor
+   equilibra— así que resolverlo desbloquea toda una familia de posiciones iniciales.
+   Candidatos: que una pieza recién convertida sea inmune un turno, o que convertir cueste
+   algo más que el turno.
+2. **Edificios que bloqueen**, para que la partida termine sola. Como los edificios sólo se
+   agregan, un edificio que además tape la casilla achica el tablero de manera monótona y
+   fuerza un final: es la única familia de reglas que puede matar el empate sin agregar
+   una regla de ida y vuelta. Hay que decidir cuál bloquea y a quién.
 3. **Que el primer edificio cueste dos turnos**, o que el rey no pueda construir en el
    primer turno. Ataca la carrera de frente en vez de por los costados.
 4. **Arreglar el ciclo de conversión** del hallazgo 3: que una pieza recién convertida sea
