@@ -19,6 +19,14 @@ public struct Registro {
     public int Ocupaciones;       // MOVER que termina sobre un edificio ajeno o el castillo
     public int TurnosConTres;     // turnos en que el que jugaba controlaba los tres edificios
     public int TurnosReyEnCastillo;
+
+    // Cuantas jugadas hizo cada tipo de unidad (el despliegue no lo hace ninguna).
+    public int UsoRey, UsoConstructor, UsoGuerrero, UsoSacerdote;
+
+    // En que orden levanto sus tres edificios cada bando: indice de permutacion 0-5,
+    // o -1 si no llego a levantar los tres. Ver Balance.NombreOrden.
+    public int OrdenBlanco, OrdenNegro;
+    public int PrimeroBlanco, PrimeroNegro;   // tipo del primer edificio, o -1
 }
 
 public abstract class Politica {
@@ -52,8 +60,26 @@ public sealed class Mesa {
 
     public Mesa(Juego g) { _g = g; }
 
+    private static readonly int[][] Permutaciones = {
+        new[] { 0, 1, 2 }, new[] { 0, 2, 1 }, new[] { 1, 0, 2 },
+        new[] { 1, 2, 0 }, new[] { 2, 0, 1 }, new[] { 2, 1, 0 },
+    };
+
+    private static int IndiceOrden(List<int> orden) {
+        if (orden.Count != 3) return -1;
+        for (int i = 0; i < 6; i++)
+            if (Permutaciones[i][0] == orden[0] && Permutaciones[i][1] == orden[1] && Permutaciones[i][2] == orden[2])
+                return i;
+        return -1;
+    }
+
+    private readonly List<int> _ordenB = new(), _ordenN = new();
+
     public Registro Jugar(Politica blanco, Politica negro, ref Rng rng) {
         var reg = new Registro();
+        reg.OrdenBlanco = reg.OrdenNegro = reg.PrimeroBlanco = reg.PrimeroNegro = -1;
+        _ordenB.Clear();
+        _ordenN.Clear();
         Pos p = _g.Inicial();
         int turno = Juego.Blanco;
 
@@ -84,15 +110,36 @@ public sealed class Mesa {
                 return reg;
             }
 
+            // Quien hizo la jugada. El despliegue no lo hace ninguna unidad: sale del edificio.
+            if (Juego.JTipo(jugada) != Juego.DESPLEGAR) {
+                int actor = Juego.En(p.Un, Juego.JDesde(jugada));
+                if (actor != 0)
+                    switch (Juego.TipoU(actor)) {
+                        case Juego.Rey: reg.UsoRey++; break;
+                        case Juego.Constructor: reg.UsoConstructor++; break;
+                        case Juego.Guerrero: reg.UsoGuerrero++; break;
+                        case Juego.Sacerdote: reg.UsoSacerdote++; break;
+                    }
+            }
+
             switch (Juego.JTipo(jugada)) {
                 case Juego.MATAR:
                     reg.Matanzas++;
                     if (Juego.TipoU(Juego.En(p.Un, Juego.JDesde(jugada))) == Juego.Rey) reg.MatanzasDelRey++;
                     break;
-                case Juego.CONSTRUIR:
+                case Juego.CONSTRUIR: {
                     reg.Obras++;
                     if (Juego.TipoU(Juego.En(p.Un, Juego.JDesde(jugada))) == Juego.Rey) reg.ObrasDelRey++;
+                    var lista = turno == Juego.Blanco ? _ordenB : _ordenN;
+                    lista.Add(Juego.JExtra(jugada));
+                    if (lista.Count == 1) {
+                        if (turno == Juego.Blanco) reg.PrimeroBlanco = lista[0]; else reg.PrimeroNegro = lista[0];
+                    }
+                    if (lista.Count == 3) {
+                        if (turno == Juego.Blanco) reg.OrdenBlanco = IndiceOrden(lista); else reg.OrdenNegro = IndiceOrden(lista);
+                    }
                     break;
+                }
                 case Juego.CORONAR: reg.Coronaciones++; break;
                 case Juego.CONVERTIR: reg.Conversiones++; break;
                 case Juego.DESPLEGAR: reg.Despliegues++; break;
@@ -127,6 +174,10 @@ public sealed class Balance {
     public readonly long[] GanaBlancoPorFinal = new long[5];
     public long Matanzas, MatanzasDelRey, Obras, ObrasDelRey, Coronaciones, Conversiones, Despliegues, Ocupaciones;
     public long TurnosConTres, TurnosReyEnCastillo, Turnos;
+    public long UsoRey, UsoConstructor, UsoGuerrero, UsoSacerdote;
+    public readonly long[] Ordenes = new long[6];
+    public readonly long[] Primeros = new long[3];
+    public long OrdenesCompletas;
     public long ConCastillo, ConAlgunaMatanza, ConAlgunaConversion;
 
     public void Sumar(in Registro r) {
@@ -147,6 +198,12 @@ public sealed class Balance {
         TurnosConTres += r.TurnosConTres; TurnosReyEnCastillo += r.TurnosReyEnCastillo;
         Turnos += r.Plies;
         if (r.Coronaciones > 0) ConCastillo++;
+        UsoRey += r.UsoRey; UsoConstructor += r.UsoConstructor;
+        UsoGuerrero += r.UsoGuerrero; UsoSacerdote += r.UsoSacerdote;
+        foreach (int o in new[] { r.OrdenBlanco, r.OrdenNegro })
+            if (o >= 0) { Ordenes[o]++; OrdenesCompletas++; }
+        foreach (int t in new[] { r.PrimeroBlanco, r.PrimeroNegro })
+            if (t >= 0) Primeros[t]++;
         if (r.Matanzas > 0) ConAlgunaMatanza++;
         if (r.Conversiones > 0) ConAlgunaConversion++;
     }
@@ -163,6 +220,11 @@ public sealed class Balance {
         Despliegues += o.Despliegues; Ocupaciones += o.Ocupaciones;
         TurnosConTres += o.TurnosConTres; TurnosReyEnCastillo += o.TurnosReyEnCastillo; Turnos += o.Turnos;
         ConCastillo += o.ConCastillo; ConAlgunaMatanza += o.ConAlgunaMatanza; ConAlgunaConversion += o.ConAlgunaConversion;
+        UsoRey += o.UsoRey; UsoConstructor += o.UsoConstructor;
+        UsoGuerrero += o.UsoGuerrero; UsoSacerdote += o.UsoSacerdote;
+        for (int i = 0; i < 6; i++) Ordenes[i] += o.Ordenes[i];
+        for (int i = 0; i < 3; i++) Primeros[i] += o.Primeros[i];
+        OrdenesCompletas += o.OrdenesCompletas;
     }
 
     public double Reparto => Partidas == 0 ? 0 : 100.0 * (GanaBlanco + 0.5 * Empate) / Partidas;
@@ -197,5 +259,27 @@ public sealed class Balance {
         Console.WriteLine("  diagnostico (sobre el total de turnos jugados):");
         Console.WriteLine($"    el que jugaba controlaba los tres edificios   {100.0 * TurnosConTres / Math.Max(1, Turnos),5:F2}%");
         Console.WriteLine($"    habia un rey parado en el castillo            {100.0 * TurnosReyEnCastillo / Math.Max(1, Turnos),5:F2}%");
+
+        long usoTotal = Math.Max(1, UsoRey + UsoConstructor + UsoGuerrero + UsoSacerdote);
+        Console.WriteLine("  reparto de las jugadas entre las unidades:");
+        Console.WriteLine($"    rey {100.0 * UsoRey / usoTotal,5:F1}%   constructor {100.0 * UsoConstructor / usoTotal,5:F1}%" +
+                          $"   guerrero {100.0 * UsoGuerrero / usoTotal,5:F1}%   sacerdote {100.0 * UsoSacerdote / usoTotal,5:F1}%");
+
+        if (OrdenesCompletas > 0) {
+            Console.WriteLine($"  orden en que se levantan los tres edificios ({OrdenesCompletas:N0} bandos llegaron a los tres):");
+            var idx = new int[6];
+            for (int i = 0; i < 6; i++) idx[i] = i;
+            Array.Sort(idx, (a, b) => Ordenes[b].CompareTo(Ordenes[a]));
+            foreach (int i in idx)
+                Console.WriteLine($"    {NombreOrden[i],-28} {100.0 * Ordenes[i] / OrdenesCompletas,5:F1}%");
+            long pt = Math.Max(1, Primeros[0] + Primeros[1] + Primeros[2]);
+            Console.WriteLine($"    primer edificio:  taller {100.0 * Primeros[0] / pt,4:F1}%   " +
+                              $"cuartel {100.0 * Primeros[1] / pt,4:F1}%   iglesia {100.0 * Primeros[2] / pt,4:F1}%");
+        }
     }
+
+    private static readonly string[] NombreOrden = {
+        "taller, cuartel, iglesia", "taller, iglesia, cuartel", "cuartel, taller, iglesia",
+        "cuartel, iglesia, taller", "iglesia, taller, cuartel", "iglesia, cuartel, taller",
+    };
 }
