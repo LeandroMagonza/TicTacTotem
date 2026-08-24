@@ -109,10 +109,30 @@ public sealed class Reglas {
     public int Lado = 4;
 
     /// <summary>
-    /// El rey del segundo arranca una fila mas adelante que el del primero. Es una
-    /// compensacion mucho mas chica que regalarle un edificio: vale media jugada, no una.
+    /// Cuantas filas arranca adelantado el rey del segundo, hacia el rival. Es una
+    /// compensacion mucho mas chica que regalarle un edificio: cada fila vale media jugada.
     /// </summary>
-    public bool AdelantaSegundo = false;
+    public int AdelantaSegundo = 0;
+
+    /// <summary>Cuantas columnas se corre de costado el rey del segundo. Signo incluido.</summary>
+    public int CorreSegundo = 0;
+
+    /// <summary>Lo mismo para el rey del PRIMERO, por si adelantarlo lo expone mas de lo que lo ayuda.</summary>
+    public int AdelantaPrimero = 0;
+    public int CorrePrimero = 0;
+
+    /// <summary>
+    /// El segundo arranca con un edificio ya levantado: -1 ninguno, 0 taller, 1 cuartel,
+    /// 2 iglesia. La gracia es que la POSICION es obligada, asi que vale menos que una
+    /// jugada entera: cuanto peor el lugar, mas fina queda la compensacion.
+    /// </summary>
+    public int Regalo = -1;
+
+    /// <summary>Donde va: pegado / fondo-centro / fondo-esquina / fila2-borde.</summary>
+    public string RegaloDonde = "fondo-esquina";
+
+    /// <summary>Si el edificio regalado viene con su unidad adentro, como si lo hubiera construido.</summary>
+    public bool RegaloConUnidad = false;
 
     public int RepeticionesEmpate = 3;
     public int PliesMax = 300;
@@ -134,7 +154,11 @@ public sealed class Reglas {
         if (VuelveAlEdificio) sb.Append("+vuelve-al-edificio");
         if (ReyNoMata) sb.Append("+rey-no-mata");
         if (Compensa) sb.Append("+compensa");
-        if (AdelantaSegundo) sb.Append("+adelanta-segundo");
+        if (AdelantaSegundo != 0) sb.Append($"+adelanta{AdelantaSegundo}");
+        if (CorreSegundo != 0) sb.Append($"+corre{CorreSegundo}");
+        if (AdelantaPrimero != 0) sb.Append($"+adelanta1ro{AdelantaPrimero}");
+        if (CorrePrimero != 0) sb.Append($"+corre1ro{CorrePrimero}");
+        if (Regalo >= 0) sb.Append($"+regalo{Regalo}@{RegaloDonde}{(RegaloConUnidad ? "+unidad" : "")}");
         if (CastilloAguanta) sb.Append("+castillo-aguanta");
         return sb.ToString();
     }
@@ -600,12 +624,40 @@ public sealed class Juego {
     public Pos Inicial() {
         Pos p = Inicial(R.Inicio);
 
-        if (R.AdelantaSegundo) {
-            // El rey negro sube una fila hacia el centro, si hay lugar y esta libre.
+        if (R.AdelantaPrimero != 0 || R.CorrePrimero != 0) {
+            // El primero se corre hacia el rival. Lo saca del fondo, que le da mas sitios de
+            // obra, pero tambien lo acerca al guerrero del otro.
+            int rb = CasillaRey(p.Un, Blanco);
+            int nf = rb / Lado + R.AdelantaPrimero;
+            int nc = rb % Lado + R.CorrePrimero;
+            if (nf >= 0 && nf < Lado && nc >= 0 && nc < Lado) {
+                int destino = nf * Lado + nc;
+                if (En(p.Un, destino) == 0 && En(p.Ed, destino) == 0)
+                    p = new Pos(p.Ed, Con(Con(p.Un, rb, 0), destino, CodU(Blanco, Rey)));
+            }
+        }
+
+        if (R.AdelantaSegundo != 0 || R.CorreSegundo != 0) {
+            // El rey negro se corre hacia el rival y/o de costado, si el destino existe y
+            // esta libre. Rompe a proposito la simetria de 180 grados: de eso se trata.
             int rn = CasillaRey(p.Un, Negro);
-            int destino = rn - Lado;
-            if (destino >= 0 && En(p.Un, destino) == 0)
-                p = new Pos(p.Ed, Con(Con(p.Un, rn, 0), destino, CodU(Negro, Rey)));
+            int nf = rn / Lado - R.AdelantaSegundo;
+            int nc = rn % Lado + R.CorreSegundo;
+            if (nf >= 0 && nf < Lado && nc >= 0 && nc < Lado) {
+                int destino = nf * Lado + nc;
+                if (En(p.Un, destino) == 0 && En(p.Ed, destino) == 0)
+                    p = new Pos(p.Ed, Con(Con(p.Un, rn, 0), destino, CodU(Negro, Rey)));
+            }
+        }
+
+        if (R.Regalo >= 0) {
+            int donde = SitioDelRegalo(p);
+            if (donde >= 0) {
+                UInt128 ed = Con(p.Ed, donde, CodE(Negro, R.Regalo));
+                UInt128 un = p.Un;
+                if (R.RegaloConUnidad) un = Con(un, donde, CodU(Negro, R.Regalo + 1));
+                p = new Pos(ed, un);
+            }
         }
 
         if (!R.Compensa) return p;
@@ -615,6 +667,26 @@ public sealed class Juego {
             if (En(p.Un, a) == 0 && En(p.Ed, a) == 0)
                 return new Pos(Con(p.Ed, a, CodE(Negro, Taller)), Con(p.Un, a, CodU(Negro, Constructor)));
         return p;
+    }
+
+    /// <summary>
+    /// Donde cae el edificio regalado del segundo, o -1 si esa casilla esta ocupada. El
+    /// fondo del segundo es la ultima fila; "fila2" es la anteultima, contando desde el.
+    /// </summary>
+    private int SitioDelRegalo(Pos p) {
+        int c = R.RegaloDonde switch {
+            "fondo-esquina" => (Lado - 1) * Lado,
+            "fondo-centro"  => (Lado - 1) * Lado + Lado / 2,
+            "fila2-borde"   => (Lado - 2) * Lado,
+            "fila2-centro"  => (Lado - 2) * Lado + Lado / 2,
+            "pegado"        => -1,
+            _ => throw new ArgumentException($"lugar de regalo desconocido: {R.RegaloDonde}"),
+        };
+        if (c >= 0) return En(p.Un, c) == 0 && En(p.Ed, c) == 0 ? c : -1;
+
+        foreach (int a in Ady[CasillaRey(p.Un, Negro)])
+            if (En(p.Un, a) == 0 && En(p.Ed, a) == 0) return a;
+        return -1;
     }
 
     public static Pos Inicial(string nombre) {

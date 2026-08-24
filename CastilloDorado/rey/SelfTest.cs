@@ -472,6 +472,23 @@ public static class SelfTest {
         // El 5x5. A partir de aca el tablero cambia de tamaño para todo el proceso,
         // asi que este bloque va ultimo y no se mezcla con nada de arriba.
         // --------------------------------------------------------------------
+        Console.WriteLine("La compensacion de arranque");
+        var g1 = new Juego(new Reglas { AdelantaSegundo = 1 });
+        var g2 = new Juego(new Reglas { AdelantaSegundo = 2 });
+        var gd = new Juego(new Reglas { AdelantaSegundo = 1, CorreSegundo = -1 });
+        Check("sin compensacion los reyes estan en las esquinas opuestas",
+              Juego.CasillaRey(new Juego(new Reglas()).Inicial().Un, N) == 15);
+        Check("adelantando una fila, el rey negro sube a la fila de arriba",
+              Juego.CasillaRey(g1.Inicial().Un, N) == 11);
+        Check("adelantando dos, sube dos",
+              Juego.CasillaRey(g2.Inicial().Un, N) == 7);
+        Check("con una columna de corrimiento queda en diagonal",
+              Juego.CasillaRey(gd.Inicial().Un, N) == 10);
+        Check("y el rey blanco no se mueve nunca",
+              Juego.CasillaRey(g2.Inicial().Un, B) == 0 && Juego.CasillaRey(gd.Inicial().Un, B) == 0);
+        Check("la compensacion rompe la simetria a proposito: ya no es un giro de 180",
+              g1.Inicial() != new Juego(new Reglas()).Inicial());
+
         Console.WriteLine("Tablero de 5x5");
         Juego.Configurar(5);
         var g5 = new Juego(new Reglas { Lado = 5 });

@@ -53,7 +53,14 @@ public static class Program {
     private static Reglas LeerReglas(Dictionary<string, string> o) => new Reglas {
         Inicio = o.TryGetValue("inicio", out string? i) ? i : "esquinas",
         Lado = Ent(o, "lado", 4),
-        AdelantaSegundo = Flag(o, "adelanta-segundo"),
+        AdelantaSegundo = Ent(o, "adelanta-segundo", 0),
+        CorreSegundo = Ent(o, "corre-segundo", 0),
+        AdelantaPrimero = Ent(o, "adelanta-primero", 0),
+        CorrePrimero = Ent(o, "corre-primero", 0),
+        Regalo = o.TryGetValue("regalo", out string? rg)
+            ? Array.IndexOf(new[] { "taller", "cuartel", "iglesia" }, rg) : -1,
+        RegaloDonde = o.TryGetValue("regalo-donde", out string? rd) ? rd : "fondo-esquina",
+        RegaloConUnidad = Flag(o, "regalo-con-unidad"),
         ReyGuarnicion = !Flag(o, "rey-pierde-poder"),
         ReyPorEdificio = Flag(o, "rey-por-edificio"),
         ReyReino = Flag(o, "rey-reino"),
@@ -103,7 +110,13 @@ los tres edificios bajo control, o matandole el rey al otro.
 Reglas (en cualquier comando):
   --lado 4|5            tamaño del tablero
   --inicio esquinas|frentes|adelantados|lados|centro   disposicion inicial
-  --adelanta-segundo    el rey del segundo arranca una fila mas adelante que el del primero
+  --adelanta-segundo N  el rey del segundo arranca N filas adelantado (sin numero, 1)
+  --corre-segundo N     y N columnas de costado; con -1 y --adelanta-segundo 1 queda en diagonal
+  --adelanta-primero N  lo mismo para el rey del primero
+  --corre-primero N
+  --regalo taller|cuartel|iglesia    el segundo arranca con ese edificio ya levantado
+  --regalo-donde pegado|fondo-centro|fondo-esquina|fila2-borde|fila2-centro
+  --regalo-con-unidad   el edificio regalado viene con su unidad adentro
   --rey-pierde-poder    el rey pierde el poder apenas la unidad existe en el tablero,
                         en vez de conservarlo mientras la unidad este en su edificio
   --rey-por-edificio    el rey pierde el poder por CONTROLAR el edificio, no por tener la
@@ -299,7 +312,7 @@ Reglas (en cualquier comando):
             ("rey-reino", x => x.ReyReino = true),
             ("control-guerrero", x => x.ControlGuerrero = true),
             ("guerrero-veloz", x => x.GuerreroVeloz = true),
-            ("adelanta-segundo", x => x.AdelantaSegundo = true),
+            ("adelanta-segundo", x => x.AdelantaSegundo = 1),
             ("no-pegado", x => x.NoPegado = true),
             ("sacerdote-reubica", x => x.SacerdoteReubica = true),
             ("sacerdote-releva", x => x.SacerdoteReleva = true),
