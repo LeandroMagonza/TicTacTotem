@@ -35,6 +35,15 @@ public sealed class Busqueda {
 
     public long Nodos;
 
+    /// <summary>
+    /// Cuantos plies extra puede estirarse la busqueda de quietud. 0 la apaga.
+    /// Sin ella la evaluacion cae en medio de un intercambio y el resultado depende
+    /// enormemente de si la profundidad es par o impar: medido sobre la misma
+    /// configuracion, el reparto da 67.4% a 7 plies y 46.8% a 8, y los empates
+    /// pasan de 1.8% a 26%. Ese salto es del buscador, no del juego.
+    /// </summary>
+    public int MaxQuieta = 0;
+
     public Busqueda(Juego g, int bits = 22) {
         _g = g;
         _bits = bits;
@@ -73,7 +82,7 @@ public sealed class Busqueda {
 
             if (cc >= 0) {
                 // Con el castillo puesto lo unico que importa es la carrera hasta ahi.
-                int dist = _g.Dist[rc][cc];
+                int dist = _g.DistRey[rc][cc];
                 s += sg * (ed == 3 ? 520 - 90 * dist : 110 - 20 * dist);
             }
 
@@ -133,7 +142,7 @@ public sealed class Busqueda {
         Span<int> jugadas = stackalloc int[Juego.MaxJugadas];
         int n = _g.Jugadas(p, turno, jugadas);
         if (n == 0) return -(GANA - (100 - prof));        // ahogado: pierde el que no puede jugar
-        if (prof <= 0) return Evaluar(p, turno);
+        if (prof <= 0) return MaxQuieta > 0 ? Quieta(p, turno, alfa, beta, 0) : Evaluar(p, turno);
 
         ulong clave = p.Clave();
         int idx = Indice(p);
@@ -162,6 +171,59 @@ public sealed class Busqueda {
         _ttProf[idx] = (sbyte)Math.Min(prof, 127);
         _ttTipo[idx] = (byte)(mejor <= alfa0 ? 3 : mejor >= beta ? 2 : 1);
         return mejor;
+    }
+
+    // --------------------------------------------------------------- quietud
+
+    /// <summary>
+    /// Sigue solo las jugadas forzantes -matar, convertir, coronar- hasta que la
+    /// posicion se calma. El que juega puede "plantarse": no esta obligado a seguir
+    /// el intercambio, asi que el valor de quedarse quieto es la cota de abajo.
+    ///
+    /// Construir queda afuera a proposito: vale tanto como una captura pero esta
+    /// disponible casi siempre, asi que incluirla convertiria esto en una busqueda
+    /// completa sin horizonte.
+    /// </summary>
+    private int Quieta(Pos p, int turno, int alfa, int beta, int gastado) {
+        Nodos++;
+
+        var fin = _g.Terminal(p, turno);
+        if (fin.HasValue) {
+            int signo = turno == Juego.Blanco ? 1 : -1;
+            return (int)fin.Value.res * signo * (GANA - (100 + gastado));
+        }
+        if (YaVista(p)) return 0;
+
+        Span<int> jugadas = stackalloc int[Juego.MaxJugadas];
+        int n = _g.Jugadas(p, turno, jugadas);
+        if (n == 0) return -(GANA - (100 + gastado));
+
+        int mejor = Evaluar(p, turno);
+        if (mejor >= beta || gastado >= MaxQuieta) return mejor;
+        if (mejor > alfa) alfa = mejor;
+
+        Ordenar(jugadas, n);
+        for (int i = 0; i < n; i++) {
+            if (!Forzante(jugadas[i])) continue;
+            Pos np = _g.Aplicar(p, turno, jugadas[i]);
+            _camino[_caminoLen++] = np;
+            int v = -Quieta(np, 1 - turno, -beta, -alfa, gastado + 1);
+            _caminoLen--;
+            if (v > mejor) mejor = v;
+            if (mejor > alfa) alfa = mejor;
+            if (alfa >= beta) break;
+        }
+        return mejor;
+    }
+
+    private static bool Forzante(int j) {
+        // Solo intercambios de verdad. Coronar tambien es un salto grande de
+        // evaluacion, pero NO es una captura: el rival no tiene con que contestarla
+        // dentro de la quietud, asi que la linea termina con uno coronado y el otro
+        // sin jugar. Incluirla devolvia justo el sesgo optimista que esto viene a
+        // sacar, y de hecho lo empeoraba: el reparto daba 80.8% a 6 plies.
+        int t = Juego.JTipo(j);
+        return t == Juego.MATAR || t == Juego.CONVERTIR;
     }
 
     // --------------------------------------------------------------- exacto

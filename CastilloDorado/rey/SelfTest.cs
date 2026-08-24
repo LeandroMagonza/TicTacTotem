@@ -547,8 +547,120 @@ public static class SelfTest {
         Check("el rey en el castillo del medio con los tres edificios gana igual",
               g5.Terminal(gana5, N) is (Resultado.Blanco, Final.Castillo));
 
+        Console.WriteLine("Correr, y los edificios como estorbo");
+
+        var gsl = new Juego(new Reglas { Lado = 5, Desliza = true });
+
+        // Rey blanco en 10 (fila del medio, borde izquierdo). La fila 10..14 esta abierta.
+        Pos pista = U(U(v5, B, Juego.Rey, 10), N, Juego.Rey, 4);
+        Check("corriendo, una unidad cruza la fila entera de un saque",
+              TieneDesde(gsl, pista, B, Juego.MOVER, 10, 11) &&
+              TieneDesde(gsl, pista, B, Juego.MOVER, 10, 13) &&
+              TieneDesde(gsl, pista, B, Juego.MOVER, 10, 14));
+
+        // Un edificio en 12 parte la fila al medio.
+        Pos corte = E(pista, N, Juego.Taller, 12);
+        Check("un edificio frena la corrida: se llega hasta la casilla de antes",
+              TieneDesde(gsl, corte, B, Juego.MOVER, 10, 11));
+        Check("y no se pasa de largo ni se aterriza encima desde lejos",
+              !TieneDesde(gsl, corte, B, Juego.MOVER, 10, 12) &&
+              !TieneDesde(gsl, corte, B, Juego.MOVER, 10, 13));
+        Check("tomar ese edificio cuesta dos turnos: primero al lado, despues adentro",
+              TieneDesde(gsl, U(new Pos(corte.Ed, Juego.Con(corte.Un, 10, 0)), B, Juego.Rey, 11),
+                         B, Juego.MOVER, 11, 12));
+        Check("sin correr, en cambio, el edificio es terreno y se entra de una",
+              TieneDesde(g5, E(U(U(v5, B, Juego.Rey, 11), N, Juego.Rey, 4), N, Juego.Taller, 12),
+                         B, Juego.MOVER, 11, 12));
+
+        // Una unidad tambien frena la corrida, y ahi sigue valiendo matar de al lado.
+        Pos tapon = U(pista, N, Juego.Guerrero, 12);
+        Check("una unidad frena igual que un edificio",
+              TieneDesde(gsl, tapon, B, Juego.MOVER, 10, 11) &&
+              !TieneDesde(gsl, tapon, B, Juego.MOVER, 10, 13));
+        Check("y de lejos no se la mata: matar es siempre el ultimo paso desde al lado",
+              !TieneDesde(gsl, tapon, B, Juego.MATAR, 10, 12));
+
+        var glg = new Juego(new Reglas { Lado = 5, Desliza = true, GuerreroLargo = true });
+        Check("con --guerrero-largo si alcanza a la primera unidad de la fila",
+              TieneDesde(glg, tapon, B, Juego.MATAR, 10, 12));
+        Check("pero no dispara a traves de un edificio",
+              !TieneDesde(glg, U(E(pista, N, Juego.Taller, 12), N, Juego.Guerrero, 13),
+                          B, Juego.MATAR, 10, 13));
+
+        var gsg = new Juego(new Reglas { Lado = 5, Desliza = true, SoloGuerreroCorre = true });
+        Pos parJ = U(U(U(v5, N, Juego.Rey, 4), B, Juego.Guerrero, 10), B, Juego.Sacerdote, 0);
+        Check("con --solo-guerrero-corre el guerrero cruza la fila",
+              TieneDesde(gsg, parJ, B, Juego.MOVER, 10, 14));
+        Check("y el sacerdote no: camina de a un paso",
+              TieneDesde(gsg, parJ, B, Juego.MOVER, 0, 1) &&
+              !TieneDesde(gsg, parJ, B, Juego.MOVER, 0, 2));
+
+        var gsc = new Juego(new Reglas { Lado = 5, Desliza = true, SaleCaminando = true });
+        // El mismo guerrero, pero parado sobre un cuartel propio en 10.
+        Pos guarn = E(parJ, B, Juego.Cuartel, 10);
+        Check("con --sale-caminando, guarnecido no corre: sale de a un paso",
+              TieneDesde(gsc, guarn, B, Juego.MOVER, 10, 11) &&
+              !TieneDesde(gsc, guarn, B, Juego.MOVER, 10, 13));
+        Check("pero afuera del edificio corre como siempre",
+              TieneDesde(gsc, parJ, B, Juego.MOVER, 10, 13));
+
+        var glj = new Juego(new Reglas { Lado = 5, Desliza = true, ConstruyeLejos = true });
+        Check("con --construye-lejos se levanta al fondo de la linea, no solo al lado",
+              TieneDesde(glj, pista, B, Juego.CONSTRUIR, 10, 13) &&
+              TieneDesde(glj, pista, B, Juego.CONSTRUIR, 10, 14));
+        Check("pero no del otro lado de lo que tape la linea",
+              TieneDesde(glj, corte, B, Juego.CONSTRUIR, 10, 11) &&
+              !TieneDesde(glj, corte, B, Juego.CONSTRUIR, 10, 13));
+        Check("y sin la regla sigue siendo solo la casilla de al lado",
+              TieneDesde(gsl, pista, B, Juego.CONSTRUIR, 10, 11) &&
+              !TieneDesde(gsl, pista, B, Juego.CONSTRUIR, 10, 13));
+
+        var glj2 = new Juego(new Reglas { Lado = 5, Desliza = true, SoloGuerreroCorre = true,
+                                          ConstruyeLejos = true });
+        Check("construir a la vista no depende de correr: el rey lo hace igual",
+              TieneDesde(glj2, pista, B, Juego.CONSTRUIR, 10, 13));
+
+        var gal = new Juego(new Reglas { Lado = 5, Desliza = true, ConstruyeLejos = true, AlcanceObra = 2 });
+        Check("con --alcance-obra 2 la obra llega a dos casillas",
+              TieneDesde(gal, pista, B, Juego.CONSTRUIR, 10, 11) &&
+              TieneDesde(gal, pista, B, Juego.CONSTRUIR, 10, 12));
+        Check("y no mas alla",
+              !TieneDesde(gal, pista, B, Juego.CONSTRUIR, 10, 13));
+
+        var gaj = new Juego(new Reglas { Lado = 5, Desliza = true, ReyAjedrez = true });
+        Check("el rey de ajedrez pisa la diagonal",
+              TieneDesde(gaj, pista, B, Juego.MOVER, 10, 16));
+        Check("pero no corre: la fila entera ya no es suya",
+              TieneDesde(gaj, pista, B, Juego.MOVER, 10, 11) &&
+              !TieneDesde(gaj, pista, B, Juego.MOVER, 10, 13));
+        Check("y construye tambien en diagonal, porque su vecindario son ocho casillas",
+              TieneDesde(gaj, pista, B, Juego.CONSTRUIR, 10, 16));
+
+        var gdi = new Juego(new Reglas { Lado = 5, SacerdoteDiagonal = true, SacerdoteReubica = true });
+        // Sacerdote blanco en 12, guerrero negro en 13 (ortogonal) y otro en 18 (diagonal).
+        Pos cruz = U(U(U(U(v5, B, Juego.Rey, 0), N, Juego.Rey, 4), B, Juego.Sacerdote, 12), N, Juego.Guerrero, 13);
+        Check("con --sacerdote-diagonal no convierte a quien tiene al lado",
+              !TieneDesde(gdi, cruz, B, Juego.CONVERTIR, 12, 13));
+        Check("pero si a quien tiene en diagonal, donde el guerrero no llega a contestar",
+              TieneDesde(gdi, U(U(U(U(v5, B, Juego.Rey, 0), N, Juego.Rey, 4), B, Juego.Sacerdote, 12),
+                                N, Juego.Guerrero, 18), B, Juego.CONVERTIR, 12, 18));
+
+        // Jugadas repetidas serian un sesgo silencioso: el desempate al azar de
+        // ElegirPractico le daria mas peso a la jugada que aparece dos veces.
+        foreach (var (nombre, juego, pos) in new[] {
+                     ("corriendo", gsl, corte), ("rey de ajedrez", gaj, corte),
+                     ("guerrero largo", glg, tapon), ("construye lejos", glj, corte),
+                     ("solo el guerrero corre", gsg, parJ), ("sale caminando", gsc, guarn) }) {
+            var l = Lista(juego, pos, B);
+            Check($"{nombre}: ninguna jugada sale duplicada", l.Count == l.Distinct().Count());
+        }
+
         Console.WriteLine("Barrido exhaustivo de 4 plies en el 5x5");
-        foreach (var (nombre, juego) in new[] { ("base", g5), ("no-pegado", g5np) }) {
+        var g5sl = new Juego(new Reglas { Lado = 5, NoPegado = true, Desliza = true,
+                                          ReyAjedrez = true, SacerdoteDiagonal = true });
+        var g5lj = new Juego(new Reglas { Lado = 5, NoPegado = true, Desliza = true,
+                                          SacerdoteDiagonal = true, ConstruyeLejos = true });
+        foreach (var (nombre, juego) in new[] { ("base", g5), ("no-pegado", g5np), ("desliza", g5sl), ("construye-lejos", g5lj) }) {
             var problemas5 = new List<string>();
             long nodos5 = Barrer(juego, juego.Inicial(), B, 4, problemas5);
             Check($"{nombre}: ninguna posicion rompe una invariante ({nodos5:N0} nodos)", problemas5.Count == 0);

@@ -77,6 +77,61 @@ public sealed class Reglas {
     public bool NoPegado = false;
 
     /// <summary>
+    /// Las unidades corren en linea recta por terreno abierto y frenan ANTES de
+    /// cualquier unidad o edificio. Entrar a un edificio pasa a ser un paso suelto
+    /// desde al lado, asi que tomar uno cuesta dos turnos si no estabas pegado.
+    /// Recien con esto los edificios estorban: hasta ahora eran terreno transitable
+    /// y lo unico que tapaba el paso eran las ocho unidades.
+    /// </summary>
+    public bool Desliza = false;
+
+    /// <summary>El rey no corre: da un paso en las ocho direcciones, como en ajedrez.</summary>
+    public bool ReyAjedrez = false;
+
+    /// <summary>
+    /// Corre SOLO el guerrero; el resto camina. Escalona el juego: mientras no hay
+    /// cuartel nadie corre y la partida es la carrera de obra de siempre, y recien
+    /// cuando aparece el guerrero el tablero se vuelve rapido. Ademas el rey deja de
+    /// matar justo en ese momento -- pasa de cazador a presa -- que es de donde sale
+    /// la necesidad de taparse detras de un edificio.
+    /// </summary>
+    public bool SoloGuerreroCorre = false;
+
+    /// <summary>
+    /// Salir de un edificio cuesta un paso, igual que entrar: parado sobre un edificio
+    /// no se corre. Guarnecer sale caro en tiempo, que es lo que hace que meterse
+    /// adentro sea una decision y no una ventaja gratis.
+    /// </summary>
+    public bool SaleCaminando = false;
+
+    /// <summary>
+    /// El sacerdote convierte SOLO en diagonal. Como el guerrero mata en ortogonal,
+    /// los dos cubren casillas distintas: desde la diagonal se roba una unidad que
+    /// no puede contestar.
+    /// </summary>
+    public bool SacerdoteDiagonal = false;
+
+    /// <summary>El guerrero mata a la primera unidad de la fila, al final de la corrida.</summary>
+    public bool GuerreroLargo = false;
+
+    /// <summary>
+    /// Se construye en cualquier casilla a la que se podria haber caminado este turno,
+    /// no solo en la de al lado. Sin esto, correr desbalancea la economia del juego:
+    /// matar pasa a tener alcance de tablero entero mientras construir sigue costando
+    /// un paso, y las partidas terminan cazando al rey en vez de en el castillo
+    /// (castillo 68% -> 25%). Ademas hace que DONDE pones el edificio importe, porque
+    /// el edificio corta la linea de todos.
+    /// </summary>
+    public bool ConstruyeLejos = false;
+
+    /// <summary>
+    /// Hasta cuantas casillas llega la obra a distancia. 0 es sin limite -toda la linea
+    /// de vision-. Sin tope, tapar un carril desde lejos es tan bueno defendiendo que
+    /// los dos se amurallan y la partida se repite: los empates saltan de 10% a 22%.
+    /// </summary>
+    public int AlcanceObra = 0;
+
+    /// <summary>
     /// El sacerdote convierte aunque ya tengas esa pieza: en vez de aparecer una segunda, la
     /// tuya se muda a esa casilla. Le saca la pieza al otro y reposiciona la tuya de un saque.
     /// </summary>
@@ -158,6 +213,13 @@ public sealed class Reglas {
         if (ControlGuerrero) sb.Append("+control-guerrero");
         if (GuerreroVeloz) sb.Append("+guerrero-veloz");
         if (NoPegado) sb.Append("+no-pegado");
+        if (Desliza) sb.Append("+desliza");
+        if (ReyAjedrez) sb.Append("+rey-ajedrez");
+        if (SoloGuerreroCorre) sb.Append("+solo-guerrero-corre");
+        if (SaleCaminando) sb.Append("+sale-caminando");
+        if (SacerdoteDiagonal) sb.Append("+sacerdote-diagonal");
+        if (GuerreroLargo) sb.Append("+guerrero-largo");
+        if (ConstruyeLejos) sb.Append($"+construye-lejos{(AlcanceObra > 0 ? AlcanceObra.ToString() : "")}");
         if (SacerdoteReubica) sb.Append("+sacerdote-reubica");
         if (SacerdoteReleva) sb.Append("+sacerdote-releva");
         if (SacerdoteVuelve) sb.Append("+sacerdote-vuelve");
@@ -245,13 +307,27 @@ public sealed class Juego {
     public const int Taller = 0, Cuartel = 1, Iglesia = 2;
     public const int CastilloCod = 7;
 
-    public const int MaxJugadas = 256;
+    public const int MaxJugadas = 384;
 
     // Tipos de jugada
     public const int MOVER = 0, MATAR = 1, CONSTRUIR = 2, CORONAR = 3, DESPLEGAR = 4, CONVERTIR = 5;
 
     public readonly Reglas R;
     public readonly int[][] Ady;
+
+    /// <summary>Las cuatro diagonales de cada casilla, y las ocho vecinas juntas.</summary>
+    public readonly int[][] AdyDiag;
+    public readonly int[][] Ady8;
+
+    /// <summary>Las cuatro filas completas que salen de cada casilla, para deslizar.</summary>
+    public readonly int[][][] Lineas;
+
+    /// <summary>
+    /// Distancia en TURNOS para el rey, que es lo que mide la carrera al castillo.
+    /// Con el rey de ajedrez es Chebyshev, no Manhattan: en diagonal avanza en las
+    /// dos coordenadas de una.
+    /// </summary>
+    public readonly int[][] DistRey;
     public readonly int[][] Simetrias = new int[8][];
     public readonly int[][] Dist;
     /// <summary>Por casilla y direccion, las hasta dos casillas en linea recta. Para la carga.</summary>
@@ -265,7 +341,10 @@ public sealed class Juego {
 
         int L = Lado;
         Ady = new int[Casillas][];
+        AdyDiag = new int[Casillas][];
+        Ady8 = new int[Casillas][];
         Dist = new int[Casillas][];
+        DistRey = new int[Casillas][];
 
         for (int c = 0; c < Casillas; c++) {
             int f = c / L, col = c % L;
@@ -276,9 +355,40 @@ public sealed class Juego {
             if (col < L - 1) v.Add(c + 1);
             Ady[c] = v.ToArray();
 
+            var dg = new List<int>(4);
+            foreach (var (df, dc) in new[] { (-1, -1), (-1, 1), (1, -1), (1, 1) }) {
+                int nf = f + df, nc = col + dc;
+                if (nf >= 0 && nf < L && nc >= 0 && nc < L) dg.Add(nf * L + nc);
+            }
+            AdyDiag[c] = dg.ToArray();
+            var ocho = new List<int>(8);
+            ocho.AddRange(Ady[c]);
+            ocho.AddRange(dg);
+            Ady8[c] = ocho.ToArray();
+
             Dist[c] = new int[Casillas];
-            for (int d = 0; d < Casillas; d++)
-                Dist[c][d] = Math.Abs(f - d / L) + Math.Abs(col - d % L);
+            DistRey[c] = new int[Casillas];
+            for (int d = 0; d < Casillas; d++) {
+                int af = Math.Abs(f - d / L), ac = Math.Abs(col - d % L);
+                Dist[c][d] = af + ac;
+                DistRey[c][d] = R.ReyAjedrez ? Math.Max(af, ac) : af + ac;
+            }
+        }
+
+        Lineas = new int[Casillas][][];
+        for (int c = 0; c < Casillas; c++) {
+            int f = c / L, col = c % L;
+            var dirs = new List<int[]>(4);
+            foreach (var (df, dc) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) }) {
+                var linea = new List<int>(L);
+                for (int k = 1; k < L; k++) {
+                    int nf = f + df * k, nc = col + dc * k;
+                    if (nf < 0 || nf >= L || nc < 0 || nc >= L) break;
+                    linea.Add(nf * L + nc);
+                }
+                if (linea.Count > 0) dirs.Add(linea.ToArray());
+            }
+            Lineas[c] = dirs.ToArray();
         }
 
         Rayos = new int[Casillas][][];
@@ -444,6 +554,10 @@ public sealed class Juego {
     public static int JHasta(int j) => (j >> 8) & 31;
     public static int JExtra(int j) => (j >> 13) & 15;
 
+    private bool Convertible(Pos p, int presU, int turno, int tw)
+        => !Hay(presU, turno, tw) || R.SacerdoteReubica ||
+           (R.SacerdoteReleva && Guarnecida(p, turno, tw));
+
     public bool SitioDeObra(Pos p, int c) {
         if (En(p.Un, c) != 0 || En(p.Ed, c) != 0) return false;
         if (!R.NoPegado) return true;
@@ -489,30 +603,80 @@ public sealed class Juego {
                 }
             }
 
-            foreach (int a in Ady[c]) {
+            // Correr por terreno abierto. Frena antes de cualquier unidad y de cualquier
+            // edificio, que es lo que hace que un edificio bien puesto corte un carril.
+            bool corre = R.Desliza && !(esRey && R.ReyAjedrez)
+                         && (!R.SoloGuerreroCorre || t == Guerrero)
+                         && !(R.SaleCaminando && En(p.Ed, c) != 0);
+            if (corre)
+                foreach (int[] linea in Lineas[c])
+                    foreach (int d in linea) {
+                        if (En(p.Un, d) != 0 || En(p.Ed, d) != 0) break;
+                        buf[n++] = Jug(MOVER, c, d, 0);
+                    }
+
+            int[] paso = esRey && R.ReyAjedrez ? Ady8[c] : Ady[c];
+            foreach (int a in paso) {
                 int w = En(p.Un, a);
                 if (w == 0) {
                     // Los edificios son terreno: cualquiera entra a uno que no tenga nadie
-                    // adentro, sea de quien sea, y ocuparlo es controlarlo.
-                    buf[n++] = Jug(MOVER, c, a, 0);
+                    // adentro, sea de quien sea, y ocuparlo es controlarlo. Cuando se corre,
+                    // el paso suelto queda reservado a entrar a un edificio: el terreno
+                    // abierto ya lo cubrio la corrida y repetirlo seria jugada duplicada.
+                    if (!corre || En(p.Ed, a) != 0) buf[n++] = Jug(MOVER, c, a, 0);
                     continue;
                 }
                 if (DuenoU(w) == turno) continue;
                 int tw = TipoU(w);
                 // A un edificio ocupado (y a una unidad suelta) solo se entra matando.
                 if (puedeMatar) buf[n++] = Jug(MATAR, c, a, 0);
-                if (puedeConvertir && tw != Rey &&
-                    (!Hay(presU, turno, tw) || R.SacerdoteReubica ||
-                     (R.SacerdoteReleva && Guarnecida(p, turno, tw))))
+                if (puedeConvertir && !R.SacerdoteDiagonal && tw != Rey && Convertible(p, presU, turno, tw))
                     buf[n++] = Jug(CONVERTIR, c, a, 0);
             }
 
+            // Matar al final de la corrida, si el guerrero alcanza de lejos.
+            if (R.GuerreroLargo && puedeMatar && corre)
+                foreach (int[] linea in Lineas[c])
+                    foreach (int d in linea) {
+                        if (En(p.Ed, d) != 0) break;
+                        int w = En(p.Un, d);
+                        if (w == 0) continue;
+                        if (DuenoU(w) != turno && Dist[c][d] > 1) buf[n++] = Jug(MATAR, c, d, 0);
+                        break;
+                    }
+
+            // Convertir solo en diagonal, donde el guerrero no llega.
+            if (R.SacerdoteDiagonal && puedeConvertir)
+                foreach (int a in AdyDiag[c]) {
+                    int w = En(p.Un, a);
+                    if (w == 0 || DuenoU(w) == turno) continue;
+                    int tw = TipoU(w);
+                    if (tw != Rey && Convertible(p, presU, turno, tw)) buf[n++] = Jug(CONVERTIR, c, a, 0);
+                }
+
             if (puedeConstruir) {
-                foreach (int a in Ady[c]) {
-                    if (!SitioDeObra(p, a)) continue;
-                    for (int b = Taller; b <= Iglesia; b++)
-                        if (!Levantado(presE, turno, b)) buf[n++] = Jug(CONSTRUIR, c, a, b);
-                    if (tresEd && !hayCastillo) buf[n++] = Jug(CORONAR, c, a, 0);
+                if (R.ConstruyeLejos) {
+                    // Se levanta a la vista: en cualquier casilla de la linea, frenando en
+                    // lo primero que la tape. NO depende de que el que construye corra. Al
+                    // atarlo a correr, con --solo-guerrero-corre la regla quedaba muerta
+                    // -el guerrero no construye- y el escudo delante del rey era imposible.
+                    foreach (int[] linea in Lineas[c])
+                        for (int k = 0; k < linea.Length; k++) {
+                            if (R.AlcanceObra > 0 && k >= R.AlcanceObra) break;
+                            int d = linea[k];
+                            if (En(p.Un, d) != 0 || En(p.Ed, d) != 0) break;
+                            if (!SitioDeObra(p, d)) continue;
+                            for (int b = Taller; b <= Iglesia; b++)
+                                if (!Levantado(presE, turno, b)) buf[n++] = Jug(CONSTRUIR, c, d, b);
+                            if (tresEd && !hayCastillo) buf[n++] = Jug(CORONAR, c, d, 0);
+                        }
+                } else {
+                    foreach (int a in paso) {
+                        if (!SitioDeObra(p, a)) continue;
+                        for (int b = Taller; b <= Iglesia; b++)
+                            if (!Levantado(presE, turno, b)) buf[n++] = Jug(CONSTRUIR, c, a, b);
+                        if (tresEd && !hayCastillo) buf[n++] = Jug(CORONAR, c, a, 0);
+                    }
                 }
             }
         }

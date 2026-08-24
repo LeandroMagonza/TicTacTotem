@@ -3,15 +3,27 @@
 Segunda versión del juego. Es un juego distinto al de `../solver/`: cambian las piezas, el
 movimiento y la victoria. Por eso tiene su propio motor y este README se lee solo.
 
-**Estado en una línea:** la mejor versión medida es
+**Estado en una línea:** hay dos versiones vivas, y la elección entre ellas es un
+intercambio real, no una duda por falta de datos.
 
 ```
---lado 5 --no-pegado --rey-reino --castillo-aguanta --adelanta-segundo
+# la simple: bien balanceada, pero el taller casi nunca se construye primero
+--lado 5 --no-pegado --rey-reino --sacerdote-reubica --sacerdote-vuelve
+
+# la de movimiento: el guerrero corre como torre y el constructor tiene trabajo propio
+--lado 5 --no-pegado --rey-reino --sacerdote-reubica --sacerdote-vuelve \
+  --desliza --solo-guerrero-corre --sacerdote-diagonal --construye-lejos --alcance-obra 2
 ```
 
-Orden de construcción táctico, 25% de empates, sin ahogados, el castillo como forma de
-ganar en dos de cada tres partidas, y el primero se lleva 54,6 de 100. Lo que queda por
-arreglar es ese 54,6 y bajar más los empates. Secciones 3 y 4.
+A 8 plies con quietud: la simple da reparto 49,5 / 12% de empates / 64% de finales en
+castillo, con el taller como primer edificio apenas el 3,5% de las veces. La de movimiento
+da 52,8 / 16% / 56% con el taller al **15,8%** y el constructor haciendo el doble de
+trabajo. Secciones 3.d y 3.e.
+
+> **Aviso sobre los números viejos.** Todo lo medido antes de la sección 3.d salió de un
+> buscador que evaluaba en seco en el horizonte. Las cifras de empates de aquella época
+> (24%, 34%, 54%) eran en buena parte del buscador, no del juego. Están para mostrar el
+> camino, no para decidir nada.
 
 ---
 
@@ -72,7 +84,34 @@ listadas para que no confundan cuando aparezcan en una tabla.
 | `--sacerdote-releva` | Como `--sacerdote-reubica` pero sólo mientras tu pieza esté guarnecida sobre su edificio. Versión intermedia. |
 | **`--guerrero-veloz`** | El guerrero carga: se mueve hasta dos casillas en línea recta, atravesando una casilla vacía. Arregla el equilibrio pero se come el juego (sección 3). |
 
+### Las del buscador
+
+No son reglas del juego: son cómo se mide.
+
+| Bandera | Qué hace |
+|---|---|
+| **`--quieta N`** | Al llegar al horizonte sigue las jugadas forzantes —matar y convertir— hasta N plies más, con derecho a plantarse, en vez de evaluar en seco. **Sin esto las mediciones no sirven**: sección 3.d. Usar siempre `--quieta 4`. |
+| `--semilla N` | Cambia las partidas. Es la única forma de repetir una medición de verdad. |
+
+### Las del movimiento (sección 3.e)
+
+| Bandera | Qué hace |
+|---|---|
+| **`--desliza`** | Se corre en línea recta por terreno abierto y se frena **antes** de cualquier unidad o edificio. Entrar a un edificio es un paso suelto desde al lado. Es lo que hace que los edificios estorben. |
+| **`--solo-guerrero-corre`** | Corre sólo el guerrero; el resto camina. Escalona la partida: la apertura es lenta y el tablero se acelera cuando aparece el cuartel. Sin esto, correr convierte el juego en una cacería. |
+| **`--sacerdote-diagonal`** | El sacerdote convierte sólo en diagonal. El guerrero mata en cruz, así que cubren casillas disjuntas y el sacerdote roba desde donde no le pueden contestar. |
+| **`--construye-lejos`** | Se construye a la vista: cualquier casilla de la línea, frenando en lo primero que la tape. Es lo único que logró que el taller se construya primero. |
+| **`--alcance-obra N`** | Tope de casillas para la obra a distancia. Sin tope los dos se amurallan y los empates se duplican. |
+
 ### Las que no
+
+| Bandera | Por qué está |
+|---|---|
+| `--rey-ajedrez` | El rey camina en ocho direcciones en vez de correr. Un rey lento con una torre enemiga es presa: el castillo cae de 56,5% a 32,5%. |
+| `--sale-caminando` | Parado sobre un edificio no se corre. Reparto 74,8: castiga al que se defiende, o sea al que va perdiendo. |
+| `--guerrero-largo` | Matar al final de la corrida. Rompe la frase que ordena todo el movimiento y borra el aviso de un turno. |
+| `--edificio-sin-unidad` | Los edificios no traen su unidad. Probaba que alargar la carrera diluiría el tempo; no lo hace, y sube empates y alarga las partidas un 30%. |
+| `--regalo` / `--regalo-donde` / `--regalo-casilla` | El segundo arranca con un edificio puesto. Compensaba un desbalance que en buena parte era del buscador. |
 
 | Bandera | Por qué está |
 |---|---|
@@ -84,7 +123,13 @@ listadas para que no confundan cuando aparezcan en una tabla.
 
 ---
 
-## 3. Dónde estamos
+## 3. Dónde estábamos (medido con el buscador roto)
+
+⚠ **Esta tabla y las dos subsecciones que le siguen se midieron sin búsqueda de quietud.**
+Las conclusiones de forma siguen valiendo —el 5x5 con no-pegado produce mejor juego que el
+4x4, `--guerrero-veloz` arregla el número equivocado— pero **las cifras de empates están
+infladas** y el desvío del reparto es poco confiable. La sección 3.d explica por qué y
+la 3.e trae las mediciones buenas.
 
 Cuatro configuraciones, todas sobre `--rey-reino --castillo-aguanta`. Los números con
 búsqueda son el promedio de 4, 6 y 8 plies; `desvío` es cuánto se aparta de 50 el reparto
@@ -243,6 +288,115 @@ proyecto.
 siempre —un sacerdote fuerte acelera la partida, de 52 plies a 45-48, y una partida más
 rápida favorece al que sale primero—. O sea que la media jugada de `--adelanta-segundo`
 alcanzaba para el juego lento y no alcanza para éste.
+
+---
+
+## 3.d El buscador medía mal, y buena parte de lo que arreglamos no estaba roto
+
+El defecto: al llegar al horizonte, `Practico` hacía `return Evaluar(...)`. Evaluaba **en el
+medio de un intercambio**. Con profundidad impar la última jugada que ve cada jugador es la
+propia —ve su captura y no ve la respuesta— y con profundidad par ve la respuesta. El mismo
+juego, medido a 5, 6, 7 y 8 plies:
+
+| plies | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|
+| reparto | 65,5 | 55,6 | 67,4 | 46,8 |
+| **empates** | **0,6%** | **26,3%** | **1,8%** | **26,3%** |
+
+No es gradual: es un interruptor. Lo agrava que la evaluación tiene un término de −200 por
+rey pegado a un guerrero enemigo, así que con horizonte impar acercar el guerrero vale +200
+y la huida del rey no se ve nunca.
+
+**Con `--quieta 4`** —sigue sólo las jugadas forzantes, matar y convertir, hasta que la
+posición se calma, con derecho a plantarse— el interruptor desaparece: empates 2,5 / 10,8 /
+7,6 / 12,0 y el reparto se mueve en 7 puntos en vez de 20.
+
+Dos advertencias que salieron de ahí y valen para cualquier medición futura:
+
+1. **Coronar no va en la quietud.** Lo puse al principio razonando "es un salto grande de
+   evaluación". Está mal: no es una captura, el rival no tiene con qué contestarla dentro de
+   la quietud, y la línea termina con uno coronado y el otro sin jugar. El reparto daba
+   80,8% a 6 plies.
+2. **Dos corridas con la misma semilla y distinto `--partidas` NO son réplicas.** Los hilos
+   arrancan del mismo estado del generador, así que comparten la mayoría de las partidas.
+   Para repetir de verdad hay que cambiar `--semilla`. Con 300 partidas a 8 plies el error de
+   una corrida es de **±2,5 puntos** de reparto: por debajo de ~7 puntos de diferencia, dos
+   configuraciones son indistinguibles.
+
+### Qué regla se gana el lugar
+
+Con el buscador derecho, sacando de a una (8 plies, 200 partidas):
+
+| se saca | reparto | empates | castillo | 1er edificio |
+|---|---|---|---|---|
+| nada | 49,5 | 12,0% | 64,0% | taller 3,5 |
+| `--castillo-aguanta` | 45,8 | 14,5% | 61,5% | taller 4,5 |
+| sacerdote (reubica+vuelve) | 38,8 | 19,5% | 44,5% | taller 3,8 |
+| `--rey-reino` | 62,0 | 25,0% | 58,5% | **taller 32** |
+| `--no-pegado` | **93,5** | 5,0% | 90,5% | — |
+
+- **`--no-pegado` sostiene el juego.** Sin ella el primero gana el 93,5%: amontona los tres
+  edificios pegados al rey y corona en 27 plies.
+- **`--castillo-aguanta` ya no hace nada** y se puede borrar. Se agregó para cortar
+  repeticiones que resultaron ser del buscador.
+- **`--rey-reino` es la causa de que el taller no se construya nunca.** Construir el taller es
+  controlar un taller, y eso le apaga al rey el poder de construir — y el rey hace el 86%
+  de las obras. Sin la regla el taller sale primero el 32% de las veces, pero el reparto se
+  va a 62 y los empates al 25%.
+
+---
+
+## 3.e El movimiento: correr, y qué pasa cuando los edificios estorban
+
+Hasta acá **sólo estorbaban las unidades**: un edificio vacío lo pisa cualquiera, así que los
+7 edificios eran decoración transitable y los únicos obstáculos eran las 8 unidades. Con
+movimiento de un paso, además, "estorbar" y "no se puede entrar" son lo mismo — y no
+entrar rompe el control, que es por ocupación. Así que para que los edificios estorben hace
+falta alcance.
+
+`--desliza`: se corre en línea recta por terreno abierto y se frena **antes** de cualquier
+unidad o edificio. Entrar a un edificio pasa a ser un paso suelto desde al lado, o sea que
+tomar uno cuesta dos turnos si no estabas pegado.
+
+**Correr solo desbalancea el juego hacia la cacería.** Con todos corriendo, el castillo cae
+del 64% al 25-35% y matar al rey pasa a ser el final normal. Tres explicaciones mías
+fallaron antes de dar con la buena: no era la velocidad de construir, no eran los reyes
+cazándose temprano (`--rey-no-mata` no movió el castillo ni medio punto), y no era el rey
+lento. Era que **un guerrero tipo torre amenaza toda su cruz** y no hay dónde esconderse.
+
+Lo que sí funciona es **escalonar**: `--solo-guerrero-corre`. Mientras no hay cuartel nadie
+corre y la apertura es la carrera de obra de siempre; recién cuando aparece el guerrero el
+tablero se vuelve rápido — y en esa misma jugada el rey deja de matar, o sea que pasa de
+cazador a presa justo cuando el tablero acelera.
+
+| 8 plies, 250 partidas | reparto | empates | castillo | rey muerto | 1er edificio |
+|---|---|---|---|---|---|
+| sin correr (la simple) | 49,5 | 12,0% | 64,0% | 24,0% | taller 3,5% |
+| `--solo-guerrero-corre --sacerdote-diagonal` | 56,4 | 13,6% | **67,2%** | 19,2% | taller **0%** |
+|  + `--construye-lejos --alcance-obra 2` | 52,8 | 16,0% | 56,0% | 28,0% | taller **15,8%** |
+
+**`--construye-lejos` es lo único que destrabó el taller**, y no por un incentivo: porque le
+dio al constructor un trabajo que el rey no hace igual de bien. Las obras del rey caen del
+93% al 76% y el constructor pasa de 1,26 a 2,04 habilidades por partida. El costo son
+empates: sin tope de alcance, tapar un carril desde lejos es tan bueno defendiendo que **los
+dos se amurallan** y los empates saltan de 10% a 22%. De ahí `--alcance-obra 2`.
+
+Lo que se probó y no va:
+
+- **`--rey-ajedrez`** (el rey camina en ocho direcciones). Un rey lento con una torre enemiga
+  en el tablero es presa: el castillo cae de 56,5% a 32,5%.
+- **`--sale-caminando`** (guarnecido no se corre). Reparto 74,8: castiga al que se defiende,
+  que es siempre el que va perdiendo, así que amplifica la ventaja.
+- **`--guerrero-largo`** (matar al final de la corrida). Rompe la única frase que ordena todo
+  el movimiento —correr es por terreno abierto, entrar a algo ocupado es siempre el último
+  paso desde al lado— y borra el aviso de un turno.
+- **El 4x4 con guerrero torre está muerto**: castillo 13,6%, rey muerto 67,2%. En 16 casillas
+  una torre alcanza todo.
+
+**`--sacerdote-diagonal`** sí va, y es casi gratis. Si el guerrero mata en cruz y el sacerdote
+convierte en aspa, cubren casillas disjuntas: el sacerdote roba desde la diagonal a un
+guerrero que no puede contestarle. Eso le da un trabajo concreto —castigar al que sitia un
+cuartel para impedir el despliegue— y es la primera vez que las tres unidades se necesitan.
 
 ---
 

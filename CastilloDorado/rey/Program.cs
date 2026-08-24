@@ -33,7 +33,7 @@ public static class Program {
             case "azar": Azar(reglas, Ent(o, "partidas", 50000), Ent(o, "semilla", 1)); return 0;
             case "practica":
                 Practica(reglas, Ent(o, "partidas", 300), Ent(o, "plies", 4),
-                         Ent(o, "plies-negro", -1), Ent(o, "semilla", 1));
+                         Ent(o, "plies-negro", -1), Ent(o, "semilla", 1), Ent(o, "quieta", 0));
                 return 0;
             case "resolver": Resolver(reglas, Ent(o, "max-prof", 15), Ent(o, "tt-bits", 22)); return 0;
             case "partida":
@@ -63,6 +63,14 @@ public static class Program {
         RegaloConUnidad = Flag(o, "regalo-con-unidad"),
         RegaloCasilla = Ent(o, "regalo-casilla", -1),
         EdificioSinUnidad = Flag(o, "edificio-sin-unidad"),
+        Desliza = Flag(o, "desliza"),
+        ReyAjedrez = Flag(o, "rey-ajedrez"),
+        SoloGuerreroCorre = Flag(o, "solo-guerrero-corre"),
+        SaleCaminando = Flag(o, "sale-caminando"),
+        SacerdoteDiagonal = Flag(o, "sacerdote-diagonal"),
+        GuerreroLargo = Flag(o, "guerrero-largo"),
+        ConstruyeLejos = Flag(o, "construye-lejos"),
+        AlcanceObra = Ent(o, "alcance-obra", 0),
         ReyGuarnicion = !Flag(o, "rey-pierde-poder"),
         ReyPorEdificio = Flag(o, "rey-por-edificio"),
         ReyReino = Flag(o, "rey-reino"),
@@ -121,6 +129,15 @@ Reglas (en cualquier comando):
   --regalo-con-unidad   el edificio regalado viene con su unidad adentro
   --regalo-casilla N    casilla exacta del regalo, pisa a --regalo-donde
   --edificio-sin-unidad los edificios no traen su unidad: hay que desplegarla aparte
+  --quieta N            plies extra de busqueda de quietud al llegar al horizonte (0 la apaga)
+  --desliza             las unidades corren en linea recta y frenan ante unidad o edificio
+  --rey-ajedrez         el rey no corre: un paso en las ocho direcciones
+  --solo-guerrero-corre corre solo el guerrero; el resto camina
+  --sale-caminando      parado sobre un edificio no se corre: salir cuesta un paso
+  --sacerdote-diagonal  el sacerdote convierte solo en diagonal
+  --guerrero-largo      el guerrero mata a la primera unidad de la fila
+  --construye-lejos     se construye en cualquier casilla del alcance, no solo al lado
+  --alcance-obra N      tope de casillas para la obra a distancia (0 = toda la linea)
   --rey-pierde-poder    el rey pierde el poder apenas la unidad existe en el tablero,
                         en vez de conservarlo mientras la unidad este en su edificio
   --rey-por-edificio    el rey pierde el poder por CONTROLAR el edificio, no por tener la
@@ -179,12 +196,12 @@ Reglas (en cualquier comando):
 
     // --------------------------------------------------------------- practica
 
-    private static void Practica(Reglas r, int partidas, int plies, int pliesNegro, int semilla) {
+    private static void Practica(Reglas r, int partidas, int plies, int pliesNegro, int semilla, int quieta) {
         if (pliesNegro < 0) pliesNegro = plies;
         var sw = Stopwatch.StartNew();
         var b = CorrerLote(r, partidas, semilla,
-            g => new PoliticaBusqueda(new Busqueda(g, 20), plies),
-            g => new PoliticaBusqueda(new Busqueda(g, 20), pliesNegro));
+            g => new PoliticaBusqueda(new Busqueda(g, 20) { MaxQuieta = quieta }, plies),
+            g => new PoliticaBusqueda(new Busqueda(g, 20) { MaxQuieta = quieta }, pliesNegro));
         sw.Stop();
         b.Imprimir($"Blanco ve {plies} plies, negro ve {pliesNegro}   [{r.Etiqueta()}]");
         Console.WriteLine($"  ({sw.ElapsedMilliseconds:N0} ms)");
