@@ -108,6 +108,12 @@ public static class SelfTest {
               !Lista(g, conTaller, B).Any(j => Juego.JTipo(j) == Juego.CONSTRUIR
                                                && Juego.JExtra(j) == Juego.Taller));
 
+        var gsu2 = new Juego(new Reglas { EdificioSinUnidad = true });
+        Check("con --edificio-sin-unidad el taller nace vacio",
+              Juego.En(gsu2.Aplicar(solo, B, Juego.Jug(Juego.CONSTRUIR, 5, 4, Juego.Taller)).Un, 4) == 0);
+        Check("y el constructor hay que desplegarlo aparte, gastando un turno",
+              TieneTipo(gsu2, gsu2.Aplicar(solo, B, Juego.Jug(Juego.CONSTRUIR, 5, 4, Juego.Taller)), B, Juego.DESPLEGAR));
+
         Console.WriteLine("El poder prestado del rey");
 
         // Constructor guarnecido: parado sobre su propio taller.

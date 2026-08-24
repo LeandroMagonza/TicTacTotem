@@ -128,8 +128,18 @@ public sealed class Reglas {
     /// </summary>
     public int Regalo = -1;
 
-    /// <summary>Donde va: pegado / fondo-centro / fondo-esquina / fila2-borde.</summary>
+    /// <summary>Donde va: pegado / fondo-centro / fondo-esquina / fila2-borde / fila2-centro.</summary>
     public string RegaloDonde = "fondo-esquina";
+
+    /// <summary>Casilla exacta del regalo. Si es >= 0 pisa a RegaloDonde.</summary>
+    public int RegaloCasilla = -1;
+
+    /// <summary>
+    /// Los edificios NO vienen con su unidad adentro: hay que gastar un turno en desplegarla.
+    /// Duplica el largo de la carrera -de 3 turnos a 6- y por eso deberia bajar mucho cuanto
+    /// pesa un solo tempo, que es de donde sale todo el desbalance.
+    /// </summary>
+    public bool EdificioSinUnidad = false;
 
     /// <summary>Si el edificio regalado viene con su unidad adentro, como si lo hubiera construido.</summary>
     public bool RegaloConUnidad = false;
@@ -158,7 +168,8 @@ public sealed class Reglas {
         if (CorreSegundo != 0) sb.Append($"+corre{CorreSegundo}");
         if (AdelantaPrimero != 0) sb.Append($"+adelanta1ro{AdelantaPrimero}");
         if (CorrePrimero != 0) sb.Append($"+corre1ro{CorrePrimero}");
-        if (Regalo >= 0) sb.Append($"+regalo{Regalo}@{RegaloDonde}{(RegaloConUnidad ? "+unidad" : "")}");
+        if (Regalo >= 0) sb.Append($"+regalo{Regalo}@{(RegaloCasilla >= 0 ? RegaloCasilla.ToString() : RegaloDonde)}{(RegaloConUnidad ? "+unidad" : "")}");
+        if (EdificioSinUnidad) sb.Append("+edificio-sin-unidad");
         if (CastilloAguanta) sb.Append("+castillo-aguanta");
         return sb.ToString();
     }
@@ -522,10 +533,12 @@ public sealed class Juego {
             }
             case CONSTRUIR: {
                 // El edificio viene con su unidad adentro, si esa unidad no estaba ya en el
-                // tablero (puede estarlo si el sacerdote se la robo al otro).
+                // tablero (puede estarlo si el sacerdote se la robo al otro). Con
+                // EdificioSinUnidad no viene nadie y hay que gastar un turno en desplegarla.
                 ed = Con(ed, hasta, CodE(turno, extra));
                 int tu = extra + 1;
-                if (!Hay(PresU(un), turno, tu)) un = Con(un, hasta, CodU(turno, tu));
+                if (!R.EdificioSinUnidad && !Hay(PresU(un), turno, tu))
+                    un = Con(un, hasta, CodU(turno, tu));
                 return new Pos(ed, un);
             }
             case CORONAR:
@@ -674,6 +687,12 @@ public sealed class Juego {
     /// fondo del segundo es la ultima fila; "fila2" es la anteultima, contando desde el.
     /// </summary>
     private int SitioDelRegalo(Pos p) {
+        if (R.RegaloCasilla >= 0) {
+            if (R.RegaloCasilla >= Casillas) throw new ArgumentException("casilla de regalo fuera del tablero");
+            if (En(p.Un, R.RegaloCasilla) != 0 || En(p.Ed, R.RegaloCasilla) != 0)
+                throw new ArgumentException($"la casilla {Casilla(R.RegaloCasilla)} del regalo esta ocupada");
+            return R.RegaloCasilla;
+        }
         int c = R.RegaloDonde switch {
             "fondo-esquina" => (Lado - 1) * Lado,
             "fondo-centro"  => (Lado - 1) * Lado + Lado / 2,
@@ -682,11 +701,17 @@ public sealed class Juego {
             "pegado"        => -1,
             _ => throw new ArgumentException($"lugar de regalo desconocido: {R.RegaloDonde}"),
         };
-        if (c >= 0) return En(p.Un, c) == 0 && En(p.Ed, c) == 0 ? c : -1;
+        if (c >= 0) {
+            // Fallar ruidoso: un regalo que no se coloca produce una corrida identica a la
+            // de control y pasa por medicion valida sin serlo.
+            if (En(p.Un, c) != 0 || En(p.Ed, c) != 0)
+                throw new ArgumentException($"el lugar '{R.RegaloDonde}' cae en {Casilla(c)}, que esta ocupada");
+            return c;
+        }
 
         foreach (int a in Ady[CasillaRey(p.Un, Negro)])
             if (En(p.Un, a) == 0 && En(p.Ed, a) == 0) return a;
-        return -1;
+        throw new ArgumentException("no hay casilla libre pegada al rey para el regalo");
     }
 
     public static Pos Inicial(string nombre) {

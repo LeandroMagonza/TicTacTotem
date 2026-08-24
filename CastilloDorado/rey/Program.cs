@@ -61,6 +61,8 @@ public static class Program {
             ? Array.IndexOf(new[] { "taller", "cuartel", "iglesia" }, rg) : -1,
         RegaloDonde = o.TryGetValue("regalo-donde", out string? rd) ? rd : "fondo-esquina",
         RegaloConUnidad = Flag(o, "regalo-con-unidad"),
+        RegaloCasilla = Ent(o, "regalo-casilla", -1),
+        EdificioSinUnidad = Flag(o, "edificio-sin-unidad"),
         ReyGuarnicion = !Flag(o, "rey-pierde-poder"),
         ReyPorEdificio = Flag(o, "rey-por-edificio"),
         ReyReino = Flag(o, "rey-reino"),
@@ -117,6 +119,8 @@ Reglas (en cualquier comando):
   --regalo taller|cuartel|iglesia    el segundo arranca con ese edificio ya levantado
   --regalo-donde pegado|fondo-centro|fondo-esquina|fila2-borde|fila2-centro
   --regalo-con-unidad   el edificio regalado viene con su unidad adentro
+  --regalo-casilla N    casilla exacta del regalo, pisa a --regalo-donde
+  --edificio-sin-unidad los edificios no traen su unidad: hay que desplegarla aparte
   --rey-pierde-poder    el rey pierde el poder apenas la unidad existe en el tablero,
                         en vez de conservarlo mientras la unidad este en su edificio
   --rey-por-edificio    el rey pierde el poder por CONTROLAR el edificio, no por tener la
