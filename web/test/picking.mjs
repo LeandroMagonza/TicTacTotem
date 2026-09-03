@@ -121,16 +121,28 @@ for (const elev of ANGULOS) {
 
   for (let cell = 0; cell < 9; cell++) {
     await send('Page.navigate', { url: `${base}?elev=${elev}` })
-    // Esperar a que el juego este listo y en modo dos jugadores.
-    for (let i = 0; i < 80; i++) {
-      const listo = await evaluar('!!(window.__game && window.__game.state.snapshot)').catch(() => false)
+    // Esperar a que el juego este LISTO PARA JUGAR, no solo cargado. Contra una
+    // URL remota la carga tarda mucho mas que en localhost, y con una espera
+    // corta el harness reportaba fallos de picking que no existian.
+    let listo = false
+    for (let i = 0; i < 300; i++) {
+      listo = await evaluar(
+        "!!(window.__game && window.__game.state.snapshot && window.__game.state.phase === 'playing')"
+      ).catch(() => false) === true
       if (listo) break
       await sleep(100)
     }
+    if (!listo) { errores.push(`celda ${cell}: el juego no cargo a tiempo`); continue }
     await evaluar("window.__game.state.mode = 'hotseat'")
 
-    // Seleccionar la primera pieza de la mano y despues clickear la casilla.
+    // Seleccionar la primera pieza de la mano. Si no quedo seleccionada, el
+    // click siguiente no probaria nada: mejor decirlo que contarlo como fallo
+    // de picking.
     await evaluar('window.__game.tap({kind:"hand", pieceId: window.__game.state.snapshot.hands[0][0]})')
+    if (await evaluar('!!window.__game.state.selection') !== true) {
+      errores.push(`celda ${cell}: no se pudo seleccionar la pieza de la mano`)
+      continue
+    }
     const pt = await evaluar(PROYECTAR(cell))
     await click(pt)
 
