@@ -666,6 +666,12 @@ y juega partidas de visión fija con esa apertura forzada. El resumen da tres n�
 la mejor apertura del primero, el promedio sobre aperturas y el mínimo de respuestas del
 segundo. Tarda unos segundos por par, así que se puede barrer todo.
 
+Y un nivel más abajo está **`respuestas`**, que fija la apertura y mide cada respuesta del
+segundo por separado, en teoría y a visión fija. Hace falta porque el promedio de una apertura
+mezcla respuestas que aguantan con respuestas que regalan la partida, así que no sirve para
+decidir el turno propio: tras el 4 en esquina, a ve6, la mejor respuesta da 82 % al segundo y
+nueve de las dieciséis pierden 100 a 0.
+
 Lo que salió de barrer con eso (los CSV y scripts están en `aperturas/` y `aperturas/color/`):
 
 - **Con las reglas de siempre no hay set que lo arregle.** En los 405 sets 5v5 donde gana el
@@ -730,6 +736,47 @@ en 14 y no lo ve nadie en una mesa.
 El costo: la partida dura un 30 % más, hay que explicar una excepción más, y aparecen 8
 posiciones sin jugada legal en 5,2 millones de nodos donde antes había 0 — sigue siendo un
 final que jugando no se alcanza.
+
+### Qué conviene jugar con la regla puesta
+
+`aperturas` con 4000 partidas por apertura, y el comando **`respuestas`**, que baja un nivel:
+fija la apertura y mide cada respuesta posible del segundo. Las casillas se nombran como en la
+web, letra de fila y número de columna, así que A1 es una esquina y A2 el lado de al lado.
+
+**El primero abre con el 4, y la casilla depende de contra quién juega.** El 4 es su pieza más
+alta: como en su set no hay ningún 5, un 4 suyo sólo lo puede tapar una de las dos águilas del
+rival, y es lo más caro de neutralizar que tiene.
+
+| apertura | ve2 | ve4 | ve6 |
+|---|---|---|---|
+| 4 en esquina | **52,7** | **53,0** | 31,6 |
+| 1 / 2 / 3 en esquina | 48,0-48,6 | 52,0-52,9 | 26,0-28,5 |
+| 4 en lado | 50,9 | 45,2 | **44,9** |
+| 1 / 2 / 3 en lado | 44,4-48,0 | 41,1-43,1 | 39,2-42,2 |
+
+La esquina y el lado se dan vuelta según la fuerza del rival, y la razón está en la columna de
+respuestas de `aperturas`. Tras una esquina el segundo tiene 1 o 2 respuestas ganadoras entre
+28; tras un lado tiene 4, y las 28 aguantan 8 plies. **La esquina es la apertura trampa y el
+lado la sólida**: contra alguien que no conoce la respuesta la esquina saca 53 %, y contra
+alguien que sí la conoce se derrumba a 26-32 %.
+
+**El segundo contesta siempre con un 5.** En las 24 combinaciones medidas —8 aperturas por
+tres visiones— la mejor respuesta es un águila, sin una sola excepción. Es simétrico al motivo
+de arriba: el primero no tiene con qué taparla nunca, así que un 5 puesto es permanente.
+
+| te abren con | contestás | ve4 |
+|---|---|---|
+| cualquier pieza en un lado | el 5 en el lado opuesto | 68-84 % |
+| 1, 2 o 3 en una esquina | el 5 en la esquina opuesta | 69-74 % |
+| 4 en una esquina | el 5 en un lado pegado a esa esquina | 70 % |
+
+La excepción del 4 en esquina es la única que importa y es cara: ahí el 5 en la esquina opuesta
+pierde en 9 plies, y a ve6 da 50 % contra el 82 % del 5 en el lado pegado. En todas las demás,
+la regla simple de "el 5 en la casilla opuesta" queda a menos de 2 puntos de lo óptimo.
+
+Lo que se paga por no contestar con un 5: a ve4, entre 10 y 20 puntos según la apertura. A ve6,
+tras un 4 en esquina, **todas** las respuestas que no son un 5 ni ocupan la esquina opuesta
+pierden 100 a 0.
 
 Esa regla y ese set son los que implementa el juego web desde septiembre de 2026. El precio,
 común a todo lo que da profundidad, es que entre jugadores fuertes se inclina al segundo. La

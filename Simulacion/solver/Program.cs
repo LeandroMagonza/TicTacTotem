@@ -28,6 +28,7 @@ public static class Program {
             case "practica": return Practica(opts);
             case "practicas": return Practicas(opts);
             case "aperturas": return Aperturas(opts);
+            case "respuestas": return Respuestas(opts);
             case "trampas": return Trampas(opts);
             case "sweep": return Sweep(opts);
             default: Usage(); return 1;
@@ -58,6 +59,12 @@ Solver exacto para el TaTeTi con Esteroides.
       distinta, cuantas respuestas del segundo conservan la victoria y el
       reparto a vision fija con esa apertura forzada. Con --out escribe una
       fila por apertura y un resumen por enfrentamiento (<out>_resumen.csv).
+
+  respuestas  --white 12344 --black 12355 [--pieza 1] [--casilla esquina|lado]
+              [--games 400] [--ve 4] [--max-depth 14] [--out respuestas.csv]
+      Un nivel por debajo de 'aperturas': fija la apertura del primero y mide
+      CADA respuesta del segundo, en teoria y a vision fija. Sin --pieza ni
+      --casilla recorre todas las aperturas.
 
   --color primera|siempre [--color-blancas lados|esquinas]   (en cualquier comando)
       Tablero a dos colores como el ajedrez (esquinas y centro de uno, lados
@@ -512,7 +519,8 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
     /// Devuelve +1 gana el primero, -1 gana el segundo, 0 sin definir, y los plies jugados.
     /// </summary>
     private static (int ganador, int plies) UnaPartida(GameSpec spec, Searcher searcher, Random rng,
-                                                       int vision, int maxPlies, int primera = -1) {
+                                                       int vision, int maxPlies, int primera = -1,
+                                                       int segunda = -1) {
         ulong p = spec.InitialPosition();
         int turn = GameSpec.White, ply = 0;
         var buf = new int[256];
@@ -520,6 +528,13 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
             p = spec.Apply(p, primera);
             ply = 1;
             turn = GameSpec.Black;
+            if (segunda >= 0) {   // y la respuesta del segundo tambien
+                p = spec.Apply(p, segunda);
+                ply = 2;
+                turn = GameSpec.White;
+                Outcome? yaEsta = spec.WinnerAfter(p, GameSpec.Black);
+                if (yaEsta != null) return ((int)yaEsta.Value, ply);
+            }
         }
 
         while (ply < maxPlies) {
@@ -881,6 +896,147 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
         Console.WriteLine("forzados = una sola jugada conserva lo mejor.  trampas = ademas es indistinguible");
         Console.WriteLine("de otra que pierde, para el que ve " + vision + " plies.  riesgo = chance de errarle ese turno.");
         return 0;
+    }
+
+    private static string NombreCasilla(int cell) => $"{"ABC"[cell / 3]}{cell % 3 + 1}";
+
+    private sealed record FilaRespuesta(int ApPieza, string ApCasilla, int ApCelda,
+                                        int Pieza, int Celda, string Tipo, bool ComparteLinea,
+                                        Outcome Res, int Plies, double G1, double G2, double Nd);
+
+    /// <summary>
+    /// Un nivel por debajo de <c>aperturas</c>: fija UNA apertura del primero y mide cada
+    /// respuesta posible del segundo, en teoria y a vision fija.
+    ///
+    /// Es la pregunta que se hace en la mesa y que el promedio por apertura no contesta: "me
+    /// abrio con el elefante en la esquina, que pongo?". El promedio de una apertura mezcla
+    /// respuestas que aguantan con respuestas que regalan la partida, asi que no sirve para
+    /// decidir el turno propio.
+    /// </summary>
+    private static int Respuestas(Dictionary<string, string> o) {
+        var white = ParseSet(Str(o, "white", "12344"));
+        var black = ParseSet(Str(o, "black", "12355"));
+        int games = Int(o, "games", 400);
+        int vision = Int(o, "ve", 4);
+        int maxDepth = Int(o, "max-depth", 14);
+        int maxPlies = Int(o, "max-plies", 40);
+        int seed = Int(o, "seed", 20260727);
+        int filtroPieza = Int(o, "pieza", 0);
+        string filtroCasilla = Str(o, "casilla", "");
+        string outPath = Str(o, "out", "");
+
+        var spec0 = Spec(o, white, black);
+        if (spec0.Libre) { Console.Error.WriteLine("respuestas no aplica a la variante libre."); return 2; }
+
+        // Aperturas distintas del primero, sin simetrias.
+        ulong start = spec0.InitialPosition();
+        var buf0 = new int[256];
+        int n0 = spec0.GenerateMoves(start, GameSpec.White, buf0.AsSpan());
+        var vistasAp = new HashSet<ulong>();
+        var aperturas = new List<int>();
+        for (int i = 0; i < n0; i++) {
+            if (!vistasAp.Add(spec0.Canonical(spec0.Apply(start, buf0[i])))) continue;
+            int rank = spec0.Rank[spec0.PieceOf(buf0[i])];
+            string tipo = TipoDeCasilla(spec0, buf0[i] & 0xF);
+            if (filtroPieza > 0 && rank != filtroPieza) continue;
+            if (filtroCasilla.Length > 0 && !tipo.Equals(filtroCasilla, StringComparison.OrdinalIgnoreCase)) continue;
+            aperturas.Add(buf0[i]);
+        }
+        if (aperturas.Count == 0) { Console.Error.WriteLine("ninguna apertura coincide con el filtro."); return 2; }
+
+        // Respuestas distintas a cada apertura, tambien sin simetrias.
+        var tareas = new List<(int ap, int resp)>();
+        foreach (int ap in aperturas) {
+            ulong p1 = spec0.Apply(start, ap);
+            var buf = new int[256];
+            int n = spec0.GenerateMoves(p1, GameSpec.Black, buf.AsSpan());
+            var vistas = new HashSet<ulong>();
+            for (int i = 0; i < n; i++)
+                if (vistas.Add(spec0.Canonical(spec0.Apply(p1, buf[i])))) tareas.Add((ap, buf[i]));
+        }
+        Console.WriteLine($"{aperturas.Count} apertura(s), {tareas.Count} respuestas distintas, " +
+                          $"{games} partidas a ve{vision} cada una, teoria hasta {maxDepth} plies.");
+
+        var filas = new ConcurrentBag<FilaRespuesta>();
+        var clock = Stopwatch.StartNew();
+        int hechas = 0;
+
+        Parallel.ForEach(tareas, tarea => {
+            var spec = Spec(o, white, black);
+            ulong p1 = spec.Apply(spec.InitialPosition(), tarea.ap);
+            ulong p2 = spec.Apply(p1, tarea.resp);
+
+            Outcome res; int plies;
+            Outcome? term = spec.WinnerAfter(p2, GameSpec.Black);
+            if (term != null) { res = term.Value; plies = 0; }
+            else {
+                var teoria = new Searcher(spec, 20);
+                try { (res, plies) = teoria.SolveFrom(p2, GameSpec.White, maxDepth - 2); }
+                catch (SearchAborted) { res = Outcome.Draw; plies = maxDepth - 2; }
+            }
+
+            var searcher = new Searcher(spec, 18);
+            int w = 0, b = 0, nada = 0;
+            for (int g = 0; g < games; g++) {
+                var rng = new Random(seed + g * 7919 + vision * 104729);
+                var (ganador, _) = UnaPartida(spec, searcher, rng, vision, maxPlies, tarea.ap, tarea.resp);
+                if (ganador == 1) w++; else if (ganador == -1) b++; else nada++;
+            }
+
+            int apCelda = tarea.ap & 0xF, celda = tarea.resp & 0xF;
+            filas.Add(new FilaRespuesta(
+                spec.Rank[spec.PieceOf(tarea.ap)], TipoDeCasilla(spec, apCelda), apCelda,
+                spec.Rank[spec.PieceOf(tarea.resp)], celda, TipoDeCasilla(spec, celda),
+                ComparteLinea(apCelda, celda), res, plies + 2,
+                100.0 * w / games, 100.0 * b / games, 100.0 * nada / games));
+
+            int d = System.Threading.Interlocked.Increment(ref hechas);
+            if (tareas.Count > 40 && (d % 40 == 0 || d == tareas.Count))
+                Console.WriteLine($"  {d,5}/{tareas.Count}  ({clock.Elapsed.TotalSeconds:F0}s)");
+        });
+
+        string F(double x) => x.ToString("F1", CultureInfo.InvariantCulture);
+        foreach (var g in filas.GroupBy(f => (f.ApPieza, f.ApCasilla, f.ApCelda))
+                               .OrderBy(g => g.Key.ApCasilla).ThenBy(g => g.Key.ApPieza)) {
+            var fs = g.OrderByDescending(f => f.G2).ToList();
+            Console.WriteLine();
+            Console.WriteLine($"El primero abre con el {g.Key.ApPieza} en {NombreCasilla(g.Key.ApCelda)} " +
+                              $"({g.Key.ApCasilla}){spec0.Sufijo}");
+            Console.WriteLine($"{"respuesta",-30} {"teoria",-22} {"ve" + vision + " 1o/2o",14}");
+            Console.WriteLine(new string('-', 70));
+            foreach (var f in fs) {
+                string linea = f.ComparteLinea ? "en linea" : "sin linea";
+                string teo = f.Res == Outcome.BlackWin ? $"gana el 2o en {f.Plies}"
+                           : f.Res == Outcome.WhiteWin ? $"pierde en {f.Plies}"
+                           : $"tablas a {maxDepth}";
+                Console.WriteLine($"{$"{f.Pieza} en {NombreCasilla(f.Celda)} ({f.Tipo}, {linea})",-30} " +
+                                  $"{teo,-22} {F(f.G1) + " / " + F(f.G2),14}");
+            }
+            var mejor = fs[0];
+            Console.WriteLine($"-> mejor a ve{vision}: el {mejor.Pieza} en {NombreCasilla(mejor.Celda)} " +
+                              $"con {F(mejor.G2)} % para el segundo. " +
+                              $"Peor: el {fs[^1].Pieza} en {NombreCasilla(fs[^1].Celda)} con {F(fs[^1].G2)} %.");
+        }
+
+        if (outPath.Length > 0) {
+            using var f = new StreamWriter(outPath);
+            f.WriteLine("ap_pieza,ap_casilla,ap_celda,pieza,celda,tipo,en_linea,teoria,plies,gana1,gana2,sindef");
+            foreach (var r in filas.OrderBy(r => r.ApCasilla).ThenBy(r => r.ApPieza).ThenByDescending(r => r.G2))
+                f.WriteLine(string.Join(",", r.ApPieza, r.ApCasilla, NombreCasilla(r.ApCelda), r.Pieza,
+                                        NombreCasilla(r.Celda), r.Tipo, r.ComparteLinea ? 1 : 0,
+                                        r.Res, r.Plies, F(r.G1), F(r.G2), F(r.Nd)));
+            Console.WriteLine($"Escrito {outPath}");
+        }
+        return 0;
+    }
+
+    /// <summary>Si dos casillas comparten alguna de las 8 lineas ganadoras.</summary>
+    private static bool ComparteLinea(int a, int b) {
+        if (a == b) return false;
+        if (a / 3 == b / 3 || a % 3 == b % 3) return true;
+        bool diag1 = (a == 0 || a == 4 || a == 8) && (b == 0 || b == 4 || b == 8);
+        bool diag2 = (a == 2 || a == 4 || a == 6) && (b == 2 || b == 4 || b == 6);
+        return diag1 || diag2;
     }
 
     private static string Verdict(Outcome o) => o switch {
