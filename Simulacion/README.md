@@ -1039,9 +1039,10 @@ juega casi idéntico al vigente, con un poco más de deriva hacia el segundo a v
 de los finalistas de 6 piezas pierde libertad sin ganar balance; el único que se inclina menos al
 segundo con visión alta, `122334` vs `13355`, ya lo favorece a ve4.
 
-**La pieza más alta del segundo es condición en 5v5 y deja de serlo con menos piezas.** Entre los
-finalistas: 5v5 30 al segundo de 30; 5v4 23 al segundo, 7 con la misma en los dos de 30; 4v4 2 al segundo, 5 con la misma en los dos de 7; 5v6 30 al segundo de 30;
-6v5 25 al segundo, 5 con la misma en los dos de 30; 6v6 29 al segundo, 1 con la misma en los dos de 30.
+**Con 5 o más piezas por lado, la pieza más alta va al segundo; con 4 deja de ser necesario.**
+Entre los finalistas se la dan al segundo 30 de 30 en 5v5 y en 5v6, 29 de 30 en 6v6 y 25 de 30 en
+6v5; en 5v4 son 23 de 30 y en 4v4 apenas 2 de 7. En el resto los dos bandos tienen la misma pieza
+más alta, y en ningún finalista de ningún formato la tiene sólo el primero.
 
 **Conclusión:** se queda 5v5 con `12344` vs `12355`. Es la mejor combinación de balance a visión
 humana, libertad y partidas que se definen. Si alguna vez pesa más la caja que la libertad, la
