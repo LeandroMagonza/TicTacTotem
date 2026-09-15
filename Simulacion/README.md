@@ -686,6 +686,51 @@ Lo que salió de barrer con eso (los CSV y scripts están en `aperturas/` y `ape
   respuestas que no pierden a 12 plies y 10 o más que aguantan 8. Inventario: exactamente dos
   piezas de cada molde. Invertido gana el primero en 7 plies, así que sigue sin alternarse.
 
+### Qué movió la regla, medido contra sí misma
+
+Mismo comando, tres configuraciones: lo que se estaba jugando en la mesa, el set nuevo con las
+reglas de siempre, y el set nuevo con la regla. `practica` con 1000 partidas por visión,
+`aperturas` con 600 por apertura a ve4, `libertad` sobre los primeros 9 plies.
+
+|  | 12344 vs 11245, sin regla | 12344 vs 12355, sin regla | 12344 vs 12355, **con regla** |
+|---|---|---|---|
+| teoría | gana el 2º en 12 plies | gana el 2º en 12 plies | gana el 2º en **14 plies** |
+| ve2 | 54,4 / 45,1 | 47,3 / 51,5 | **50,2 / 48,9** |
+| ve4 | 53,5 / 45,3 | 44,7 / 54,9 | **49,2 / 49,8** |
+| ve6 | 38,5 / 59,6 | 23,5 / 75,2 | 34,9 / 63,4 |
+| ve8 | 22,1 / 76,6 | 2,9 / 96,7 | 9,8 / 87,3 |
+| mejor apertura del 1º | 67,5 % | 54,0 % | 54,8 % |
+| peor apertura del 1º | 33,3 % | 27,8 % | 41,0 % |
+| **rango entre aperturas** | **34,2 puntos** | 26,2 puntos | **13,8 puntos** |
+| aperturas distintas | 12 | 12 | 8 |
+| respuestas que aguantan 8 plies, mínimo | 6 de 32 | 5 de 32 | 10 de 28 |
+| libertad efectiva | 41 % | 42 % | **62 %** |
+| turnos por partida | 10 | 10 | 13 |
+| nodos para resolverlo | 1,5 M | 1,5 M | 5,2 M |
+
+Tres lecturas que no son obvias:
+
+**La libertad SUBE al sacar una casilla.** Parece contradictorio hasta que se mira por qué era
+baja: el centro era tan fuerte que casi todo lo demás era un error, y el solver lo marcaba como
+tal. Prohibirlo no recorta opciones, recorta la opción que anulaba a las otras. El promedio
+pasa de 41 a 62 %, y los turnos con 20 % o menos de opciones bajan de tres a dos.
+
+**Lo que se arregló es el rango, no el promedio.** El problema nunca fue que el primero ganara
+54 en promedio, era que elegía entre una apertura de 67 y una de 33: saber la apertura *era* el
+juego. Con la regla la diferencia entre la mejor y la peor es de 14 puntos. Sigue habiendo una
+elección con sentido — las cuatro de esquina dan 52-55 y las cuatro de lado 41-49 — pero
+equivocarse cuesta un margen, no la partida.
+
+**La respuesta única no desapareció, se hundió.** Tras las aperturas de esquina el segundo
+sigue teniendo 1 o 2 respuestas ganadoras entre 28. La diferencia es que ahora las otras no
+pierden rápido: al menos 10 de 28 aguantan 8 plies, y tras cualquier apertura de lado aguantan
+las 28. Antes el castigo por no conocer el antídoto llegaba en 6 plies y se veía; ahora llega
+en 14 y no lo ve nadie en una mesa.
+
+El costo: la partida dura un 30 % más, hay que explicar una excepción más, y aparecen 8
+posiciones sin jugada legal en 5,2 millones de nodos donde antes había 0 — sigue siendo un
+final que jugando no se alcanza.
+
 Esa regla y ese set son los que implementa el juego web desde septiembre de 2026. El precio,
 común a todo lo que da profundidad, es que entre jugadores fuertes se inclina al segundo. La
 alternativa más plana con nivel es `12335` vs `12455` (50 / 54 / 49), con menos margen para el
