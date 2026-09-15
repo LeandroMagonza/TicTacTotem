@@ -10,7 +10,7 @@ pieza de la mano en el centro.**
 ```bash
 npm install
 npm run dev        # servidor de desarrollo; entra desde el celular por la LAN
-npm test           # 83 tests, ~30 s, sin browser ni GPU
+npm test           # 85 tests, ~30 s, sin browser ni GPU
 npm run build      # a dist/
 ```
 
@@ -117,6 +117,18 @@ borra las tres y cambia los resultados.
 aparece un `Math.abs(a - b) === 1` en `src/scene/` o `src/app/`, el diseño se
 rompió.
 
+**Pensar y jugar están separados.** El worker expone `aiPick`, que elige la jugada
+y la devuelve **sin aplicarla**; quien la muestra la aplica con `applyMove`. Con
+un solo `aiMove` que hiciera las dos cosas, el bot contra bot no podría pensar
+durante la pausa entre jugadas sin adelantar la partida respecto de la pantalla,
+y pausar o deshacer mientras piensa dejaría al motor una jugada adelante.
+
+**Los segundos del bot contra bot son ritmo, no recargo.** La cuenta regresiva y
+la búsqueda arrancan juntas, así que el ciclo mide *pausa + animación* y no
+*pausa + pensar + animación*. `Pensando…` sólo aparece si la búsqueda tardó más
+que la pausa. Medido con `test/traza.mjs`: a Experto, 1,2-1,5 s por jugada con
+pausa 0 y 3,1-3,3 s con pausa 2.
+
 ## 5. El collar
 
 Cada pieza se apoya en un cilindro coloreado por dueño con el numeral del nivel
@@ -146,6 +158,7 @@ npm test                                   # todo
 node --test test/searcher.test.js          # solo el motor
 node test/practica.js --games 2000          # reproducir la escalera
 node test/shot.mjs <url> <salida.png> [w] [h] [condicionJS]
+node test/traza.mjs [segundos] [dificultad] [url]   # bot contra bot, trazado
 ```
 
 **Contra el solver C#.** El minimax pelado no tiene tabla ni poda, así que su
@@ -159,6 +172,12 @@ a 12, sólo por el tamaño de tabla (C# usa 2²⁵, JS 2²²).
 `WebGLRenderer`, así que se arma la escena entera y se assertan posiciones en
 milisegundos. Ahí va la mayor parte de la cobertura, porque "la pieza quedó a la
 altura equivocada en una pila de 3" es el bug que este juego va a tener.
+
+**`test/traza.mjs`** mira una partida de bot contra bot desde afuera del juego y
+muestrea fase, ply, largo del historial, filas del panel abierto y el texto de
+turno cada 100 ms. Contesta las dos cosas que a ojo no se contestan: que el
+historial no se atrasa respecto del tablero (`record.length == ply` fuera de la
+animación) y cuánto mide de verdad el ciclo por jugada.
 
 **`test/shot.mjs`** es un driver headless sobre el DevTools Protocol. Existe
 porque `--screenshot` con `--virtual-time-budget` no sirve acá: el tiempo virtual

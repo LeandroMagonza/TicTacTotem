@@ -62,12 +62,17 @@ const handlers = {
   },
 
   /**
-   * Pide la jugada de la IA. `minThinkMs` es un piso deliberado: a ve2 y ve4 la
-   * respuesta sale en menos de 2 ms, y una jugada instantanea se lee como glitch
-   * en vez de como decision. Ademas filtra la dificultad — un rival que contesta
-   * al toque delata que no esta calculando.
+   * Elige la jugada de la IA y la devuelve SIN aplicarla: aplica el que la muestra.
+   *
+   * Separar pensar de jugar es lo que deja pensar durante la pausa del bot contra
+   * bot. Si el worker aplicara aca, la partida avanzaria antes de verse, y pausar
+   * o deshacer mientras piensa dejaria al motor adelantado respecto de la pantalla.
+   *
+   * `minThinkMs` es un piso deliberado para el modo contra la maquina: a ve2 y ve4
+   * la respuesta sale en menos de 2 ms, y una jugada instantanea se lee como glitch
+   * en vez de como decision. El bot contra bot pide 0: su ritmo ya lo marca la pausa.
    */
-  async aiMove({ difficulty = 'dificil', minThinkMs = 450 }) {
+  async aiPick({ difficulty = 'dificil', minThinkMs = 450 }) {
     const cfg = DIFFICULTIES[difficulty] ?? DIFFICULTIES.dificil
     const t0 = performance.now()
 
@@ -86,14 +91,13 @@ const handlers = {
     const elapsed = performance.now() - t0
     if (elapsed < minThinkMs) await new Promise((r) => setTimeout(r, minThinkMs - elapsed))
 
-    match.apply(decision.move)
     return {
       move: decision.move,
       value: decision.value,
+      plies: decision.plies,
       blundered: decision.blundered,
       ms: Math.round(elapsed),
       nodes: searcher.nodes,
-      snapshot: match.snapshot(),
     }
   },
 

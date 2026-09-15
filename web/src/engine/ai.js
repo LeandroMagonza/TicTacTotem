@@ -73,6 +73,9 @@ export function chooseMove({
   }
 
   const valores = new Int8Array(n)
+  // Distancia al resultado, en plies contados desde esta jugada: 0 = la jugada
+  // termina la partida. Para las no decididas vale la vision entera.
+  const plies = new Int16Array(n)
   for (let i = 0; i < n; i++) {
     const child = applyMove(pos, moves[i])
     if (historyAware) {
@@ -81,12 +84,18 @@ export function chooseMove({
       // literal NO ve que esta repitiendo una posicion de la partida real.
       valores[i] = searcher.valueWithHistory(
         pos, moves[i], turn, vision, histKey, histTurn, history.length) * mio
+      plies[i] = vision
     } else {
-      // Program.cs:369-373, literal: si la jugada ya termina la partida vale
-      // eso; si no, vale lo que diga una busqueda de `vision - 1` plies desde
-      // la respuesta del rival.
+      // Program.cs:369-373: si la jugada ya termina la partida vale eso; si no,
+      // vale lo que diga una busqueda de `vision - 1` plies desde la respuesta
+      // del rival.
       const term = winnerAfterPacked(spec, child, turn)
-      valores[i] = (term !== ONGOING ? term : searcher.solveFrom(child, 1 - turn, vision - 1).result) * mio
+      if (term !== ONGOING) { valores[i] = term * mio; plies[i] = 0 }
+      else {
+        const r = searcher.solveFrom(child, 1 - turn, vision - 1)
+        valores[i] = r.result * mio
+        plies[i] = r.plies + 1
+      }
     }
   }
 
@@ -94,8 +103,20 @@ export function chooseMove({
   for (let i = 0; i < n; i++) if (valores[i] > mejor) mejor = valores[i]
 
   /** @type {number[]} */
-  const empatadas = []
+  let empatadas = []
   for (let i = 0; i < n; i++) if (valores[i] === mejor) empatadas.push(i)
+
+  // Entre victorias, la mas corta; entre derrotas, la mas larga. El modelo de
+  // `practica` compara solo el signo, y para medir balance alcanza, pero como
+  // rival es un bug visible: una linea inmediata empata con una victoria a 7
+  // plies, el sorteo la deja pasar la mitad de las veces, y encadenando
+  // victorias diferidas la partida puede terminar en tablas por repeticion
+  // (5 de 200 partidas a Experto, medido). Cobrar ya no puede ser peor.
+  if (mejor === 1 || mejor === -1) {
+    let objetivo = mejor === 1 ? Infinity : -Infinity
+    for (const i of empatadas) objetivo = mejor === 1 ? Math.min(objetivo, plies[i]) : Math.max(objetivo, plies[i])
+    empatadas = empatadas.filter((i) => plies[i] === objetivo)
+  }
 
   // Desempate anti-shuffle: entre las jugadas de igual valor, preferir las que
   // no vuelven a una posicion ya vista en la partida real. Cuesta un canonical()
@@ -119,11 +140,11 @@ export function chooseMove({
       if (noSuicidas.length > 0) candidatas = noSuicidas
     }
     const i = rng.pick(candidatas)
-    return { move: moves[i], value: valores[i], blundered: valores[i] !== mejor, evaluated: n }
+    return { move: moves[i], value: valores[i], plies: plies[i], blundered: valores[i] !== mejor, evaluated: n }
   }
 
   const i = rng.pick(pool)
-  return { move: moves[i], value: mejor, blundered: false, evaluated: n }
+  return { move: moves[i], value: mejor, plies: plies[i], blundered: false, evaluated: n }
 }
 
 export { ONGOING }

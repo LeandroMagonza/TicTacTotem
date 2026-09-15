@@ -44,6 +44,7 @@ export function createHud(root, actions) {
   }
   const undoBtn = btn('Deshacer', 'Deshacer la última jugada (U)', actions.undo)
   const cancelBtn = btn('Cancelar', 'Cancelar la selección (Esc)', actions.cancel, 'ghost')
+  const histBtn = btn('Historial', 'Todas las jugadas, con la evaluación del bot', actions.openHistory, 'ghost')
   const rotL = btn('↺', 'Girar la vista un cuarto (R)', () => actions.rotate(-1), 'icon')
   const rotR = btn('↻', 'Girar la vista un cuarto', () => actions.rotate(1), 'icon')
   const tiltBtn = btn('⌂', 'Cambiar el ángulo de cámara (T)', actions.tilt, 'icon')
@@ -62,7 +63,7 @@ export function createHud(root, actions) {
   autoBox.append(playBtn, secs, el('span', 'auto-label', 's'))
   autoBox.style.display = 'none'
 
-  bottom.append(undoBtn, cancelBtn, autoBox, el('span', 'spacer'), rotL, rotR, tiltBtn, menuBtn)
+  bottom.append(undoBtn, cancelBtn, histBtn, autoBox, el('span', 'spacer'), rotL, rotR, tiltBtn, menuBtn)
 
   // --- log de jugadas ---
   const log = el('div', 'log')
@@ -85,6 +86,80 @@ export function createHud(root, actions) {
   const menuPanel = el('div', 'panel wide')
   menu.append(menuPanel)
   root.append(menu)
+
+  // --- historial ---
+  const hist = el('div', 'overlay modal hidden')
+  const histPanel = el('div', 'panel wide')
+  hist.append(histPanel)
+  root.append(hist)
+
+  /**
+   * Como se lee la evaluacion del bot: "gana en 3" es que vio una victoria forzada
+   * a 3 plies contando su propia jugada; 0 es que la jugada termina la partida.
+   */
+  const evalText = (ai) => {
+    if (!ai) return ''
+    if (ai.value === 1) return ai.plies === 0 ? 'gana ya' : `gana en ${ai.plies}`
+    if (ai.value === -1) return ai.plies === 0 ? 'pierde ya' : `pierde en ${ai.plies}`
+    return 'sin definir a la vista'
+  }
+
+  // El historial abierto sigue a la partida. Mirando al bot contra bot el panel
+  // se abre CON la partida en curso; si se pintara una sola vez, se quedaria
+  // clavado en las jugadas que habia al abrirlo y contradiria al log de arriba.
+  let histVivo = null
+
+  /** Repinta la lista y el link del panel abierto, si esta abierto. */
+  function pintarHistorial() {
+    if (!histVivo || hist.classList.contains('hidden')) return
+    const { state, link, lista, linkBox } = histVivo
+    lista.innerHTML = ''
+    if (state.record.length === 0) lista.append(el('p', 'note', 'Todavía no hay jugadas.'))
+    for (const r of state.record) {
+      const line = el('div', 'hist-line')
+      line.style.borderLeftColor = TEAM_COLOR[r.owner]
+      line.append(el('span', 'hist-ply', `${r.ply}.`), el('span', '', `${TEAM_NAME[r.owner]}: ${r.text}`))
+      if (r.ai) line.append(el('span', 'hist-eval', evalText(r.ai)))
+      lista.append(line)
+    }
+    const url = link()
+    if (linkBox.value !== url && document.activeElement !== linkBox) linkBox.value = url
+    lista.scrollTop = lista.scrollHeight
+  }
+
+  /** @param {object} state @param {{link: () => string}} opts */
+  function showHistory(state, { link }) {
+    histPanel.innerHTML = ''
+    histPanel.append(el('h2', '', 'Historial'))
+    const lista = el('div', 'hist')
+    histPanel.append(lista)
+    histPanel.append(el('p', 'note',
+      'La evaluación es lo que el bot vio al jugar, en plies (medio movimiento cada uno), ' +
+      'contando su propia jugada.'))
+
+    // El link reproduce la partida exacta desde la URL (?jugadas=...). Va en un
+    // campo de texto ademas del boton porque el portapapeles no siempre esta
+    // disponible (http sin https, permisos).
+    const linkBox = /** @type {HTMLInputElement} */ (el('input', 'link'))
+    linkBox.readOnly = true
+    linkBox.onclick = () => linkBox.select()
+    histPanel.append(el('h3', '', 'Link de esta partida'), linkBox)
+
+    const acciones = el('div', 'panel-btns')
+    const copiar = btn('Copiar link', 'Copiar el link al portapapeles', async () => {
+      try { await navigator.clipboard.writeText(linkBox.value); copiar.textContent = 'Copiado' }
+      catch { linkBox.select(); copiar.textContent = 'Seleccionalo y copialo' }
+    })
+    acciones.append(copiar, btn('Cerrar', 'Volver al tablero', () => {
+      hist.classList.add('hidden')
+      histVivo = null
+    }, 'ghost'))
+    histPanel.append(acciones)
+
+    histVivo = { state, link, lista, linkBox }
+    hist.classList.remove('hidden')
+    pintarHistorial()
+  }
 
   const RAZON = {
     line: (w) => `${TEAM_NAME[w]} hizo tres en línea.`,
@@ -128,11 +203,16 @@ export function createHud(root, actions) {
 
     // Indicador de turno
     const esHumano = mode === 'hotseat' || s.turn === humanSide
-    const auto = state.auto ?? { playing: false, seconds: 2 }
+    const auto = state.auto ?? { playing: false, seconds: 2, due: 0 }
+    // En bot contra bot la pausa se muestra como cuenta regresiva. El bot piensa
+    // DURANTE esa cuenta, asi que al llegar a cero juega; "Pensando…" solo aparece
+    // si la busqueda tardo mas que la pausa.
+    const faltan = auto.due ? Math.max(0, Math.ceil((auto.due - Date.now()) / 1000)) : 0
     turnDot.style.background = TEAM_COLOR[s.turn]
     turnText.textContent = phase === 'thinking' ? 'Pensando…'
       : s.result ? '—'
-      : mode === 'auto' ? (auto.playing ? `Turno de ${TEAM_NAME[s.turn]}` : `En pausa · ${TEAM_NAME[s.turn]}`)
+      : mode === 'auto' ? (!auto.playing ? `En pausa · ${TEAM_NAME[s.turn]}`
+                           : faltan > 0 ? `${TEAM_NAME[s.turn]} juega en ${faltan} s` : `Turno de ${TEAM_NAME[s.turn]}`)
       : mode === 'hotseat' ? `Turno de ${TEAM_NAME[s.turn]}`
       : esHumano ? 'Tu turno' : `Turno de ${TEAM_NAME[s.turn]}`
 
@@ -162,6 +242,7 @@ export function createHud(root, actions) {
 
     undoBtn.disabled = !s.canUndo || phase === 'thinking'
     cancelBtn.style.display = state.selection ? '' : 'none'
+    pintarHistorial()
 
     // Solo se agrega al log cuando el ply es NUEVO. render() se llama varias
     // veces por jugada (al seleccionar, al terminar, al redimensionar) y sin
@@ -185,6 +266,7 @@ export function createHud(root, actions) {
   return {
     render,
     showResult,
+    showHistory,
     menuRoot: menuPanel,
     showMenu: (v) => menu.classList.toggle('hidden', !v),
     hideResult: () => overlay.classList.add('hidden'),

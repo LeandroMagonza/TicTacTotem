@@ -57,7 +57,7 @@ export function createEngineClient(onFatal) {
     applyMove: (moveId) => call('applyMove', { moveId }),
     undo: (plies) => call('undo', { plies }),
     loadPosition: (pos, turn) => call('loadPosition', { pos, turn }),
-    aiMove: (opts) => call('aiMove', opts, 60000),
+    aiPick: (opts) => call('aiPick', opts, 60000),
     analyze: (opts) => call('analyze', opts, 60000),
     terminate: () => worker.terminate(),
   }
