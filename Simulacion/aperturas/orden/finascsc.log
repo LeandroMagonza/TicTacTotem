@@ -1,0 +1,12 @@
+36 enfrentamiento(s), 72 aperturas, 1500 partidas a ve4 por apertura, teoria hasta 14 plies.
+     50/72  (10s)
+     72/72  (15s)
+Escrito finascsc_ve4.csv (72 filas) y finascsc_ve4_resumen.csv (36 filas), 15s
+36 enfrentamiento(s), 72 aperturas, 1000 partidas a ve2 por apertura, teoria hasta 14 plies.
+     50/72  (4s)
+     72/72  (5s)
+Escrito finascsc_ve2.csv (72 filas) y finascsc_ve2_resumen.csv (36 filas), 5s
+36 enfrentamiento(s), 72 aperturas, 600 partidas a ve6 por apertura, teoria hasta 14 plies.
+     50/72  (7s)
+     72/72  (11s)
+Escrito finascsc_ve6.csv (72 filas) y finascsc_ve6_resumen.csv (36 filas), 11s

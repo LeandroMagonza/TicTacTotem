@@ -863,3 +863,91 @@ segundo y tres águilas.
 El motor de la web reproduce la regla contra este solver: con `--sin-centro` los conteos del
 alpha-beta coinciden exactos hasta 8 plies para `12344` vs `11245` (33 · 92 · 269 · 725 · 3.381 ·
 6.384 · 31.893 · 44.016), el veredicto a 11, y `12344` vs `12355` se decide a 14 para el segundo.
+
+## 11. Experimento: colocar en orden
+
+*(septiembre de 2026 — exploración; no cambia nada de la sección 10 ni del juego web)*
+
+La regla: cada jugador está obligado a sacar sus piezas de la mano en un orden fijo. Sólo
+decide *dónde* va la pieza, no *cuál*; mover las ya puestas no cambia. "De menor a mayor" tiene
+dos lecturas y se midieron las dos:
+
+- **del 1 al 5** (`--orden-mano asc`): el elefante sale primero y el águila última; el tótem
+  se arma desde la base.
+- **del 5 al 1** (`--orden-mano desc`): el águila, la pieza físicamente más chica, sale primero.
+
+Cada una con y sin la regla del centro. Los valores por defecto del solver no cambiaron: con
+las mismas banderas de siempre, `12344` vs `12355` sigue dando 12 plies y 1.478.046 nodos, y con
+`--sin-centro` 14 plies y 5.212.045 nodos, idéntico a antes.
+
+Scripts y datos en `aperturas/orden/`: `sw_<v>.csv.gz` (barrido teórico de los 15.876 pares 5v5),
+`candidatos.py`, `refinar.sh`, `apc_<v>.csv.gz` (aperturas a ve4 de los candidatos),
+`fin<v>_ve{2,4,6}.csv` y `ranking.py`. `ascsc3` son los finalistas de del 1 al 5 con centro
+prohibido restringidos a sets con al menos tres rangos por lado.
+
+### Barrido teórico
+
+| variante | gana el 1º | gana el 2º | tablas | el 1º gana en 7 | decididos a 10 plies o más |
+|---|---|---|---|---|---|
+| sin orden | 10.441 | 5.420 | 15 | 7.188 | 6.330 |
+| sin orden, sin centro | 10.533 | 4.739 | 604 | 4.987 | 6.164 |
+| del 1 al 5 | 12.836 | 3.040 | 0 | 9.620 | 3.297 |
+| del 1 al 5, sin centro | 13.616 | 2.254 | 6 | 7.401 | 4.502 |
+| del 5 al 1 | 11.895 | 3.906 | 75 | 7.441 | 5.485 |
+| del 5 al 1, sin centro | 11.273 | 4.557 | 46 | 4.987 | 4.650 |
+
+La primera fila sale de `balance_5v5.csv` filtrado a rangos 1-5. Las dos lecturas del orden
+corren la teoría hacia el primero y la acortan, y del 1 al 5 es la que más: sacarle al jugador
+la elección de pieza le deja al que arranca el tempo como única ventaja.
+
+Los 4.987 pares que el primero gana en 7 con del 5 al 1 y centro prohibido son **los mismos**
+4.987 que sin orden; en total difieren 4.064 pares. En esas victorias rápidas el primero ya
+colocaba de mayor a menor por su cuenta, así que forzarlo no le quita nada.
+
+Muchos sets dan partidas idénticas: tapar sólo compara rangos, así que `11333` vs `22333` y
+`11444` vs `22444` son el mismo juego. Por eso hay filas repetidas en los rankings.
+
+### Los mejores pares, contra la configuración actual
+
+`practica` con 1000 partidas y apertura al azar, `libertad` sobre los primeros 9 plies.
+
+| configuración | teoría | ve2 | ve4 | ve6 | ve8 | libertad |
+|---|---|---|---|---|---|---|
+| **actual**: `12344` vs `12355`, sin centro | 2º en 14 | 50,2 / 48,9 | 49,2 / 49,8 | 34,9 / 63,4 | 9,8 / 87,3 | 62 % |
+| del 1 al 5: `12344` vs `12355` | 1º en 7 | 54,8 / 44,9 | 63,8 / 36,0 | 55,6 / 40,9 | | |
+| del 1 al 5, sin centro: `12344` vs `12355` | 1º en 7 | 54,0 / 45,6 | 65,4 / 34,0 | 89,7 / 10,3 | | |
+| del 1 al 5, sin centro: `11345` vs `22445` | 1º en 11 | 38,3 / 60,1 | 44,5 / 53,2 | 57,3 / 39,9 | 67,6 / 26,4 | 59 % |
+| del 1 al 5, sin centro: `11355` vs `22455` | 1º en 11 | 40,1 / 57,5 | 47,7 / 49,5 | 66,1 / 29,5 | 80,8 / 18,5 | 67 % |
+| del 5 al 1: `12344` vs `12355` | 1º en 11 | 38,3 / 61,4 | 30,3 / 69,3 | 44,1 / 55,2 | 67,3 / 32,6 | 60 % |
+| del 5 al 1: `22334` vs `11335` | 1º en 11 | 51,2 / 47,9 | 50,3 / 49,2 | 61,6 / 38,1 | 88,9 / 11,1 | 64 % |
+| del 5 al 1: `12334` vs `12335` | 1º en 11 | 49,6 / 49,8 | 46,8 / 53,0 | 60,4 / 39,4 | 88,9 / 11,1 | 64 % |
+| del 5 al 1, sin centro: `12344` vs `12355` | 1º en 9 | 27,7 / 71,2 | 24,5 / 74,2 | 28,0 / 71,5 | 53,6 / 44,9 | 65 % |
+| **del 5 al 1, sin centro: `22334` vs `11335`** | 1º en 11 | 49,8 / 49,0 | 45,0 / 53,8 | 41,1 / 57,8 | 49,0 / 49,9 | **76 %** |
+| del 5 al 1, sin centro: `12334` vs `12335` | 1º en 11 | 46,2 / 52,6 | 41,5 / 57,3 | 36,2 / 62,5 | 36,6 / 56,6 | 70 % |
+
+Con del 1 al 5 y `12344` vs `12355` la partida termina antes del ply 9, así que su libertad no
+compara con las demás y quedó afuera.
+
+### Lectura
+
+**Del 1 al 5 no funciona.** Sin la regla del centro, entre los candidatos con teoría a 10
+plies o más no hay ningún par parejo con al menos tres rangos por lado: el más cercano deja al
+primero en 28 % de promedio. Los únicos parejos son sets casi sin variedad, como `33334` vs
+`33335`, donde la regla no hace nada. Con la regla del centro aparecen pares parejos a ve2 y
+ve4, pero el desbalance crece hacia el primero con la profundidad (57-66 % a ve6, 68-81 % a ve8)
+y la teoría es suya en 11 plies: es el problema del juego actual dado vuelta, y más corto.
+
+**Del 5 al 1 con la regla del centro da la configuración más plana de todo el proyecto.**
+`22334` vs `11335` queda entre 41 y 58 % en las cuatro visiones, sin la deriva hacia un bando
+que tienen todas las demás, con 76 % de libertad y ningún turno con 20 % o menos de opciones.
+El reparto por apertura a ve4 es 51,9 al lado contra 42,1 a la esquina; a ve6, 47,2 contra 35,0.
+
+Lo que cuesta:
+
+- La teoría es del primero en 11 plies, más corta que los 14 del segundo en la configuración
+  actual. Tras cualquiera de las dos aperturas las 7 respuestas del segundo pierden en teoría,
+  aunque 5 de las 7 aguantan 8 plies. Invertido, también gana el que arranca, en 9.
+- Inventario: dos elefantes y dos leones, igual que ahora, pero tres jabalíes y una sola
+  serpiente y un águila, en vez de dos de cada molde.
+- El set actual no sobrevive a ninguna de las dos lecturas: con del 1 al 5 el primero gana en 7,
+  y con del 5 al 1 el segundo se lleva 70 % a cualquier visión humana.

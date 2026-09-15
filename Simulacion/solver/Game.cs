@@ -67,6 +67,13 @@ public sealed partial class GameSpec {
     public readonly bool ApilarPropias;
     /// <summary>Nadie coloca desde la mano en el centro: al centro solo se llega moviendo.</summary>
     public readonly bool SinCentro;
+    /// <summary>
+    /// Orden obligatorio al colocar desde la mano. 0 = libre. 1 = de menor a mayor: se coloca
+    /// siempre la pieza de rango mas bajo que quede en la mano, asi que el totem se arma desde
+    /// la base. 2 = de mayor a menor. Solo decide QUE pieza sale de la mano; donde va, y mover
+    /// piezas ya puestas, no cambian.
+    /// </summary>
+    public readonly int OrdenMano;
 
     /// <summary>Color de cada casilla: 0 esquinas y centro, 1 lados.</summary>
     public static int ColorDeCasilla(int c) => (c / 3 + c % 3) % 2;
@@ -77,15 +84,19 @@ public sealed partial class GameSpec {
         + (ColorModo == 1 ? $"   [primera pieza en color propio, blancas en {(ColorBlancas == 1 ? "lados" : "esquinas")}]"
            : ColorModo == 2 ? $"   [deploy solo en color propio, blancas en {(ColorBlancas == 1 ? "lados" : "esquinas")}]" : "")
         + (ApilarPropias ? "   [deploy sobre piezas propias]" : "")
-        + (SinCentro ? "   [nadie coloca en el centro]" : "");
+        + (SinCentro ? "   [nadie coloca en el centro]" : "")
+        + (OrdenMano == 1 ? "   [se coloca de menor a mayor]" : OrdenMano == 2 ? "   [se coloca de mayor a menor]" : "");
 
     public GameSpec(IEnumerable<int> whitePieces, IEnumerable<int> blackPieces, bool libre = false,
                     bool pegado = false, bool pegadoOrto = false, bool pegadoSiempre = false,
-                    int colorModo = 0, int colorBlancas = 1, bool apilarPropias = false, bool sinCentro = false) {
+                    int colorModo = 0, int colorBlancas = 1, bool apilarPropias = false, bool sinCentro = false,
+                    int ordenMano = 0) {
         Libre = libre;
         Pegado = pegado; PegadoOrto = pegadoOrto; PegadoSiempre = pegadoSiempre;
         ColorModo = colorModo; ColorBlancas = colorBlancas; ApilarPropias = apilarPropias; SinCentro = sinCentro;
-        if (libre && (colorModo != 0 || apilarPropias || sinCentro))
+        OrdenMano = ordenMano;
+        if (ordenMano < 0 || ordenMano > 2) throw new ArgumentException("ordenMano: 0, 1 o 2.");
+        if (libre && (colorModo != 0 || apilarPropias || sinCentro || ordenMano != 0))
             throw new ArgumentException("Las variantes de color y apilado no estan implementadas sin tablero.");
         var white = whitePieces.OrderBy(r => r).ToArray();
         var black = blackPieces.OrderBy(r => r).ToArray();
@@ -210,8 +221,24 @@ public sealed partial class GameSpec {
             for (int i = 0; i < PieceCount; i++)
                 if (Owner[i] == turn && Loc(p, i) != Hand) { restringir = false; break; }
         }
+        // Orden obligatorio: de todos los grupos del jugador que todavia tienen pieza en la mano,
+        // solo vale uno. Los grupos de cada jugador estan en rango creciente (los sets se
+        // ordenan en el constructor), asi que el primero es el de rango mas bajo.
+        int grupoObligado = -1;
+        if (OrdenMano != 0) {
+            for (int g = 0; g < GroupStart.Length; g++) {
+                if (GroupOwner[g] != turn) continue;
+                bool enMano = false;
+                for (int i = GroupStart[g]; i < GroupStart[g] + GroupLen[g]; i++)
+                    if (Loc(p, i) == Hand) { enMano = true; break; }
+                if (!enMano) continue;
+                grupoObligado = g;
+                if (OrdenMano == 1) break;
+            }
+        }
         for (int g = 0; g < GroupStart.Length; g++) {
             if (GroupOwner[g] != turn) continue;
+            if (OrdenMano != 0 && g != grupoObligado) continue;
             int piece = -1;
             for (int i = GroupStart[g]; i < GroupStart[g] + GroupLen[g]; i++) {
                 if (Loc(p, i) == Hand) { piece = i; break; }

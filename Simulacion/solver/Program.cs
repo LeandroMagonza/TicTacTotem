@@ -80,6 +80,11 @@ Solver exacto para el TaTeTi con Esteroides.
       Nadie coloca desde la mano en el centro; al centro solo se llega
       moviendo una pieza ya puesta.
 
+  --orden-mano asc|desc   (en cualquier comando)
+      Orden obligatorio al colocar desde la mano. 'asc': siempre la pieza de rango
+      mas bajo que quede, el totem se arma desde la base. 'desc': al reves. Donde
+      va la pieza y mover las ya puestas no cambian.
+
   --libre   (en cualquier comando)
       Variante sin tablero: el 3x3 no existe de antemano, lo delimitan las
       piezas. Todo lo puesto tiene que entrar en algun 3x3, y esa caja se
@@ -126,7 +131,11 @@ Los sets se escriben como digitos: 122335 = piezas 1,2,2,3,3,5.
                      colorModo: Str(o, "color", "") switch { "primera" => 1, "siempre" => 2, _ => 0 },
                      colorBlancas: Str(o, "color-blancas", "lados") == "esquinas" ? 0 : 1,
                      apilarPropias: Flag(o, "apilar-propias"),
-                     sinCentro: Flag(o, "sin-centro"));
+                     sinCentro: Flag(o, "sin-centro"),
+                     ordenMano: Str(o, "orden-mano", "") switch {
+                         "" => 0, "asc" => 1, "desc" => 2,
+                         var x => throw new ArgumentException($"--orden-mano {x}: usar asc o desc"),
+                     });
 
     private static int[] ParseSet(string s) =>
         s.Where(char.IsDigit).Select(c => c - '0').OrderBy(x => x).ToArray();
