@@ -1,0 +1,30 @@
+23334 112355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+13344 113355  VEREDICTO: gana NEGRO tiene victoria forzada en 16 plies.
+23344 223355  VEREDICTO: gana NEGRO tiene victoria forzada en 16 plies.
+13444 123355  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+12333 112244  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+12333 112255  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+12444 112255  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+13444 113355  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+23444 223355  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+12344 112355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+13344 123355  VEREDICTO: gana NEGRO tiene victoria forzada en 16 plies.
+22344 112355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+23334 122345  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+22344 123355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+13334 112355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+22344 111355  VEREDICTO: gana NEGRO tiene victoria forzada en 16 plies.
+23334 112345  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+12344 122355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+12344 123355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+22334 112355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+13344 223355  VEREDICTO: gana NEGRO tiene victoria forzada en 16 plies.
+22344 113355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+12334 122355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+13344 133355  VEREDICTO: gana NEGRO tiene victoria forzada en 16 plies.
+33444 113355  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+33444 223355  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+22333 111244  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+22333 111255  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+22444 111255  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+33444 111355  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.

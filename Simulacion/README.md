@@ -951,3 +951,98 @@ Lo que cuesta:
   serpiente y un águila, en vez de dos de cada molde.
 - El set actual no sobrevive a ninguna de las dos lecturas: con del 1 al 5 el primero gana en 7,
   y con del 5 al 1 el segundo se lleva 70 % a cualquier visión humana.
+
+## 12. ¿Cuántas piezas? 4, 5 o 6 por lado
+
+*(15 de septiembre de 2026 — con la regla del centro y los cinco animales, rangos 1 a 5)*
+
+La pregunta: ¿se puede pasar a 4 piezas y que dé lo mismo? Se midieron siete formatos, primero
+contra segundo: 4v4, 4v5, 5v4, 5v5, 5v6, 6v5 y 6v6, **todos por el mismo embudo**, incluido el
+5v5 que ya estaba barrido:
+
+1. barrido teórico a 14 plies de todos los pares;
+2. candidatos con teoría a 10 plies o más o sin decidir, con hasta tres elefantes y tres leones
+   entre los dos sets, y un tope de 1.500 por formato que toma primero la teoría más larga;
+3. `aperturas` a ve4 con 200 partidas;
+4. finalistas: mejor apertura del primero hasta 56, promedio sobre aperturas entre 44 y 56, y
+   al menos 30 % de respuestas del segundo que aguantan 8 plies en toda apertura (el vigente da
+   36 %); fracción y no cantidad, porque la cantidad de respuestas depende del tamaño;
+5. ve2, ve4 y ve6 con más partidas, teoría a 20 plies e invertido;
+6. para los mejores de cada formato, `practica` con 1000 partidas hasta ve8 y `libertad`.
+
+Scripts y datos en `aperturas/tamanos/`: `barrer.sh`, `encadenar.sh`, `candidatos.py`,
+`refinar.sh`, `ranking.py`, `sw_<fmt>.csv.gz`, `apc_<fmt>.csv.gz`, `fin<fmt>_ve{2,4,6}.csv` y
+`bateria_*.txt`.
+
+Control del método: el 5v5 pasado por este embudo deja a `12344` vs `12355` **segundo entre 84
+pares** que pasan el filtro, así que el embudo reproduce la elección de la sección 10.
+
+Nota de carga: parte corrió con dos procesos compartiendo la CPU. `sweep` tiene presupuesto de
+tiempo por par, así que algunos pares pesados quedaron sin decidir: ninguno en los formatos con 4
+piezas ni en 5v5, 21 en 5v6, 6 en 6v5 y 148 en 6v6, el 0,3 %. Entran igual como candidatos.
+`aperturas` y `practica` no tienen presupuesto, así que sus números no dependen de la carga.
+
+### Teoría y candidatos por formato
+
+| formato | pares | gana el que arranca, de los decididos | pasan el filtro práctico |
+|---|---|---|---|
+| 4v4 | 4.900 | 61,2 % | 7 |
+| 4v5 | 8.820 | 51,5 % | 0 |
+| 5v4 | 8.820 | 78,5 % | 82 |
+| 5v5 | 15.876 | 69,0 % | 84 |
+| 5v6 | 26.460 | 62,4 % | 102 |
+| 6v5 | 26.460 | 77,5 % | 102 |
+| 6v6 | 44.100 | 71,5 % | 114 |
+
+4v5 es el formato más parejo en teoría y el único donde no pasa ningún par: los que quedan
+parejos en promedio dejan al segundo con 14 % de respuestas que aguantan. Que el espacio esté
+parejo no dice nada de que haya un par jugable.
+
+### El mejor de cada formato, medido completo
+
+Porcentaje del primero / del segundo / sin definir, 1000 partidas con apertura al azar. Libertad
+sobre los primeros 9 plies. Inventario: cuántas piezas de cada animal hacen falta entre los dos
+sets, del elefante al águila.
+
+| formato y par | piezas | inventario | teoría | ve2 | ve4 | ve6 | ve8 | libertad | turnos con 20 % o menos | jugadas por partida |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **5v5 vigente: `12344` vs `12355`** | 10 | 2-2-2-2-2 | 2º en 14 | 50/49/1 | 49/50/1 | 35/63/2 | 10/87/3 | **62 %** | 2 | 12-14 |
+| 5v5: `22344` vs `11355` | 10 | 2-2-2-2-2 | 2º en 18 | 52/46/2 | 47/50/3 | 39/57/4 | 16/79/6 | 37 % | 1 | 13-15 |
+| 4v4: `2335` vs `2245` | 8 | 0-3-2-1-2 | 1º en 13 | 48/42/11 | 45/40/15 | 38/44/18 | 34/47/20 | 41 % | 5 | 17-19 |
+| 5v4: `22344` vs `2355` | 9 | 0-3-2-2-2 | nadie en 22 | 46/50/4 | 48/45/7 | 42/52/7 | 26/62/13 | 42 % | 3 | 14-18 |
+| 5v4: `22334` vs `1345` | 9 | 1-2-3-2-1 | 2º en 16 | 47/50/3 | 49/47/5 | 40/55/5 | 26/63/11 | 20 % | 5 | 14-17 |
+| 5v6: `12344` vs `122355` | 11 | 2-3-2-2-2 | 2º en 14 | 51/49/0 | 48/52/0 | 33/67/0 | 7/93/1 | 65 % | 2 | 12-13 |
+| 5v6: `13344` vs `123355` | 11 | 2-1-4-2-2 | 2º en 16 | 53/47/0 | 49/51/0 | 35/65/0 | 8/91/1 | 27 % | 5 | 12-13 |
+| 6v5: `122334` vs `13355` | 11 | 2-2-4-1-2 | 2º en 16 | 48/52/0 | 46/54/0 | 39/60/1 | 20/79/1 | 49 % | 2 | 12-14 |
+| 6v6: `122234` vs `113355` | 12 | 3-3-3-1-2 | 2º en 16 | 48/52/0 | 45/55/0 | 34/65/0 | 11/89/0 | 41 % | 1 | 12-13 |
+| 6v6: `112244` vs `133355` | 12 | 3-2-3-2-2 | 2º en 16 | 43/57/0 | 48/52/0 | 41/59/0 | 16/84/0 | 33 % | 3 | 12-14 |
+
+Tapar sólo compara rangos, así que un par y cualquier otro con el mismo orden relativo son el
+mismo juego. De cada familia se eligió el que usa animales más chicos: `2335` vs `2245` es el
+mismo juego que `1224` vs `1134`, y `22344` vs `2355` el mismo que `11233` vs `1244` y que
+`11344` vs `1355`.
+
+### Lectura
+
+**Menos piezas traba la partida.** Con 8 o 9 piezas se apila poco, y tapar y destapar es lo que
+decide este juego: las partidas se estiran y se quedan sin definir, 11 a 20 % en 4v4 y 4 a 13 % en
+5v4. 4v4 además da la teoría al primero, tiene una apertura tras la cual todas las respuestas del
+segundo pierden, y cinco de sus primeros nueve turnos tienen 20 % o menos de opciones.
+
+**5v4 es la única alternativa real con menos piezas, y es otro juego.** `22344` vs `2355` no tiene
+victoria forzada a 22 plies, se inclina mucho menos al segundo con visión alta y la caja no lleva
+elefantes. Lo paga con libertad, 42 % contra 62 %, con partidas más largas y con una de cada ocho
+sin definir a ve8.
+
+**Más piezas no agrega nada.** `12344` vs `122355`, el vigente con un león más para el segundo,
+juega casi idéntico al vigente, con un poco más de deriva hacia el segundo a visión alta. El resto
+de los finalistas de 6 piezas pierde libertad sin ganar balance; el único que se inclina menos al
+segundo con visión alta, `122334` vs `13355`, ya lo favorece a ve4.
+
+**La pieza más alta del segundo es condición en 5v5 y deja de serlo con menos piezas.** Entre los
+finalistas: 5v5 30 al segundo de 30; 5v4 23 al segundo, 7 con la misma en los dos de 30; 4v4 2 al segundo, 5 con la misma en los dos de 7; 5v6 30 al segundo de 30;
+6v5 25 al segundo, 5 con la misma en los dos de 30; 6v6 29 al segundo, 1 con la misma en los dos de 30.
+
+**Conclusión:** se queda 5v5 con `12344` vs `12355`. Es la mejor combinación de balance a visión
+humana, libertad y partidas que se definen. Si alguna vez pesa más la caja que la libertad, la
+alternativa medida es 5v4 con `22344` vs `2355`.

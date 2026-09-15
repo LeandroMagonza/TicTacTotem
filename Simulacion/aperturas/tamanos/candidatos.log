@@ -1,0 +1,21 @@
+== 5v5: 15876 pares  {'white': 10533, 'black': 4739, 'draw': 604}   gana el que arranca en 69.0 % de los decididos
+   plies: b10:1621 b11:35 b12:2369 b14:714 w7:4987 w9:4121 w11:1152 w13:273
+   candidatos: 4452, se toman 1500  {'draw': 413, 'black': 919, 'white': 168}  (profundidad minima tomada: 12 plies)
+== 4v4: 4900 pares  {'white': 2854, 'black': 1808, 'draw': 238}   gana el que arranca en 61.2 % de los decididos
+   plies: b10:1020 b12:538 b13:17 b14:233 w7:1511 w9:958 w11:338 w13:47
+   candidatos: 1942, se toman 1500  {'draw': 201, 'black': 998, 'white': 301}  (profundidad minima tomada: 10 plies)
+== 4v5: 8820 pares  {'black': 4190, 'white': 4441, 'draw': 189}   gana el que arranca en 51.5 % de los decididos
+   plies: b10:2537 b12:1095 b13:5 b14:553 w7:2307 w9:1516 w11:617 w13:1
+   candidatos: 3729, se toman 1500  {'draw': 176, 'black': 1228, 'white': 96}  (profundidad minima tomada: 11 plies)
+== 5v4: 8820 pares  {'white': 6480, 'black': 1774, 'draw': 566}   gana el que arranca en 78.5 % de los decididos
+   plies: b10:505 b12:1081 b14:188 w7:3227 w9:2448 w11:668 w13:137
+   candidatos: 2199, se toman 1500  {'draw': 419, 'black': 898, 'white': 183}  (profundidad minima tomada: 11 plies)
+== 5v6: 26460 pares  {'white': 15891, 'black': 9566, 'draw': 982, 'unknown': 21}   gana el que arranca en 62.4 % de los decididos
+   plies: b10:3700 b11:77 b12:4358 b14:1431 w7:7282 w9:6478 w11:1878 w13:253
+   candidatos: 7652, se toman 1500  {'draw': 599, 'unknown': 19, 'black': 882}  (profundidad minima tomada: 14 plies)
+== 6v5: 26460 pares  {'white': 19534, 'black': 5681, 'draw': 1239, 'unknown': 6}   gana el que arranca en 77.5 % de los decididos
+   plies: b10:2229 b11:35 b12:2472 b14:945 w7:9425 w9:7064 w11:1855 w13:1190
+   candidatos: 5661, se toman 1500  {'draw': 693, 'unknown': 6, 'black': 588, 'white': 213}  (profundidad minima tomada: 13 plies)
+== 6v6: 44100 pares  {'white': 29992, 'black': 11971, 'draw': 1989, 'unknown': 148}   gana el que arranca en 71.5 % de los decididos
+   plies: b10:5180 b11:77 b12:4754 b14:1960 w7:13855 w9:11333 w11:3036 w13:1768
+   candidatos: 9844, se toman 1500  {'draw': 1014, 'unknown': 111, 'black': 375}  (profundidad minima tomada: 14 plies)

@@ -1,0 +1,7 @@
+2234 1135  VEREDICTO: gana BLANCO tiene victoria forzada en 13 plies.
+1244 1135  VEREDICTO: gana BLANCO tiene victoria forzada en 11 plies.
+1224 1134  VEREDICTO: gana BLANCO tiene victoria forzada en 13 plies.
+1225 1135  VEREDICTO: gana BLANCO tiene victoria forzada en 13 plies.
+1225 1145  VEREDICTO: gana BLANCO tiene victoria forzada en 13 plies.
+1335 1145  VEREDICTO: gana BLANCO tiene victoria forzada en 13 plies.
+2335 2245  VEREDICTO: gana BLANCO tiene victoria forzada en 13 plies.

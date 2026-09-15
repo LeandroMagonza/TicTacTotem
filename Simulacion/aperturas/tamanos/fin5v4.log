@@ -1,0 +1,18 @@
+30 enfrentamiento(s), 186 aperturas, 1000 partidas a ve4 por apertura, teoria hasta 14 plies.
+     50/186  (25s)
+    100/186  (52s)
+    150/186  (79s)
+    186/186  (108s)
+Escrito fin5v4_ve4.csv (186 filas) y fin5v4_ve4_resumen.csv (30 filas), 108s
+30 enfrentamiento(s), 186 aperturas, 800 partidas a ve2 por apertura, teoria hasta 14 plies.
+     50/186  (13s)
+    100/186  (26s)
+    150/186  (37s)
+    186/186  (50s)
+Escrito fin5v4_ve2.csv (186 filas) y fin5v4_ve2_resumen.csv (30 filas), 50s
+30 enfrentamiento(s), 186 aperturas, 400 partidas a ve6 por apertura, teoria hasta 14 plies.
+     50/186  (41s)
+    100/186  (76s)
+    150/186  (113s)
+    186/186  (160s)
+Escrito fin5v4_ve6.csv (186 filas) y fin5v4_ve6_resumen.csv (30 filas), 161s

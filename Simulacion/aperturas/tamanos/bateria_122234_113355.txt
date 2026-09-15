@@ -1,0 +1,9 @@
+##### 122234 vs 113355  --sin-centro
+   2        47.9%        52.1%         0.0%     11.8
+   4        45.2%        54.8%         0.0%     12.0
+   6        34.4%        65.4%         0.2%     12.1
+   8        11.2%        88.7%         0.1%     13.2
+
+
+Libertad efectiva promedio en los primeros 9 plies: 41 %
+Turnos con 20 % o menos de opciones: 6

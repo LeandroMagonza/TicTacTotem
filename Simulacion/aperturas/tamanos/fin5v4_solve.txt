@@ -1,0 +1,30 @@
+11334 2245  VEREDICTO: gana BLANCO tiene victoria forzada en 13 plies.
+11233 1244  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+11233 1255  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+11244 1255  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+11344 1355  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+22344 2355  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+12224 1335  VEREDICTO: gana BLANCO tiene victoria forzada en 15 plies.
+11224 1335  VEREDICTO: gana BLANCO tiene victoria forzada en 15 plies.
+22335 1455  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+12444 1355  VEREDICTO: gana BLANCO tiene victoria forzada en 15 plies.
+11134 2235  VEREDICTO: gana BLANCO tiene victoria forzada en 11 plies.
+13344 3345  VEREDICTO: gana BLANCO tiene victoria forzada en 13 plies.
+22334 1345  VEREDICTO: gana NEGRO tiene victoria forzada en 16 plies.
+23335 1455  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+23344 3345  VEREDICTO: gana BLANCO tiene victoria forzada en 13 plies.
+11234 1245  VEREDICTO: gana BLANCO tiene victoria forzada en 15 plies.
+12224 1344  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+12225 1355  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+12225 1455  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+13335 1455  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+23335 2455  VEREDICTO: ninguno tiene victoria forzada en 20 plies o menos.
+12334 1345  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+11234 2335  VEREDICTO: gana BLANCO tiene victoria forzada en 13 plies.
+12334 1355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+22244 1355  VEREDICTO: gana BLANCO tiene victoria forzada en 15 plies.
+12333 2244  VEREDICTO: gana BLANCO tiene victoria forzada en 15 plies.
+12333 2255  VEREDICTO: gana BLANCO tiene victoria forzada en 15 plies.
+12444 2255  VEREDICTO: gana BLANCO tiene victoria forzada en 15 plies.
+13444 3355  VEREDICTO: gana BLANCO tiene victoria forzada en 15 plies.
+23444 3355  VEREDICTO: gana BLANCO tiene victoria forzada en 15 plies.
