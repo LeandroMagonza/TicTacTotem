@@ -92,6 +92,11 @@ export function generateMoves(spec, locs, turn, out) {
 
   // Colocar desde la mano, solo en celda vacia. Las piezas identicas dan jugadas
   // identicas, asi que alcanza con la primera libre del grupo.
+  //
+  // Regla sin centro (Game.cs, --sin-centro): la casilla 4 no se ocupa desde la
+  // mano; al centro solo se llega moviendo. El orden de emision se conserva
+  // igual, que es de lo que dependen los conteos exactos contra C#.
+  const sinCentro = spec.sinCentro === true
   for (let g = 0; g < groupCount; g++) {
     if (groupOwner[g] !== turn) continue
     let piece = -1
@@ -100,7 +105,10 @@ export function generateMoves(spec, locs, turn, out) {
       if (locs[i] === HAND) { piece = i; break }
     }
     if (piece < 0) continue
-    for (let c = 0; c < CELLS; c++) if (top[c] < 0) out[n++] = (piece << 4) | c
+    for (let c = 0; c < CELLS; c++) {
+      if (sinCentro && c === 4) continue
+      if (top[c] < 0) out[n++] = (piece << 4) | c
+    }
   }
 
   // Mover una pieza propia destapada a una celda ortogonal vacia, o sobre una

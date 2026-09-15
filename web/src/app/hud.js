@@ -48,7 +48,21 @@ export function createHud(root, actions) {
   const rotR = btn('↻', 'Girar la vista un cuarto', () => actions.rotate(1), 'icon')
   const tiltBtn = btn('⌂', 'Cambiar el ángulo de cámara (T)', actions.tilt, 'icon')
   const menuBtn = btn('☰', 'Menú', actions.openMenu, 'icon')
-  bottom.append(undoBtn, cancelBtn, el('span', 'spacer'), rotL, rotR, tiltBtn, menuBtn)
+
+  // --- bot contra bot: play/pausa y segundos entre jugadas (entero) ---
+  const playBtn = btn('▶', 'Reproducir o pausar el bot contra bot', actions.playPause, 'icon')
+  const secs = /** @type {HTMLInputElement} */ (el('input', 'num'))
+  secs.type = 'number'
+  secs.min = '0'; secs.max = '60'; secs.step = '1'; secs.value = '2'
+  secs.inputMode = 'numeric'
+  secs.title = 'Segundos entre jugadas'
+  secs.setAttribute('aria-label', 'Segundos entre jugadas')
+  secs.onchange = () => actions.setSeconds(secs.value)
+  const autoBox = el('span', 'auto')
+  autoBox.append(playBtn, secs, el('span', 'auto-label', 's'))
+  autoBox.style.display = 'none'
+
+  bottom.append(undoBtn, cancelBtn, autoBox, el('span', 'spacer'), rotL, rotR, tiltBtn, menuBtn)
 
   // --- log de jugadas ---
   const log = el('div', 'log')
@@ -114,11 +128,22 @@ export function createHud(root, actions) {
 
     // Indicador de turno
     const esHumano = mode === 'hotseat' || s.turn === humanSide
+    const auto = state.auto ?? { playing: false, seconds: 2 }
     turnDot.style.background = TEAM_COLOR[s.turn]
     turnText.textContent = phase === 'thinking' ? 'Pensando…'
       : s.result ? '—'
+      : mode === 'auto' ? (auto.playing ? `Turno de ${TEAM_NAME[s.turn]}` : `En pausa · ${TEAM_NAME[s.turn]}`)
       : mode === 'hotseat' ? `Turno de ${TEAM_NAME[s.turn]}`
       : esHumano ? 'Tu turno' : `Turno de ${TEAM_NAME[s.turn]}`
+
+    // Controles de bot contra bot: solo en ese modo. El input no se pisa mientras
+    // se esta escribiendo en el.
+    autoBox.style.display = mode === 'auto' ? '' : 'none'
+    if (mode === 'auto') {
+      playBtn.textContent = auto.playing ? '⏸' : '▶'
+      playBtn.disabled = !!s.result
+      if (document.activeElement !== secs) secs.value = String(auto.seconds)
+    }
 
     // Fichas de mano: el resumen numerico preciso que el 3D no da.
     for (const side of [0, 1]) {

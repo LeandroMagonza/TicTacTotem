@@ -334,3 +334,37 @@ test('conservacion: ninguna jugada crea, destruye ni duplica piezas', () => {
     turn = 1 - turn
   }
 })
+
+// --- regla sin centro -------------------------------------------------------
+import { makeSpecFromLabels as specSC } from '../src/engine/spec.js'
+import { WHITE as W_SC, BLACK as B_SC } from '../src/engine/constants.js'
+import { initialPosition as init_SC, applyMove as apply_SC, loc as loc_SC } from '../src/engine/position.js'
+import { legalMoves as legal_SC } from '../src/engine/rules.js'
+
+test('regla sin centro: nadie coloca en el centro, solo se llega moviendo', async (t) => {
+  const spec = specSC('12344', '12355', { sinCentro: true })
+  const p0 = init_SC(spec)
+
+  await t.test('en la posicion inicial hay 32 jugadas y ninguna al centro', () => {
+    // 4 grupos x 8 casillas. C# --sin-centro cuenta 33 nodos a 1 ply: la raiz mas estas.
+    const moves = legal_SC(spec, p0, W_SC)
+    assert.equal(moves.length, 32)
+    assert.ok(moves.every((m) => (m & 0xf) !== 4), 'ninguna colocacion en la casilla 4')
+  })
+
+  await t.test('una pieza puesta al lado del centro puede moverse al centro', () => {
+    const p1 = apply_SC(p0, legal_SC(spec, p0, W_SC).find((m) => (m & 0xf) === 1))   // algo en A2
+    const black = legal_SC(spec, p1, B_SC)
+    assert.ok(black.every((m) => (m & 0xf) !== 4))
+    const p2 = apply_SC(p1, black.find((m) => (m & 0xf) === 8))                       // negro en C3
+    const alCentro = legal_SC(spec, p2, W_SC).filter((m) => (m & 0xf) === 4)
+    assert.equal(alCentro.length, 1, 'solo la pieza de A2 puede entrar al centro, moviendose')
+    assert.equal(loc_SC(p2, alCentro[0] >> 4), 1)
+  })
+
+  await t.test('sin la regla no cambia nada', () => {
+    const base = specSC('12344', '12355')
+    assert.equal(base.sinCentro, false)
+    assert.equal(legal_SC(base, init_SC(base), W_SC).length, 36)
+  })
+})

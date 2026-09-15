@@ -54,10 +54,39 @@ public sealed partial class GameSpec {
     /// <summary>Exigir el pegado tambien despues de que el 3x3 quedo delimitado.</summary>
     public readonly bool PegadoSiempre;
 
+    /// <summary>
+    /// Variante de tablero a dos colores, como el ajedrez: las esquinas y el centro son de
+    /// un color y los cuatro lados del otro. 0 = sin colores. 1 = la PRIMERA pieza que
+    /// coloca cada jugador tiene que ir a una casilla de su color. 2 = TODA colocacion
+    /// desde la mano va a una casilla del color propio; mover piezas ya puestas es libre.
+    /// </summary>
+    public readonly int ColorModo;
+    /// <summary>Color de las blancas: 1 = los lados (cuatro casillas), 0 = esquinas y centro (cinco).</summary>
+    public readonly int ColorBlancas;
+    /// <summary>Colocar desde la mano tambien sobre una pieza propia destapada de rango menor.</summary>
+    public readonly bool ApilarPropias;
+    /// <summary>Nadie coloca desde la mano en el centro: al centro solo se llega moviendo.</summary>
+    public readonly bool SinCentro;
+
+    /// <summary>Color de cada casilla: 0 esquinas y centro, 1 lados.</summary>
+    public static int ColorDeCasilla(int c) => (c / 3 + c % 3) % 2;
+
+    /// <summary>Descripcion corta de la variante activa, para los encabezados.</summary>
+    public string Sufijo =>
+        (Libre ? "   [sin tablero]" : "")
+        + (ColorModo == 1 ? $"   [primera pieza en color propio, blancas en {(ColorBlancas == 1 ? "lados" : "esquinas")}]"
+           : ColorModo == 2 ? $"   [deploy solo en color propio, blancas en {(ColorBlancas == 1 ? "lados" : "esquinas")}]" : "")
+        + (ApilarPropias ? "   [deploy sobre piezas propias]" : "")
+        + (SinCentro ? "   [nadie coloca en el centro]" : "");
+
     public GameSpec(IEnumerable<int> whitePieces, IEnumerable<int> blackPieces, bool libre = false,
-                    bool pegado = false, bool pegadoOrto = false, bool pegadoSiempre = false) {
+                    bool pegado = false, bool pegadoOrto = false, bool pegadoSiempre = false,
+                    int colorModo = 0, int colorBlancas = 1, bool apilarPropias = false, bool sinCentro = false) {
         Libre = libre;
         Pegado = pegado; PegadoOrto = pegadoOrto; PegadoSiempre = pegadoSiempre;
+        ColorModo = colorModo; ColorBlancas = colorBlancas; ApilarPropias = apilarPropias; SinCentro = sinCentro;
+        if (libre && (colorModo != 0 || apilarPropias || sinCentro))
+            throw new ArgumentException("Las variantes de color y apilado no estan implementadas sin tablero.");
         var white = whitePieces.OrderBy(r => r).ToArray();
         var black = blackPieces.OrderBy(r => r).ToArray();
         WhiteLabel = string.Concat(white);
@@ -171,6 +200,16 @@ public sealed partial class GameSpec {
 
         // Colocar desde la mano, solo en celda vacia (Cell.CanPieceBePushed).
         // Las piezas identicas dan jugadas identicas: alcanza con la primera del grupo.
+        //
+        // Variante de colores: la colocacion va a una casilla del color propio, siempre
+        // (modo 2) o solo mientras el jugador no tenga nada puesto (modo 1).
+        int colorPropio = turn == White ? ColorBlancas : 1 - ColorBlancas;
+        bool restringir = ColorModo == 2;
+        if (ColorModo == 1) {
+            restringir = true;
+            for (int i = 0; i < PieceCount; i++)
+                if (Owner[i] == turn && Loc(p, i) != Hand) { restringir = false; break; }
+        }
         for (int g = 0; g < GroupStart.Length; g++) {
             if (GroupOwner[g] != turn) continue;
             int piece = -1;
@@ -178,7 +217,13 @@ public sealed partial class GameSpec {
                 if (Loc(p, i) == Hand) { piece = i; break; }
             }
             if (piece < 0) continue;
-            for (int c = 0; c < Cells; c++) if (top[c] < 0) moves[n++] = (piece << 4) | c;
+            for (int c = 0; c < Cells; c++) {
+                if (restringir && ColorDeCasilla(c) != colorPropio) continue;
+                if (SinCentro && c == 4) continue;
+                int t = top[c];
+                if (t < 0) moves[n++] = (piece << 4) | c;
+                else if (ApilarPropias && Owner[t] == turn && Rank[t] < Rank[piece]) moves[n++] = (piece << 4) | c;
+            }
         }
 
         // Mover una pieza propia destapada a una celda ortogonal vacia, o sobre una pila

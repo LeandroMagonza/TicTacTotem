@@ -28,8 +28,8 @@ function pieceTable() {
 }
 
 const handlers = {
-  newGame({ white = '12344', black = '11245', seed = 1 }) {
-    spec = makeSpecFromLabels(white, black)
+  newGame({ white = '12344', black = '12355', seed = 1, rules = { sinCentro: true } }) {
+    spec = makeSpecFromLabels(white, black, rules)
     match = new Match(spec)
     // El Searcher se reusa toda la partida y entre partidas: sus entradas estan
     // indexadas por (canonica, turno, profundidad exacta) y solo se guardan las
@@ -41,6 +41,7 @@ const handlers = {
       pieces: pieceTable(),
       whiteLabel: spec.whiteLabel,
       blackLabel: spec.blackLabel,
+      rules: { sinCentro: spec.sinCentro },
       snapshot: match.snapshot(),
     }
   },

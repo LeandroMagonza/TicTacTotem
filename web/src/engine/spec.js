@@ -16,6 +16,14 @@ import { CELLS, WHITE, BLACK, MAX_PIECES } from './constants.js'
  * @property {Int8Array} symmetries  8 permutaciones D4, aplanadas (8 * 9)
  * @property {string}    whiteLabel
  * @property {string}    blackLabel
+ * @property {boolean}   sinCentro   regla: nadie coloca desde la mano en el centro
+ */
+
+/**
+ * @typedef {object} Rules
+ * @property {boolean} [sinCentro]  Al centro solo se llega moviendo una pieza ya puesta.
+ *   Es la regla que saca la apertura dominante del primero (4 al centro, 68 %) sin
+ *   quitarle la eleccion de casilla. Port de --sin-centro del solver (Game.cs).
  */
 
 /**
@@ -28,9 +36,10 @@ import { CELLS, WHITE, BLACK, MAX_PIECES } from './constants.js'
  *
  * @param {number[]} whitePieces
  * @param {number[]} blackPieces
+ * @param {Rules} [rules]
  * @returns {GameSpec}
  */
-export function makeSpec(whitePieces, blackPieces) {
+export function makeSpec(whitePieces, blackPieces, rules = {}) {
   const white = [...whitePieces].sort((a, b) => a - b)
   const black = [...blackPieces].sort((a, b) => a - b)
   const pieceCount = white.length + black.length
@@ -105,19 +114,21 @@ export function makeSpec(whitePieces, blackPieces) {
     symmetries,
     whiteLabel: white.join(''),
     blackLabel: black.join(''),
+    sinCentro: rules.sinCentro === true,
   })
 }
 
 /**
- * Atajo: makeSpecFromLabels('12344', '11245')
+ * Atajo: makeSpecFromLabels('12344', '12355', { sinCentro: true })
  * @param {string} white
  * @param {string} black
+ * @param {Rules} [rules]
  */
-export function makeSpecFromLabels(white, black) {
+export function makeSpecFromLabels(white, black, rules = {}) {
   const digits = (s) => [...s].map((ch) => {
     const d = Number(ch)
     if (!Number.isInteger(d) || d < 1 || d > 9) throw new RangeError(`Rango invalido: ${ch}`)
     return d
   })
-  return makeSpec(digits(white), digits(black))
+  return makeSpec(digits(white), digits(black), rules)
 }

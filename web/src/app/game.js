@@ -14,7 +14,14 @@ import { createHud } from './hud.js'
 import { DIFFICULTIES } from '../engine/ai.js'
 
 const WHITE_SET = '12344'
-const BLACK_SET = '11245'
+const BLACK_SET = '12355'
+/**
+ * Nadie coloca desde la mano en el centro; al centro solo se llega moviendo.
+ * Con esta regla y este set, B tiene la victoria forzada a 14 jugadas, el
+ * primero no pasa de 54 % con su mejor apertura, y el segundo tiene siempre
+ * varias respuestas que aguantan (Simulacion/aperturas/color/).
+ */
+const RULES = Object.freeze({ sinCentro: true })
 
 /** @param {HTMLCanvasElement} canvas @param {HTMLElement} uiRoot @param {(m:string)=>void} onFatal */
 export async function startGame(canvas, uiRoot, onFatal) {
@@ -30,9 +37,11 @@ export async function startGame(canvas, uiRoot, onFatal) {
 
   const state = {
     phase: /** @type {'menu'|'playing'|'thinking'|'animating'|'over'} */ ('playing'),
-    mode: /** @type {'ai'|'hotseat'} */ ('ai'),
+    mode: /** @type {'ai'|'hotseat'|'auto'} */ ('ai'),
     difficulty: /** @type {keyof typeof DIFFICULTIES} */ ('dificil'),
     humanSide: 0,
+    /** Bot contra bot: play/pausa y segundos (entero) entre jugadas. */
+    auto: { playing: false, seconds: 2, timer: 0 },
     snapshot: null,
     pieces: {},
     selection: /** @type {null|{key:string, moves:any[]}} */ (null),
@@ -233,6 +242,7 @@ export async function startGame(canvas, uiRoot, onFatal) {
     if (snapshot.result) return finish()
     state.phase = 'playing'
     if (state.mode === 'ai' && snapshot.turn !== state.humanSide) await aiTurn()
+    else if (state.mode === 'auto') scheduleAuto()
   }
 
   async function aiTurn() {
@@ -258,6 +268,36 @@ export async function startGame(canvas, uiRoot, onFatal) {
     hud.render(state)
     if (res.snapshot.result) return finish()
     state.phase = 'playing'
+    if (state.mode === 'auto') scheduleAuto()
+  }
+
+  // --- bot contra bot -------------------------------------------------------
+  //
+  // El bot juega los dos bandos con la misma dificultad. Entre el final de una
+  // jugada y el arranque de la siguiente pasan `auto.seconds` segundos (entero,
+  // 0 = seguido). Se para solo cuando la partida termina.
+  function scheduleAuto() {
+    clearTimeout(state.auto.timer)
+    if (state.mode !== 'auto' || !state.auto.playing || state.phase !== 'playing') return
+    if (state.snapshot?.result) { state.auto.playing = false; hud.render(state); return }
+    state.auto.timer = setTimeout(() => {
+      if (state.mode === 'auto' && state.auto.playing && state.phase === 'playing') aiTurn()
+    }, Math.max(0, state.auto.seconds) * 1000)
+  }
+
+  function playPause() {
+    if (state.mode !== 'auto' || state.snapshot?.result) return
+    state.auto.playing = !state.auto.playing
+    hud.render(state)
+    if (state.auto.playing) scheduleAuto()
+    else clearTimeout(state.auto.timer)
+  }
+
+  function setSeconds(n) {
+    const v = Math.floor(Number(n))
+    state.auto.seconds = Number.isFinite(v) ? Math.min(60, Math.max(0, v)) : 2
+    hud.render(state)
+    if (state.auto.playing) scheduleAuto()
   }
 
   /** Azimut de antes de la orbita de celebracion, para poder volver. */
@@ -290,6 +330,8 @@ export async function startGame(canvas, uiRoot, onFatal) {
 
   function finish() {
     state.phase = 'over'
+    clearTimeout(state.auto.timer)
+    state.auto.playing = false
     refreshHighlights()
     hud.render(state)
     hud.showResult(state.snapshot.result, () => newGame({}), () => newGame({ swapSide: true }), openMenu)
@@ -318,6 +360,11 @@ export async function startGame(canvas, uiRoot, onFatal) {
 
     const s = state.snapshot
     if (state.mode === 'ai' && s.turn !== state.humanSide) return
+    // En bot contra bot el tablero se mira, no se toca: solo explotar pilas.
+    if (state.mode === 'auto') {
+      if (hit.kind === 'cell' && s.stacks[hit.index].length >= 2) explode(hit.index)
+      return
+    }
 
     // Destino de una jugada seleccionada
     if (state.selection && hit.kind === 'cell') {
@@ -370,6 +417,9 @@ export async function startGame(canvas, uiRoot, onFatal) {
   // --- undo ---------------------------------------------------------------
   async function undo() {
     if (state.phase === 'thinking' || state.phase === 'animating') return
+    // Deshacer en bot contra bot pausa: si no, el bot vuelve a jugar lo mismo.
+    clearTimeout(state.auto.timer)
+    state.auto.playing = false
     // En modo IA se deshacen dos: la de la IA y la tuya.
     const plies = state.mode === 'ai' ? 2 : 1
     const { snapshot } = await engine.undo(plies)
@@ -388,11 +438,13 @@ export async function startGame(canvas, uiRoot, onFatal) {
     hud.showMenu(false)
     state.selection = null
     state.phase = 'playing'      // corta la orbita de celebracion
+    clearTimeout(state.auto.timer)
     devolverCamara()
 
     const res = await engine.newGame({
       white: WHITE_SET,
       black: BLACK_SET,
+      rules: RULES,
       seed: (Math.random() * 2 ** 31) >>> 0,
     })
     state.pieces = res.pieces
@@ -415,6 +467,7 @@ export async function startGame(canvas, uiRoot, onFatal) {
     hud.render(state)
 
     if (state.mode === 'ai' && state.snapshot.turn !== state.humanSide) await aiTurn()
+    else if (state.mode === 'auto') scheduleAuto()
   }
 
   /**
@@ -464,21 +517,29 @@ export async function startGame(canvas, uiRoot, onFatal) {
     const group = (title) => { root.append(el('h3', '', title)); const d = el('div', 'options'); root.append(d); return d }
 
     const modes = group('Modo')
-    for (const [id, label] of [['ai', 'Contra la máquina'], ['hotseat', 'Dos jugadores']]) {
+    for (const [id, label] of [['ai', 'Contra la máquina'], ['hotseat', 'Dos jugadores'], ['auto', 'Bot contra bot']]) {
       const b = btn(label, label, () => { state.mode = /** @type {any} */ (id); buildMenu() },
         state.mode === id ? 'sel' : 'ghost')
       modes.append(b)
     }
 
-    if (state.mode === 'ai') {
-      const dif = group('Dificultad')
+    if (state.mode === 'ai' || state.mode === 'auto') {
+      const dif = group(state.mode === 'auto' ? 'Dificultad de los dos bots' : 'Dificultad')
       for (const [id, cfg] of Object.entries(DIFFICULTIES)) {
         const b = btn(cfg.label, `Calcula ${cfg.vision} jugadas hacia adelante`,
           () => { state.difficulty = /** @type {any} */ (id); buildMenu() },
           state.difficulty === id ? 'sel' : 'ghost')
         dif.append(b)
       }
+    }
 
+    if (state.mode === 'auto') {
+      root.append(el('p', 'note',
+        'El bot juega los dos bandos. Apretá ▶ en la barra de abajo; el número son los ' +
+        'segundos entre jugadas (0 = seguido). Tocar una pila la abre para mirar.'))
+    }
+
+    if (state.mode === 'ai') {
       const bando = group('Tu bando')
       for (const side of [0, 1]) {
         const set = side === 0 ? WHITE_SET : BLACK_SET
@@ -492,16 +553,15 @@ export async function startGame(canvas, uiRoot, onFatal) {
       // Decir la verdad sobre el desbalance, en vez de dejar que alguien
       // concluya que el juego esta roto.
       const nota = el('p', 'note',
-        'B tiene victoria forzada con juego perfecto, pero está a 12 jugadas y nadie la ve. ' +
-        'A profundidad humana los bandos están casi parejos (52 / 48 para A). ' +
-        'A se lleva el tempo; B se lleva la teoría.')
+        'B tiene victoria forzada con juego perfecto, pero está a 14 jugadas y nadie la ve. ' +
+        'A profundidad humana los bandos están parejos (50 / 50 con apertura al azar; ' +
+        'A llega a 54 con su mejor apertura). A se lleva el tempo; B se lleva la teoría.')
       root.append(nota)
-
-      if (state.difficulty === 'experto' && state.humanSide === 0) {
-        root.append(el('p', 'warn',
-          'En Experto la victoria de la máquina desde este bando es forzada: es un puzzle, no una partida.'))
-      }
     }
+
+    root.append(el('p', 'note',
+      'Regla del centro: nadie coloca una pieza de la mano en el centro. Al centro sólo se llega ' +
+      'moviendo una pieza que ya está en el tablero.'))
 
     const acciones = el('div', 'panel-btns')
     acciones.append(
@@ -515,6 +575,8 @@ export async function startGame(canvas, uiRoot, onFatal) {
   const hud = createHud(uiRoot, {
     undo,
     cancel: clearSelection,
+    playPause,
+    setSeconds,
     rotate: (q) => { rig.rotateQuarters(q); world.invalidate() },
     tilt: () => {
       const target = rig.toggleTilt()
@@ -578,6 +640,7 @@ export async function startGame(canvas, uiRoot, onFatal) {
   // de forma determinista y sin depender de pixeles.
   return {
     state, newGame, openMenu, engine, jumpTo, rig, tweens, tap: onTap, undo, highlights,
+    playPause, setSeconds, RULES,
     // Para que un test headless pueda proyectar una celda a coordenadas de
     // pantalla y disparar un click DE VERDAD, ejercitando el raycast completo.
     camera: world.camera, canvas, board, input,

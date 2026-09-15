@@ -88,6 +88,19 @@ html, body {
 .btn.icon { padding: 0; font-size: 18px; }
 .btn.sel { border-color: var(--a); background: #2f2a20; }
 
+/* Bot contra bot: play/pausa y el entero de segundos entre jugadas. */
+.auto { display: inline-flex; align-items: center; gap: 6px; pointer-events: auto; }
+.auto-label { color: var(--ink-dim); font-size: 13px; }
+.num {
+  pointer-events: auto;
+  width: 66px; min-height: 44px; padding: 0 8px;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 10px;
+  font: inherit; font-weight: 600; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.num:focus-visible { outline: 2px solid var(--a); outline-offset: 2px; }
+
 .log { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
 .log-line {
   font-size: 12px; color: var(--ink-dim);

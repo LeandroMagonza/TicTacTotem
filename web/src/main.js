@@ -18,8 +18,24 @@ export function fatal(err) {
   console.error(err)
 }
 
-window.addEventListener('error', (e) => fatal(e.error ?? e.message))
-window.addEventListener('unhandledrejection', (e) => fatal(e.reason))
+/**
+ * Los errores de extensiones del navegador (MetaMask y similares inyectan un
+ * script en toda pagina y fallan solos) llegan por los mismos eventos globales.
+ * No son nuestros y no hay que taparle el juego al usuario por ellos.
+ * @param {unknown} err @param {string} [origen]
+ */
+function esDeExtension(err, origen = '') {
+  const texto = `${origen}\n${err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : String(err ?? '')}`
+  return /(chrome|moz|safari-web)-extension:\/\//.test(texto) || /MetaMask/i.test(texto)
+}
+
+window.addEventListener('error', (e) => {
+  const err = e.error ?? e.message
+  if (!esDeExtension(err, e.filename)) fatal(err)
+})
+window.addEventListener('unhandledrejection', (e) => {
+  if (!esDeExtension(e.reason)) fatal(e.reason)
+})
 
 const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('scene'))
 const uiRoot = /** @type {HTMLElement} */ (document.getElementById('ui'))

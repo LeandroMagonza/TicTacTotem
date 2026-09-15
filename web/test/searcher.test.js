@@ -266,3 +266,29 @@ test('solveFrom sobre la posicion inicial coincide con solve', () => {
   assert.equal(r.result, BLACK_WIN)
   assert.equal(r.plies, 12)
 })
+
+test('ancla sin centro contra el solver C# (--sin-centro)', async (t) => {
+  await t.test('12344 vs 11245: gana BLANCO en 11 plies, nodos exactos hasta 8', () => {
+    const spec = makeSpecFromLabels('12344', '11245', { sinCentro: true })
+    // C# --sin-centro, tabla 2^24: 33 92 269 725 3381 6384 31893 44016 176388
+    //                              214617 480578, total 958.376, 0 ahogados.
+    const exactos = [33, 92, 269, 725, 3381, 6384, 31893, 44016]
+    for (let d = 1; d <= 8; d++) {
+      const s = new Searcher(spec, { ttBits: 22 }).resetCounters()
+      s.solve(d)
+      assert.equal(s.nodes, exactos[d - 1], `nodos a ${d} plies`)
+    }
+    const s = new Searcher(spec, { ttBits: 22 })
+    let decided = 0
+    for (let d = 1; d <= 12; d++) if (s.solve(d) !== DRAW) { decided = d; break }
+    assert.equal(decided, 11)
+    assert.equal(new Searcher(spec, { ttBits: 22 }).solve(11), WHITE_WIN)
+  })
+
+  await t.test('12344 vs 12355 (el set del juego): gana NEGRO en 14 plies', () => {
+    const spec = makeSpecFromLabels('12344', '12355', { sinCentro: true })
+    const s = new Searcher(spec, { ttBits: 22 })
+    for (let d = 1; d <= 13; d++) assert.equal(s.solve(d), DRAW, `a ${d} plies todavia no se decide`)
+    assert.equal(s.solve(14), BLACK_WIN)
+  })
+})

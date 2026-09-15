@@ -1,15 +1,16 @@
 # TicTacTotem — juego web
 
 Implementación jugable del juego, en Three.js. Contra la máquina en cinco
-niveles, o dos jugadores en la misma pantalla.
+niveles, dos jugadores en la misma pantalla, o bot contra bot para mirar.
 
-La configuración es la que salió del análisis de `../Simulacion/`:
-**Tótem A `12344` arranca, Tótem B `11245` juega segundo.**
+La configuración es la que salió del análisis de `../Simulacion/` (sección 10):
+**Tótem A `12344` arranca, Tótem B `12355` juega segundo, y nadie coloca una
+pieza de la mano en el centro.**
 
 ```bash
 npm install
 npm run dev        # servidor de desarrollo; entra desde el celular por la LAN
-npm test           # 68 tests, ~20 s, sin browser ni GPU
+npm test           # 83 tests, ~30 s, sin browser ni GPU
 npm run build      # a dist/
 ```
 
@@ -18,12 +19,18 @@ npm run build      # a dist/
 ## 1. Las reglas, en un párrafo
 
 Tablero de 3×3, cada casilla es una **pila**. En tu turno, o colocás una pieza de
-tu mano en una casilla **vacía**, o movés tu pieza **destapada** a una casilla
-ortogonalmente adyacente que esté vacía o cuya pieza visible tenga nivel
-**estrictamente menor**. Gana quien deje tres piezas destapadas propias en línea.
+tu mano en una casilla **vacía que no sea el centro**, o movés tu pieza
+**destapada** a una casilla ortogonalmente adyacente que esté vacía o cuya pieza
+visible tenga nivel **estrictamente menor**. Gana quien deje tres piezas
+destapadas propias en línea.
 
-Dos reglas más, que la primera vez se leen como bug:
+Tres reglas más, que la primera vez se leen como bug:
 
+- **Al centro no se coloca desde la mano; sólo se llega moviendo.** Sin esto el
+  primero abre 4 al centro y gana dos de cada tres partidas a nivel humano, porque
+  al segundo le queda una única respuesta que nadie ve. Con la regla, y con el set
+  `12355` para B, ninguna apertura pasa de 54 % y el segundo siempre tiene varias
+  respuestas que aguantan (`../Simulacion/README.md`, sección 10).
 - **Si tu jugada destapa una línea del rival, perdés** — aunque la línea no sea
   tuya. Es la regla del medio punto: el que acaba de mover pierde los empates.
   El juego te avisa antes con un **anillo ámbar** sobre ese destino.
@@ -231,5 +238,5 @@ hay nada que rescatar). Analytics. React o cualquier store: el HUD son ocho
 elementos. TypeScript. `InstancedMesh`, LOD, pooling: son ~45 objetos y 50-70 draw
 calls, e instancing empieza a pagar en los cientos. Post-processing. Librerías de
 tweens. Pinch-zoom. Alternar automáticamente quién empieza — con estos sets
-`11245` también gana en 7 plies si arranca, así que alternar empeora
+`12355` gana en 7 plies si arranca, así que alternar empeora
 sistemáticamente la partida para un lado. Cambiar de bando es un botón.

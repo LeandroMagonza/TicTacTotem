@@ -1,0 +1,72 @@
+33344 12345  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33335 13445  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33335 23445  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+34444 12355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33444 12355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+22335 13445  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+44444 12355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33333 11245  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33333 12245  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+14444 22345  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+14444 23345  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+22444 13345  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+22444 11345  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33334 11245  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33334 12245  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+14444 12345  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33344 11345  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33344 22345  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33333 12244  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33333 12255  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+44444 12255  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+44444 13355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+44444 23355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33333 11244  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33333 11255  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+44444 11255  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+44444 11355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+44444 22355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+24444 11355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33444 11355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+33444 22355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+23333 11244  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+23333 11255  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+24444 11255  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+34444 11355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+
+34444 22355  VEREDICTO: gana NEGRO tiene victoria forzada en 10 plies.
+

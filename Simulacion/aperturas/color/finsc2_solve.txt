@@ -1,0 +1,5 @@
+12344 12355  VEREDICTO: gana NEGRO tiene victoria forzada en 14 plies.
+12335 12455  VEREDICTO: gana NEGRO tiene victoria forzada en 12 plies.
+12344 12555  VEREDICTO: gana NEGRO tiene victoria forzada en 12 plies.
+12334 12555  VEREDICTO: gana NEGRO tiene victoria forzada en 12 plies.
+12344 11245  VEREDICTO: gana BLANCO tiene victoria forzada en 11 plies.

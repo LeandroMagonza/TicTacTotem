@@ -504,6 +504,17 @@ dotnet run -c Release -- practica --white 12344 --black 11245 --games 12000 --de
 # (el archivo de pares tiene una línea "blancas negras" por enfrentamiento)
 dotnet run -c Release -- practicas --pairs-file ../viables.txt --games 3000 --depths 2,4     --out ../viables_ve4.csv
 
+# Mejor apertura del primero, respuestas del segundo y reparto con la apertura
+# forzada; con --pairs-file barre muchos pares y escribe <out> y <out>_resumen.csv
+dotnet run -c Release -- aperturas --white 12344 --black 12355 --games 1000 --sin-centro
+dotnet run -c Release -- aperturas --pairs-file pares.txt --games 300 --horizonte 8 --out ap.csv
+
+# Variantes de regla, válidas en cualquier comando (sección 10):
+#   --sin-centro                         nadie coloca desde la mano en el centro
+#   --color primera|siempre              tablero a dos colores: la primera pieza / toda
+#   [--color-blancas lados|esquinas]     colocación va al color propio
+#   --apilar-propias                     colocar también sobre una pieza propia menor
+
 # Jugadas forzadas y trampas: cuántos turnos tienen una sola salida y cuántas
 # de ésas no se ven a 4 plies
 dotnet run -c Release -- trampas --white 11344 --black 12245 --games 800 --vision 4 --verdad 8
@@ -635,3 +646,51 @@ resultado es tranquilizador —la configuración de la sección 1 está entre la
 método. **Quedan sin barrer así los otros formatos**: 4v5, 5v6 y 6v5 sólo tienen veredicto de
 juego perfecto, nunca reparto real sistemático. Si alguna vez se reabre el formato, ahí está el
 trabajo.
+
+---
+
+## 10. La apertura dominante y la regla del centro
+
+*(septiembre de 2026)*
+
+Al jugarlo en la mesa el primero parecía tener mucha ventaja, y el promedio de `practica`
+(52 / 48) no lo mostraba. La razón es que `practica` elige la apertura al azar: **con el 4 al
+centro el primero gana 68 % a ve4**, y con cualquier esquina cerca de 60. Tras esas aperturas
+al segundo le quedan 2 a 4 respuestas ganadoras entre 32, su victoria está a 11 plies y no se
+ve, y todas las demás respuestas pierden en 6 u 8 plies, que sí se ven. Quien no conoce el
+antídoto (5 en un lado, y al turno siguiente subirlo al centro) pierde.
+
+Para medir eso está el comando **`aperturas`**: por cada apertura distinta del primero cuenta
+las respuestas del segundo que ganan, las que no pierden en teoría y las que aguantan N plies,
+y juega partidas de visión fija con esa apertura forzada. El resumen da tres números por par:
+la mejor apertura del primero, el promedio sobre aperturas y el mínimo de respuestas del
+segundo. Tarda unos segundos por par, así que se puede barrer todo.
+
+Lo que salió de barrer con eso (los CSV y scripts están en `aperturas/` y `aperturas/color/`):
+
+- **Con las reglas de siempre no hay set que lo arregle.** En los 405 sets 5v5 donde gana el
+  segundo, siempre hay una apertura que le deja 1 o 2 respuestas. Es propiedad del juego.
+  Cambiar el set baja la mejor apertura del primero de 67 a 55 % (`13344` vs `12355`,
+  `03344` vs `12355` con piedra) pero no saca la respuesta única.
+- **Tablero a dos colores** (`--color`, `--color-blancas`, `--apilar-propias`). Con el deploy
+  siempre al color propio la asimetría es enorme, porque esquinas y centro tienen las dos
+  diagonales y los lados ninguna línea: el que arranca con los lados pierde 60-75 % a ve2 aun
+  con sets reajustados, y con esquinas no hay nada parejo. Sólo la versión mínima —la primera
+  pieza de cada uno a su color— funciona, y sólo con sets monótonos para el primero
+  (`33344` vs `12345`).
+- **Nadie coloca en el centro; al centro sólo se llega moviendo** (`--sin-centro`). Es
+  simétrica y el primero conserva la elección entre esquina y lado. Con el set de la sección 1
+  se da vuelta la teoría (gana el primero en 11 plies, 61 %). Con **`12344` vs `12355`** gana
+  el segundo en 14 plies; la mejor apertura del primero da 52 / 54 / 43 a ve2 / ve4 / ve6, con
+  apertura al azar 48-51 / 50-49 / 35-64; y tras cualquier apertura el segundo tiene 5 o más
+  respuestas que no pierden a 12 plies y 10 o más que aguantan 8. Inventario: exactamente dos
+  piezas de cada molde. Invertido gana el primero en 7 plies, así que sigue sin alternarse.
+
+Esa regla y ese set son los que implementa el juego web desde septiembre de 2026. El precio,
+común a todo lo que da profundidad, es que entre jugadores fuertes se inclina al segundo. La
+alternativa más plana con nivel es `12335` vs `12455` (50 / 54 / 49), con menos margen para el
+segundo y tres águilas.
+
+El motor de la web reproduce la regla contra este solver: con `--sin-centro` los conteos del
+alpha-beta coinciden exactos hasta 8 plies para `12344` vs `11245` (33 · 92 · 269 · 725 · 3.381 ·
+6.384 · 31.893 · 44.016), el veredicto a 11, y `12344` vs `12355` se decide a 14 para el segundo.

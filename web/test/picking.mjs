@@ -119,7 +119,9 @@ for (const elev of ANGULOS) {
   let ok = 0
   const errores = []
 
-  for (let cell = 0; cell < 9; cell++) {
+  // La casilla 4 (centro) no se prueba: con la regla del centro no se puede
+  // colocar ahi desde la mano, asi que un click correcto no mueve nada.
+  for (const cell of [0, 1, 2, 3, 5, 6, 7, 8]) {
     await send('Page.navigate', { url: `${base}?elev=${elev}` })
     // Esperar a que el juego este LISTO PARA JUGAR, no solo cargado. Contra una
     // URL remota la carga tarda mucho mas que en localhost, y con una espera
@@ -153,7 +155,7 @@ for (const elev of ANGULOS) {
   }
 
   if (errores.length) fallos++
-  console.log(`${String(elev).padStart(5)}  ${String(ok).padStart(6)}/9   ${errores.slice(0, 3).join(' · ') || '—'}`)
+  console.log(`${String(elev).padStart(5)}  ${String(ok).padStart(6)}/8   ${errores.slice(0, 3).join(' · ') || '—'}`)
 }
 
 console.log()

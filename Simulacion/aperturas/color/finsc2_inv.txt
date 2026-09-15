@@ -1,0 +1,5 @@
+12344 12355  invertido: VEREDICTO: gana BLANCO tiene victoria forzada en 7 plies.
+12335 12455  invertido: VEREDICTO: gana BLANCO tiene victoria forzada en 7 plies.
+12344 12555  invertido: VEREDICTO: gana BLANCO tiene victoria forzada en 7 plies.
+12334 12555  invertido: VEREDICTO: gana BLANCO tiene victoria forzada en 7 plies.
+12344 11245  invertido: VEREDICTO: gana BLANCO tiene victoria forzada en 7 plies.
