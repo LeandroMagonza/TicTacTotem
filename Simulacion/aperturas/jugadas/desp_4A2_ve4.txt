@@ -1,0 +1,21 @@
+Despues de 4@A2 5@C2, le toca a el primero.
+Teoria a 12 plies, 600 partidas a ve4 con esas jugadas forzadas.
+
+jugada                     teoria                   ve4 1o/2o
+------------------------------------------------------------------
+1 a C1                     pierde en 12             40.0 / 55.2
+2 a C1                     pierde en 12             37.7 / 57.3
+3 a C1                     pierde en 12             37.7 / 58.2
+4 a C1                     pierde en 12             35.2 / 61.5
+1 a A1                     pierde en 12             30.2 / 68.5
+2 a A1                     pierde en 12             29.8 / 67.2
+3 a A1                     tablas a 12              29.8 / 66.7
+4 a A1                     tablas a 12              28.2 / 66.2
+3 a B1                     pierde en 6              26.2 / 69.0
+2 a B1                     pierde en 6              24.0 / 73.3
+4 a B1                     pierde en 6              23.2 / 70.8
+1 a B1                     pierde en 6              20.0 / 76.3
+mueve 4 a A1               pierde en 6              10.0 / 86.3
+mueve 4 a B2               pierde en 8              9.0 / 89.2
+
+Jugadas que no pierden en teoria a 12 plies: 2 de 14.

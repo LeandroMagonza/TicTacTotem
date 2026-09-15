@@ -778,6 +778,83 @@ Lo que se paga por no contestar con un 5: a ve4, entre 10 y 20 puntos según la 
 tras un 4 en esquina, **todas** las respuestas que no son un 5 ni ocupan la esquina opuesta
 pierden 100 a 0.
 
+### El centro, lo que sigue a la respuesta, y el juego perfecto
+
+Scripts en `aperturas/jugadas/` sobre el motor de la web, que reproduce las reglas del solver:
+`centro.mjs` (políticas de centro enfrentadas), `centro_teoria.mjs` (el centro contra una
+búsqueda de 10 plies) y `despues.mjs` (cada tercera jugada tras una apertura y su respuesta).
+
+**Con juego perfecto gana el segundo en 14 plies después de cualquiera de las 8 aperturas**
+(`openings --sin-centro`). Ninguna apertura cambia el veredicto ni la profundidad. La línea
+principal no toca el centro ni una vez:
+
+```
+ 1. 1o  1 a A1                 8. 2o  mueve 3 de B1 a C1, tapa el 2
+ 2. 2o  5 a C3                 9. 1o  4 a C2
+ 3. 1o  4 a A3                10. 2o  mueve 5 de C3 a C2, tapa el 4
+ 4. 2o  2 a A2                11. 1o  mueve 3 de B3 a C3
+ 5. 1o  2 a C1                12. 2o  5 a B3
+ 6. 2o  3 a B1                13. 1o  mueve 1 de A1 a B1
+ 7. 1o  3 a B3                14. 2o  mueve 5 de B3 a C3, tapa el 3: fila C del segundo
+```
+
+El primero arma la fila C y el segundo se la tapa pieza por pieza. Las tres piezas que cierran
+la línea ganadora están apoyadas sobre piezas del primero.
+
+**Correr al centro pierde, y la razón es el tempo.** Al centro sólo se llega moviendo, y la
+adyacencia es ortogonal, así que hace falta tener antes una pieza en un lado. Enfrentando
+políticas sobre el mismo evaluador:
+
+| política | ve4 1o / 2o | ve6 1o / 2o |
+|---|---|---|
+| los dos normales | 48,8 / 49,3 | 32,7 / 65,0 |
+| el 1o entra al centro apenas puede | 12,8 / 86,8 | 2,7 / 97,3 |
+| el 2o entra al centro apenas puede | 94,0 / 5,8 | 97,0 / 3,0 |
+| el 1o prefiere el centro sólo entre jugadas de igual valor | 28,8 / 67,8 | 25,0 / 73,0 |
+
+Hasta el desempate hacia el centro, que en teoría no puede debilitar, le cuesta 20 puntos al
+primero a ve4: entre jugadas que a 4 plies se ven iguales, las del centro son peores más allá
+del horizonte. Comparando contra una búsqueda de 10 plies en los turnos en que entrar al centro
+es legal, y como control, mover cualquier pieza ya puesta en vez de colocar una de la mano:
+
+| ply | la mejor al centro es peor que la mejor de afuera | mover es peor que colocar |
+|---|---|---|
+| 3 | 100 % | 100 % |
+| 4 | 80 % | 78 % |
+| 5 | 65 % | 55 % |
+| 6 | 73 % | 46 % |
+| 7 | 37 % | 26 % |
+| 8 | 65 % | 21 % |
+| 9 | 27 % | 17 % |
+| 10 | 50 % | 21 % |
+
+La mayor parte del castigo es de mover mientras quedan piezas en la mano: el centro es la
+única casilla a la que sólo se llega gastando un turno así. Sobre eso hay un castigo propio del
+centro, visible desde el ply 5. "Mejor" que la alternativa no aparece antes del ply 8.
+
+La trampa de la correlación: en partidas normales **el que ocupa primero el centro gana 67 %**
+a ve4 y a ve6. No es que el centro haga ganar, es que se ocupa tarde, en el ply 10 u 11 de
+promedio, y lo ocupa el que ya está convirtiendo. El centro es donde termina la partida, no
+donde empieza, que es exactamente lo que la regla buscaba.
+
+**Después de la respuesta correcta el primero está perdido en teoría en todas las líneas, y
+en la práctica le queda una sola idea por línea, que cambia con la fuerza del rival.**
+Porcentaje del primero con la mejor tercera jugada:
+
+| línea | mejor a ve4 | mejor a ve6 | la que sirve contra los dos |
+|---|---|---|---|
+| 1 en A1, 5 en C3 | 4 a A2: 48,0 | 3 a B3: 6,0 | ninguna: contra ve6 no pasa de 6 |
+| 4 en A1, 5 en A2 | 1 a A3: 41,2 | 4 a C3: 41,8 | 1 a A3: 41,2 y 33,8 |
+| 4 en A2, 5 en C2 | 1 a C1: 40,0 | 4 a A1: 41,3 | 4 a A1: 28,2 y 41,3 |
+
+La jugada que más resiste en teoría no es la que más chances da: tras el elefante en esquina,
+el 4 a A3 de la línea principal pierde recién en 12 plies pero da 20 % a ve4, y el 4 a A2
+pierde en 8 pero da 48, porque un rival de visión 4 no ve esa derrota. A ve6 sí la ve, y el 4 a
+A2 cae a 0. Tras el elefante en esquina y la respuesta correcta, contra alguien que ve 6 plies,
+el primero no pasa de 6 %: es la línea que confirma que la serpiente es la mejor apertura. Tras
+la serpiente al lado, el 4 a A1 es además una de las dos terceras jugadas que no pierden a 12
+plies.
+
 Esa regla y ese set son los que implementa el juego web desde septiembre de 2026. El precio,
 común a todo lo que da profundidad, es que entre jugadores fuertes se inclina al segundo. La
 alternativa más plana con nivel es `12335` vs `12455` (50 / 54 / 49), con menos margen para el

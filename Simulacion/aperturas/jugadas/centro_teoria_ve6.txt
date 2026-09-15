@@ -1,0 +1,50 @@
+12344 vs 12355 con la regla, ve6, 80 partidas, comparacion a 10 plies.
+
+Turnos jugados: 1099. Turnos en los que entrar al centro era legal: 598 (54 %).
+De esos, la mejor jugada al centro es, contra la mejor de afuera:
+  peor    284  47 %
+  igual   288  48 %
+  mejor    26  4 %
+
+por ply:
+  ply  3    37 casos   peor 100 %   igual   0 %   mejor   0 %
+  ply  4    40 casos   peor  80 %   igual  20 %   mejor   0 %
+  ply  5    63 casos   peor  65 %   igual  35 %   mejor   0 %
+  ply  6    49 casos   peor  73 %   igual  27 %   mejor   0 %
+  ply  7    60 casos   peor  37 %   igual  63 %   mejor   0 %
+  ply  8    48 casos   peor  65 %   igual  33 %   mejor   2 %
+  ply  9    62 casos   peor  27 %   igual  69 %   mejor   3 %
+  ply 10    56 casos   peor  50 %   igual  45 %   mejor   5 %
+  ply 11    44 casos   peor  23 %   igual  64 %   mejor  14 %
+  ply 12    32 casos   peor  31 %   igual  63 %   mejor   6 %
+  ply 13    27 casos   peor   7 %   igual  81 %   mejor  11 %
+  ply 14    26 casos   peor  19 %   igual  69 %   mejor  12 %
+  ply 15    12 casos   peor  42 %   igual  50 %   mejor   8 %
+  ply 16    15 casos   peor  27 %   igual  67 %   mejor   7 %
+  ply 17    10 casos   peor   0 %   igual  60 %   mejor  40 %
+  ply 18     3 casos   peor   0 %   igual 100 %   mejor   0 %
+  ply 19     2 casos   peor   0 %   igual 100 %   mejor   0 %
+  ply 20     3 casos   peor  33 %   igual  67 %   mejor   0 %
+  ply 21     3 casos   peor  33 %   igual  67 %   mejor   0 %
+  ply 22     3 casos   peor  33 %   igual  67 %   mejor   0 %
+  ply 23     1 casos   peor 100 %   igual   0 %   mejor   0 %
+  ply 24     1 casos   peor   0 %   igual 100 %   mejor   0 %
+  ply 25     1 casos   peor   0 %   igual 100 %   mejor   0 %
+
+control: mover una pieza ya puesta contra colocar una de la mano (815 turnos):
+  mover es peor 37 %   igual 48 %   mejor 15 %
+  ply  3    80 casos   peor 100 %   igual   0 %   mejor   0 %
+  ply  4    80 casos   peor  78 %   igual  23 %   mejor   0 %
+  ply  5    80 casos   peor  55 %   igual  45 %   mejor   0 %
+  ply  6    80 casos   peor  46 %   igual  38 %   mejor  16 %
+  ply  7    80 casos   peor  26 %   igual  64 %   mejor  10 %
+  ply  8    80 casos   peor  21 %   igual  54 %   mejor  25 %
+  ply  9    75 casos   peor  17 %   igual  75 %   mejor   8 %
+  ply 10    71 casos   peor  21 %   igual  46 %   mejor  32 %
+  ply 11    47 casos   peor   6 %   igual  74 %   mejor  19 %
+  ply 12    50 casos   peor  12 %   igual  52 %   mejor  36 %
+
+como terminan:
+  line / gana el 2o              49  61 %
+  line / gana el 1o              28  35 %
+  repetition / gana nadie         3  4 %

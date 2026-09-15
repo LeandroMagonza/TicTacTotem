@@ -1,0 +1,17 @@
+Despues de 1@A1 5@C3, le toca a el primero.
+Teoria a 12 plies, 400 partidas a ve6 con esas jugadas forzadas.
+
+jugada                     teoria                   ve6 1o/2o
+------------------------------------------------------------------
+3 a B3                     pierde en 8              6.0 / 90.3
+2 a B3                     pierde en 8              5.8 / 89.5
+4 a B3                     pierde en 10             5.0 / 91.3
+4 a A3                     pierde en 12             2.3 / 92.5
+3 a A3                     pierde en 10             1.5 / 96.0
+2 a A3                     pierde en 8              0.5 / 99.0
+2 a A2                     pierde en 8              0.0 / 98.3
+3 a A2                     pierde en 8              0.0 / 100.0
+4 a A2                     pierde en 8              0.0 / 100.0
+mueve 1 a B1               pierde en 6              0.0 / 100.0
+
+Jugadas que no pierden en teoria a 12 plies: 0 de 10.

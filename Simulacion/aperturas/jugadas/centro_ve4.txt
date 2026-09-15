@@ -1,0 +1,10 @@
+12344 vs 12355, regla del centro, ve4, 400 partidas por serie.
+
+los dos normales               1o  48.8 %   2o  49.3 %   tablas  2.0 %   centro ocupado en  78.3 % de las partidas, ply 10.2, cambia 0.2 veces
+
+1o prefiere el centro          1o  28.8 %   2o  67.8 %   tablas  3.5 %   centro ocupado en  96.8 % de las partidas, ply 5.8, cambia 0.6 veces
+2o prefiere el centro          1o  51.3 %   2o  46.0 %   tablas  2.8 %   centro ocupado en  94.5 % de las partidas, ply 8.8, cambia 0.3 veces
+1o corre al centro             1o  12.8 %   2o  86.8 %   tablas  0.5 %   centro ocupado en  99.8 % de las partidas, ply 4.5, cambia 0.4 veces
+2o corre al centro             1o  94.0 %   2o   5.8 %   tablas  0.3 %   centro ocupado en 100.0 % de las partidas, ply 5.5, cambia 0.1 veces
+
+En partidas normales, el que ocupa primero el centro gana 67.6 % de las veces (306 partidas decididas con el centro ocupado).
