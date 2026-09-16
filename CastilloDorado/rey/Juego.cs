@@ -132,6 +132,83 @@ public sealed class Reglas {
     public int AlcanceObra = 0;
 
     /// <summary>
+    /// El constructor -la unidad, no el rey- levanta tambien en diagonal. Es la forma
+    /// mas barata de darle un oficio propio: el rey construye en cruz, el constructor
+    /// llega a ocho casillas. Sin algo asi el taller no se construye nunca, porque el
+    /// constructor no hace nada que el rey no haga igual de bien.
+    /// </summary>
+    public bool ConstructorDiagonal = false;
+
+    /// <summary>
+    /// Se construye BAJO LOS PIES, no al lado. Para levantar en otro lado hay que
+    /// caminar hasta ahi, asi que la apertura deja de ser "el rey construye tres veces
+    /// alrededor suyo sin moverse". Como la casilla queda ocupada por el que construyo,
+    /// la unidad del edificio no aparece sola: hay que correrse y desplegarla.
+    /// </summary>
+    public bool ObraEnElLugar = false;
+
+    /// <summary>
+    /// El que construye SE MUDA al sitio: mover y levantar son la misma jugada. No cuesta
+    /// un turno extra como ObraEnElLugar, pero igual obliga a reubicarse en cada obra, y
+    /// como queda parado sobre lo recien construido, con --no-pegado no puede volver a
+    /// construir desde ahi. Se acaba el rey que levanta tres edificios sin moverse.
+    /// </summary>
+    public bool ObraAlLlegar = false;
+
+    /// <summary>
+    /// La unidad sale a una casilla libre AL LADO del edificio, no encima. Arregla dos
+    /// cosas: el constructor ya no nace sobre el taller -donde con --no-pegado las cuatro
+    /// casillas vecinas son sitio ilegal y no puede construir nunca en su primer turno-,
+    /// y un edificio ocupado por los tuyos deja de bloquear el despliegue.
+    /// </summary>
+    public bool DespliegaAlLado = false;
+
+    /// <summary>No se puede construir pegado al rey enemigo: le da una zona de veto.</summary>
+    public bool NoCercaDelRey = false;
+
+    /// <summary>
+    /// No se puede construir en la FILA ni en la COLUMNA del rey enemigo. Es mucho mas
+    /// fuerte que vetarle las cuatro vecinas: veta 9 casillas de 25, y convierte al rey
+    /// en un arma posicional -- moverlo es negarle sitios de obra al otro, que es
+    /// interaccion en la apertura, justo donde el juego no tenia ninguna.
+    /// </summary>
+    public bool VetoReyLinea = false;
+
+    /// <summary>
+    /// No puede haber dos edificios del MISMO TIPO en la misma fila o columna. Poner el
+    /// taller en c3 le veta al rival la fila 3 y la columna c enteras para SU taller.
+    /// A diferencia de todo lo demas que probamos, no cambia cuanto me cuesta construir
+    /// a mi: cambia cuanto le cuesta al otro que yo construya.
+    /// </summary>
+    public bool FcTipo = false;
+
+    /// <summary>
+    /// Ni dos edificios del MISMO JUGADOR. Manda a los tres propios a filas y columnas
+    /// distintas. Absorbe casi todo --no-pegado: dos edificios pegados comparten fila o
+    /// columna. Lo unico que sigue permitiendo es pegar uno mio a uno tuyo de otro tipo,
+    /// que es justo la jugada de tapon -el cuartel viene con el guerrero y no se pasa-.
+    /// </summary>
+    public bool FcPropio = false;
+
+    /// <summary>
+    /// El castillo no juega a --no-pegado: se puede levantar pegado a lo que sea, y se
+    /// puede construir pegado a el. Cuando llega el momento de coronar hay hasta seis
+    /// edificios en el tablero, cada uno matando cinco casillas como sitio de obra, y en
+    /// el 15% de las partidas NADIE consigue ubicar el castillo. Varios frenos que
+    /// probamos pueden haber muerto por eso y no por la razon que les atribui.
+    /// </summary>
+    public bool CastilloLibre = false;
+
+    /// <summary>
+    /// El rey pierde el poder al LEVANTAR el edificio, y no lo recupera nunca. Es la unica
+    /// lectura monotona: las otras tres dependen de quien controla que, o sea de una
+    /// condicion que el rival puede volver a hacer verdadera robandote la unidad y
+    /// ocupandote el edificio -- y ahi el poder vuelve, y con el los ciclos de conversion
+    /// entre los dos reyes, que empatan la partida en 21 plies.
+    /// </summary>
+    public bool ReyNoRecupera = false;
+
+    /// <summary>
     /// El sacerdote convierte aunque ya tengas esa pieza: en vez de aparecer una segunda, la
     /// tuya se muda a esa casilla. Le saca la pieza al otro y reposiciona la tuya de un saque.
     /// </summary>
@@ -218,6 +295,16 @@ public sealed class Reglas {
         if (SoloGuerreroCorre) sb.Append("+solo-guerrero-corre");
         if (SaleCaminando) sb.Append("+sale-caminando");
         if (SacerdoteDiagonal) sb.Append("+sacerdote-diagonal");
+        if (ConstructorDiagonal) sb.Append("+constructor-diagonal");
+        if (ObraEnElLugar) sb.Append("+obra-en-el-lugar");
+        if (ObraAlLlegar) sb.Append("+obra-al-llegar");
+        if (DespliegaAlLado) sb.Append("+despliega-al-lado");
+        if (NoCercaDelRey) sb.Append("+no-cerca-del-rey");
+        if (VetoReyLinea) sb.Append("+veto-rey-linea");
+        if (FcTipo) sb.Append("+fc-tipo");
+        if (FcPropio) sb.Append("+fc-propio");
+        if (CastilloLibre) sb.Append("+castillo-libre");
+        if (ReyNoRecupera) sb.Append("+rey-no-recupera");
         if (GuerreroLargo) sb.Append("+guerrero-largo");
         if (ConstruyeLejos) sb.Append($"+construye-lejos{(AlcanceObra > 0 ? AlcanceObra.ToString() : "")}");
         if (SacerdoteReubica) sb.Append("+sacerdote-reubica");
@@ -522,6 +609,7 @@ public sealed class Juego {
         // lo delega. Matarle la unidad al otro ya no le devuelve el poder al rey.
         // Reino: hace falta no tener NINGUNO de los dos. Que te conviertan la unidad no le
         // devuelve el poder al rey si todavia controlas el edificio, porque desplegas otra.
+        if (R.ReyNoRecupera) return !Levantado(PresE(p.Ed), turno, t - 1);
         if (R.ReyReino) return !Hay(presU, turno, t) && !ControlaTipo(p, turno, t - 1);
         if (R.ReyPorEdificio) return !ControlaTipo(p, turno, t - 1);
         if (!Hay(presU, turno, t)) return true;
@@ -558,11 +646,56 @@ public sealed class Juego {
         => !Hay(presU, turno, tw) || R.SacerdoteReubica ||
            (R.SacerdoteReleva && Guarnecida(p, turno, tw));
 
-    public bool SitioDeObra(Pos p, int c) {
-        if (En(p.Un, c) != 0 || En(p.Ed, c) != 0) return false;
-        if (!R.NoPegado) return true;
-        foreach (int a in Ady[c]) if (En(p.Ed, a) != 0) return false;
+    public bool SitioDeObra(Pos p, int c) => SitioDeObra(p, c, -1, false);
+
+    /// <summary>
+    /// La parte del sitio que depende de QUE se levanta. El castillo queda afuera: no es
+    /// de nadie y hay uno solo.
+    /// </summary>
+    public bool SitioDeTipo(Pos p, int c, int turno, int tipoEd) {
+        if (!R.FcTipo && !R.FcPropio) return true;
+        int f = c / Lado, col = c % Lado;
+        for (int d = 0; d < Casillas; d++) {
+            int e = En(p.Ed, d);
+            if (e == 0 || EsCastillo(e)) continue;
+            if (d / Lado != f && d % Lado != col) continue;
+            if (R.FcPropio && DuenoE(e) == turno) return false;
+            if (R.FcTipo && TipoE(e) == tipoEd) return false;
+        }
         return true;
+    }
+
+    /// <summary>
+    /// turno >= 0 activa las reglas que dependen de quien construye. ignoraUnidad sirve
+    /// para construir bajo los propios pies.
+    /// </summary>
+    public bool SitioDeObra(Pos p, int c, int turno, bool ignoraUnidad) {
+        if (!ignoraUnidad && En(p.Un, c) != 0) return false;
+        if (En(p.Ed, c) != 0) return false;
+        if ((R.NoCercaDelRey || R.VetoReyLinea) && turno >= 0) {
+            int re = CasillaRey(p.Un, 1 - turno);
+            if (re >= 0) {
+                if (R.NoCercaDelRey) foreach (int a in Ady[re]) if (a == c) return false;
+                if (R.VetoReyLinea && (re / Lado == c / Lado || re % Lado == c % Lado)) return false;
+            }
+        }
+        if (!R.NoPegado) return true;
+        foreach (int a in Ady[c]) {
+            int e = En(p.Ed, a);
+            if (e == 0) continue;
+            if (R.CastilloLibre && EsCastillo(e)) continue;   // el castillo no estorba
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// El sitio del castillo, que puede tener su propia regla. Con CastilloLibre solo
+    /// pide casilla vacia; si no, es un sitio de obra como cualquier otro.
+    /// </summary>
+    public bool SitioDeCastillo(Pos p, int c, int turno, bool ignoraUnidad) {
+        if (!R.CastilloLibre) return SitioDeObra(p, c, turno, ignoraUnidad);
+        return (ignoraUnidad || En(p.Un, c) == 0) && En(p.Ed, c) == 0;
     }
 
     public int Jugadas(Pos p, int turno, Span<int> buf) {
@@ -578,9 +711,19 @@ public sealed class Juego {
         for (int c = 0; c < Casillas; c++) {
             // Punto de aparicion: un edificio propio vacio del que puede salir su unidad.
             int e = En(p.Ed, c);
-            if (e != 0 && !EsCastillo(e) && DuenoE(e) == turno && En(p.Un, c) == 0) {
+            if (e != 0 && !EsCastillo(e) && DuenoE(e) == turno) {
                 int tu = TipoE(e) + 1;
-                if (!Hay(presU, turno, tu)) buf[n++] = Jug(DESPLEGAR, c, c, tu);
+                int dentro = En(p.Un, c);
+                if (!Hay(presU, turno, tu)) {
+                    if (!R.DespliegaAlLado) {
+                        if (dentro == 0) buf[n++] = Jug(DESPLEGAR, c, c, tu);
+                    } else if (dentro == 0 || DuenoU(dentro) == turno) {
+                        // Sale a terreno abierto de al lado. Que el edificio este ocupado
+                        // por los tuyos ya no traba: es el caso del rey metido adentro.
+                        foreach (int a in Ady[c])
+                            if (En(p.Un, a) == 0 && En(p.Ed, a) == 0) buf[n++] = Jug(DESPLEGAR, c, a, tu);
+                    }
+                }
             }
 
             int u = En(p.Un, c);
@@ -654,7 +797,27 @@ public sealed class Juego {
                     if (tw != Rey && Convertible(p, presU, turno, tw)) buf[n++] = Jug(CONVERTIR, c, a, 0);
                 }
 
-            if (puedeConstruir) {
+            // El constructor llega en diagonal, donde el rey no. Es su oficio propio.
+            if (puedeConstruir && R.ConstructorDiagonal && t == Constructor && !R.ObraEnElLugar)
+                foreach (int a in AdyDiag[c]) {
+                    if (tresEd && !hayCastillo && SitioDeCastillo(p, a, turno, false))
+                        buf[n++] = Jug(CORONAR, c, a, 0);
+                    if (!SitioDeObra(p, a, turno, false)) continue;
+                    for (int b = Taller; b <= Iglesia; b++)
+                        if (!Levantado(presE, turno, b) && SitioDeTipo(p, a, turno, b))
+                                    buf[n++] = Jug(CONSTRUIR, c, a, b);
+                }
+
+            if (puedeConstruir && R.ObraEnElLugar) {
+                // Bajo los pies. Para levantar en otro lado hay que caminar hasta ahi.
+                if (tresEd && !hayCastillo && SitioDeCastillo(p, c, turno, true))
+                    buf[n++] = Jug(CORONAR, c, c, 0);
+                if (SitioDeObra(p, c, turno, true)) {
+                    for (int b = Taller; b <= Iglesia; b++)
+                        if (!Levantado(presE, turno, b) && SitioDeTipo(p, c, turno, b))
+                                    buf[n++] = Jug(CONSTRUIR, c, c, b);
+                }
+            } else if (puedeConstruir) {
                 if (R.ConstruyeLejos) {
                     // Se levanta a la vista: en cualquier casilla de la linea, frenando en
                     // lo primero que la tape. NO depende de que el que construye corra. Al
@@ -665,17 +828,21 @@ public sealed class Juego {
                             if (R.AlcanceObra > 0 && k >= R.AlcanceObra) break;
                             int d = linea[k];
                             if (En(p.Un, d) != 0 || En(p.Ed, d) != 0) break;
-                            if (!SitioDeObra(p, d)) continue;
+                            if (tresEd && !hayCastillo && SitioDeCastillo(p, d, turno, false))
+                                buf[n++] = Jug(CORONAR, c, d, 0);
+                            if (!SitioDeObra(p, d, turno, false)) continue;
                             for (int b = Taller; b <= Iglesia; b++)
-                                if (!Levantado(presE, turno, b)) buf[n++] = Jug(CONSTRUIR, c, d, b);
-                            if (tresEd && !hayCastillo) buf[n++] = Jug(CORONAR, c, d, 0);
+                                if (!Levantado(presE, turno, b) && SitioDeTipo(p, d, turno, b))
+                                    buf[n++] = Jug(CONSTRUIR, c, d, b);
                         }
                 } else {
                     foreach (int a in paso) {
-                        if (!SitioDeObra(p, a)) continue;
+                        if (tresEd && !hayCastillo && SitioDeCastillo(p, a, turno, false))
+                            buf[n++] = Jug(CORONAR, c, a, 0);
+                        if (!SitioDeObra(p, a, turno, false)) continue;
                         for (int b = Taller; b <= Iglesia; b++)
-                            if (!Levantado(presE, turno, b)) buf[n++] = Jug(CONSTRUIR, c, a, b);
-                        if (tresEd && !hayCastillo) buf[n++] = Jug(CORONAR, c, a, 0);
+                            if (!Levantado(presE, turno, b) && SitioDeTipo(p, a, turno, b))
+                                    buf[n++] = Jug(CONSTRUIR, c, a, b);
                     }
                 }
             }
@@ -701,7 +868,13 @@ public sealed class Juego {
                 // EdificioSinUnidad no viene nadie y hay que gastar un turno en desplegarla.
                 ed = Con(ed, hasta, CodE(turno, extra));
                 int tu = extra + 1;
-                if (!R.EdificioSinUnidad && !Hay(PresU(un), turno, tu))
+                if (R.ObraAlLlegar && desde != hasta) {
+                    un = Con(un, hasta, En(un, desde));
+                    un = Con(un, desde, 0);
+                }
+                // Con ObraEnElLugar la casilla la ocupa el que construyo, asi que la
+                // unidad no aparece sola: hay que correrse y desplegarla.
+                if (!R.EdificioSinUnidad && !Hay(PresU(un), turno, tu) && En(un, hasta) == 0)
                     un = Con(un, hasta, CodU(turno, tu));
                 return new Pos(ed, un);
             }
@@ -920,6 +1093,31 @@ public sealed class Juego {
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Lee de vuelta lo que escribe Linea(). Sirve para agarrar una posicion de una
+    /// partida exportada y preguntarle al motor que ve ahi.
+    /// </summary>
+    public static Pos DesdeLinea(string s) {
+        if (s.Length != Casillas * 2)
+            throw new ArgumentException($"la linea tiene que medir {Casillas * 2} caracteres, mide {s.Length}");
+        UInt128 ed = 0, un = 0;
+        for (int c = 0; c < Casillas; c++) {
+            char e = s[c * 2], u = s[c * 2 + 1];
+            if (e == '*') ed = Con(ed, c, CastilloCod);
+            else if (e != '.') {
+                int t = Array.IndexOf(LetraE, char.ToUpperInvariant(e));
+                if (t < 0) throw new ArgumentException($"edificio desconocido: {e}");
+                ed = Con(ed, c, CodE(char.IsUpper(e) ? Blanco : Negro, t));
+            }
+            if (u != '.') {
+                int t = Array.IndexOf(LetraU, char.ToUpperInvariant(u));
+                if (t < 0) throw new ArgumentException($"unidad desconocida: {u}");
+                un = Con(un, c, CodU(char.IsUpper(u) ? Blanco : Negro, t));
+            }
+        }
+        return new Pos(ed, un);
+    }
+
     public static string Dibujar(Pos p) {
         var sb = new StringBuilder();
         for (int f = 0; f < Lado; f++) {
@@ -956,7 +1154,9 @@ public sealed class Juego {
             case MATAR:
                 return $"{quien} {Casilla(desde)}x{Casilla(hasta)} mata {NombreU[TipoU(En(p.Un, hasta))]}";
             case CONSTRUIR:
-                return $"{quien} construye {NombreE[extra]} en {Casilla(hasta)}";
+                return R.ObraAlLlegar && desde != hasta
+                    ? $"{quien} va a {Casilla(hasta)} y construye {NombreE[extra]}"
+                    : $"{quien} construye {NombreE[extra]} en {Casilla(hasta)}";
             case CORONAR:
                 return $"{quien} levanta el CASTILLO en {Casilla(hasta)}";
             case DESPLEGAR:

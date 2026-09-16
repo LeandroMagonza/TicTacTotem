@@ -34,6 +34,9 @@ public struct Registro {
 public abstract class Politica {
     public abstract int Elegir(Juego g, Pos p, int turno, ref Rng rng, List<Pos> historia);
     public abstract string Nombre { get; }
+
+    /// <summary>Deja la politica lista para una partida nueva. Por defecto no hay nada que hacer.</summary>
+    public virtual void Reiniciar() { }
 }
 
 public sealed class PoliticaAzar : Politica {
@@ -50,6 +53,7 @@ public sealed class PoliticaBusqueda : Politica {
     private readonly int _prof;
     public PoliticaBusqueda(Busqueda b, int prof) { _b = b; _prof = prof; }
     public override string Nombre => $"ve{_prof}";
+    public override void Reiniciar() => _b.Limpiar();
     public override int Elegir(Juego g, Pos p, int turno, ref Rng rng, List<Pos> historia)
         => _b.ElegirPractico(p, turno, _prof, ref rng, historia);
 }
@@ -84,6 +88,11 @@ public sealed class Mesa {
         _ordenN.Clear();
         Pos p = _g.Inicial();
         int turno = Juego.Blanco;
+
+        // La tabla guarda cosas de ESTA partida. Arrastrarla a la siguiente mezcla
+        // dos partidas distintas en el mismo cache.
+        blanco.Reiniciar();
+        negro.Reiniciar();
 
         _vistas.Clear();
         _historia.Clear();

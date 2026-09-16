@@ -1,0 +1,1181 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jugar al juego del rey</title>
+<style>
+:root {
+  --tinta:#101820; --tinta-baja:#4A5A69; --papel:#E9EDF1; --tabla:#FDFDFB;
+  --linea:#B7C3CE; --linea-fina:#D6DEE5;
+  --p1:#1D5FD1; --p1-suave:#D5E2F8; --p2:#B8511A; --p2-suave:#F6E1D2;
+  --castillo:#6B4FA8; --castillo-s:#E4DCF3; --resalte:#F2C94C; --legal:#2E9E6B;
+  --r:6px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --tinta:#E6EDF3; --tinta-baja:#93A4B4; --papel:#0D1319; --tabla:#161F27;
+  --linea:#33434F; --linea-fina:#212D36;
+  --p1:#6BA1FF; --p1-suave:#1B3157; --p2:#F0904E; --p2-suave:#4A2A16;
+  --castillo:#B49BE8; --castillo-s:#33265A; --resalte:#C9A227; --legal:#3FBF87;
+} }
+*{box-sizing:border-box}
+body{margin:0;background:var(--papel);color:var(--tinta);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.5}
+.envoltorio{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
+.bajada{color:var(--tinta-baja);margin:0 0 22px;max-width:70ch;font-size:14px}
+h2{font-size:14px;margin:22px 0 8px;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-baja)}
+.mesa{display:grid;grid-template-columns:minmax(0,auto) minmax(280px,1fr);gap:26px;align-items:start}
+@media (max-width:900px){.mesa{grid-template-columns:1fr}}
+
+.marco{--celda:82px;display:grid;
+  grid-template-columns:22px repeat(var(--n),var(--celda));
+  grid-template-rows:repeat(var(--n),var(--celda)) 22px;
+  background:var(--tabla);border:1px solid var(--linea);border-radius:var(--r);
+  padding:10px;width:max-content}
+@media (max-width:560px){.marco{--celda:60px}}
+.coord{display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--tinta-baja);font-family:ui-monospace,monospace}
+.celda{position:relative;border:1px solid var(--linea-fina);background:var(--tabla);cursor:default;padding:0}
+.celda.par{background:color-mix(in srgb,var(--linea-fina) 45%,var(--tabla))}
+.celda.clickable{cursor:pointer}
+.edificio{position:absolute;inset:0;display:flex;align-items:flex-start;justify-content:flex-start;
+  font-family:ui-monospace,monospace;font-size:11px;font-weight:700;padding:4px;line-height:1}
+.edificio[data-de="1"]{background:var(--p1-suave);color:var(--p1)}
+.edificio[data-de="2"]{background:var(--p2-suave);color:var(--p2)}
+.edificio[data-de="0"]{background:var(--castillo-s);color:var(--castillo)}
+.unidad{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:58%;aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:calc(var(--celda)*.3);line-height:1;color:#fff}
+.unidad[data-de="1"]{background:var(--p1)}
+.unidad[data-de="2"]{background:var(--p2)}
+.unidad.rey{box-shadow:0 0 0 3px var(--resalte)}
+.edificio[hidden],.unidad[hidden]{display:none}
+.celda.sel::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 3px var(--resalte);pointer-events:none}
+.celda.ult::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 2px var(--resalte);opacity:.5;pointer-events:none}
+.punto{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:26%;aspect-ratio:1;border-radius:50%;background:var(--legal);opacity:.85;pointer-events:none}
+.punto.obra{border-radius:3px;width:32%}
+
+.panel{display:flex;flex-direction:column;gap:10px;min-width:0;position:sticky;top:14px}
+.abajo{display:grid;grid-template-columns:2fr 1fr;gap:22px;margin-top:28px;align-items:start}
+@media (max-width:900px){.abajo{grid-template-columns:1fr}.panel{position:static}}
+.fila{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;font-size:14px;font-weight:600;padding:7px 13px;border:1px solid var(--linea);
+  border-radius:var(--r);background:var(--tabla);color:var(--tinta);cursor:pointer}
+button:hover:not(:disabled){border-color:var(--tinta-baja)}
+button:disabled{opacity:.4;cursor:default}
+button.primario{background:var(--p1);border-color:var(--p1);color:#fff}
+select,input[type=number]{font:inherit;font-size:13px;padding:5px 7px;border:1px solid var(--linea);
+  border-radius:var(--r);background:var(--tabla);color:var(--tinta)}
+label.check{display:flex;gap:7px;align-items:flex-start;font-size:13px;cursor:pointer;padding:3px 0}
+label.check input{margin:3px 0 0}
+label.check b{font-weight:600}
+label.check span{color:var(--tinta-baja);display:block;font-size:12px;line-height:1.35}
+.reglas{border:1px solid var(--linea-fina);border-radius:var(--r);background:var(--tabla);padding:12px 14px}
+.barra-reglas{border:1px solid var(--linea-fina);border-radius:var(--r);background:var(--tabla);
+  padding:10px 12px 6px;margin-bottom:20px}
+.tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:9px}
+.tab{font-size:12px;font-weight:600;padding:5px 11px;border-radius:999px;border:1px solid var(--linea);
+  background:transparent;color:var(--tinta-baja);cursor:pointer;white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--tinta);border-color:var(--tinta);color:var(--papel)}
+.tira{display:flex;gap:8px;overflow-x:auto;padding:1px 0 7px;scrollbar-width:thin}
+.chk{display:inline-flex;gap:7px;align-items:center;white-space:nowrap;font-size:13px;
+  border:1px solid var(--linea);border-radius:999px;padding:5px 12px;cursor:pointer;
+  background:var(--tabla);flex:0 0 auto}
+.chk:hover{border-color:var(--tinta-baja)}
+.chk.on{background:var(--p1-suave);border-color:var(--p1);color:var(--p1)}
+.chk input{margin:0}
+.chk select,.chk input[type=number]{border:0;background:transparent;padding:0;font-size:13px;color:inherit}
+.ayudaRegla{font-size:12px;color:var(--tinta-baja);min-height:2.6em;line-height:1.3;border-top:1px solid var(--linea-fina);padding-top:6px}
+.reglas h3{font-size:12px;margin:12px 0 6px;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta-baja)}
+.reglas h3:first-child{margin-top:0}
+.aviso{font-size:13px;padding:9px 12px;border-radius:var(--r);background:var(--tabla);border:1px solid var(--linea-fina)}
+.aviso b{font-weight:600}
+.bitacora{border:1px solid var(--linea-fina);border-radius:var(--r);background:var(--tabla);
+  max-height:280px;overflow-y:auto;font-size:13px}
+.bitacora div{padding:3px 11px;border-bottom:1px solid var(--linea-fina);display:grid;grid-template-columns:30px 1fr;gap:8px}
+.bitacora div:last-child{border-bottom:0}
+.bitacora .n{font-family:ui-monospace,monospace;font-size:11px;color:var(--tinta-baja)}
+.bitacora .p1{color:var(--p1)} .bitacora .p2{color:var(--p2)}
+.leyenda{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--tinta-baja)}
+.pill{display:inline-flex;align-items:center;gap:5px}
+.ficha{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;color:#fff}
+.caja{width:18px;height:18px;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;font-family:ui-monospace,monospace}
+.analisis{border:1px solid var(--linea-fina);border-radius:var(--r);background:var(--tabla);
+  max-height:calc(100vh - 210px);min-height:180px;overflow-y:auto}
+.jug{display:grid;grid-template-columns:1fr 62px 54px;gap:8px;align-items:center;
+  width:100%;text-align:left;font:inherit;font-size:13px;padding:5px 11px;border:0;
+  border-bottom:1px solid var(--linea-fina);background:transparent;color:var(--tinta);cursor:pointer}
+.jug:last-child{border-bottom:0}
+.jug:hover{background:color-mix(in srgb,var(--linea-fina) 50%,transparent)}
+.jug.mejor{background:color-mix(in srgb,var(--legal) 16%,transparent)}
+.jug .val{font-family:ui-monospace,monospace;font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+.jug .barra{height:7px;border-radius:4px;background:var(--linea-fina);overflow:hidden}
+.jug .barra i{display:block;height:100%;background:var(--legal)}
+.jug.mala .barra i{background:var(--p2)}
+.jug .val.gana{color:var(--legal);font-weight:700}
+.jug .val.pierde{color:var(--p2);font-weight:700}
+.resumen{border:1px solid var(--linea-fina);border-radius:var(--r);background:var(--tabla);padding:9px 12px}
+.resumen .cifra{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.resumen .cifra.bien{color:var(--legal)} .resumen .cifra.mal{color:var(--p2)}
+.resumen .sub{font-size:12px;color:var(--tinta-baja);line-height:1.35}
+.resumen svg{display:block;width:100%;height:44px;margin-top:6px}
+.escala{font-size:11px;color:var(--tinta-baja);margin-top:5px;line-height:1.3}
+dialog{border:1px solid var(--linea);border-radius:var(--r);background:var(--tabla);color:var(--tinta);padding:18px}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+</style>
+</head>
+<body>
+<div class="envoltorio">
+  <h1>Jugar al juego del rey</h1>
+  <p class="bajada">
+    Vos jugás con azul y movés primero. El bot juega con naranja. Las reglas se prenden y
+    apagan a la derecha; cambiarlas empieza una partida nueva. Los puntos verdes son los
+    destinos legales de la pieza que elegiste; los cuadraditos son sitios donde se puede
+    construir.
+  </p>
+
+  <div class="barra-reglas">
+    <div class="fila" id="presets" style="margin-bottom:9px"></div>
+    <div class="tabs" id="tabsReglas" role="tablist"></div>
+    <div class="tira" id="tiraReglas"></div>
+    <div class="ayudaRegla" id="ayudaRegla"></div>
+  </div>
+
+  <div class="mesa">
+    <div>
+      <div class="marco" id="marco"></div>
+      <div class="fila" style="margin-top:14px">
+        <button class="primario" id="nueva">Partida nueva</button>
+        <button id="deshacer">Deshacer</button>
+        <button id="pasar">Que juegue el bot</button>
+        <span class="contador" id="pensando" style="font-size:13px;color:var(--tinta-baja)"></span>
+      </div>
+      <div class="aviso" id="aviso" style="margin-top:12px"></div>
+      <div class="leyenda" style="margin-top:12px">
+        <span class="pill"><i class="ficha" style="background:var(--p1)">R</i>rey</span>
+        <span class="pill"><i class="ficha" style="background:var(--p1)">C</i>constructor</span>
+        <span class="pill"><i class="ficha" style="background:var(--p1)">G</i>guerrero</span>
+        <span class="pill"><i class="ficha" style="background:var(--p1)">S</i>sacerdote</span>
+        <span class="pill"><i class="caja" style="background:var(--p1-suave);color:var(--p1)">T</i>taller</span>
+        <span class="pill"><i class="caja" style="background:var(--p1-suave);color:var(--p1)">Q</i>cuartel</span>
+        <span class="pill"><i class="caja" style="background:var(--p1-suave);color:var(--p1)">I</i>iglesia</span>
+        <span class="pill"><i class="caja" style="background:var(--castillo-s);color:var(--castillo)">★</i>castillo</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2 style="margin-top:0">Tus jugadas, según el bot</h2>
+      <div class="fila">
+        <button id="evaluar">Evaluar</button>
+        <label class="check" style="padding:0"><input type="checkbox" id="autoEval">
+          <span style="color:var(--tinta)">automático</span></label>
+      </div>
+      <div class="resumen" id="resumen"></div>
+      <div id="costoEval" style="font-size:12px;color:var(--tinta-baja)"></div>
+      <div class="analisis" id="analisis"></div>
+    </div>
+  </div>
+
+  <div class="abajo">
+    <div>
+      <h2 style="margin-top:0">Bitácora</h2>
+      <div class="bitacora" id="bitacora"></div>
+    </div>
+    <div>
+      <h2 style="margin-top:0">El bot</h2>
+      <div class="reglas">
+        <label class="check"><span style="color:var(--tinta)">Profundidad
+          <select id="prof">
+            <option value="2">2 plies (flojo)</option>
+            <option value="4" selected>4 plies</option>
+            <option value="6">6 plies</option>
+            <option value="8">8 plies (lento)</option>
+          </select></span></label>
+        <p style="font-size:12px;color:var(--tinta-baja);margin:8px 0 0">
+          Mismo alfa-beta y misma evaluación que el solver, con búsqueda de quietud.
+          Sin tabla de transposición: ahí es donde estaban los bugs.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlgObra">
+  <p style="margin:0 0 12px;font-weight:600">¿Qué levantás?</p>
+  <div class="fila" id="opcionesObra"></div>
+</dialog>
+
+<script>
+"use strict";
+
+/* ==========================================================================
+   Las reglas. Es un port del motor de C# de ../rey/Juego.cs, con los mismos
+   nombres para que se puedan comparar de a pares. Dos planos por casilla:
+   uno de edificios y uno de unidades, porque una unidad puede estar parada
+   SOBRE un edificio y de eso se trata el juego.
+   ========================================================================== */
+
+const BLANCO = 0, NEGRO = 1;
+const REY = 0, CONSTRUCTOR = 1, GUERRERO = 2, SACERDOTE = 3;
+const TALLER = 0, CUARTEL = 1, IGLESIA = 2;
+const CASTILLO = 7;
+const MOVER = 0, MATAR = 1, CONSTRUIR = 2, CORONAR = 3, DESPLEGAR = 4, CONVERTIR = 5;
+
+const LETRA_U = ["R", "C", "G", "S"];
+const LETRA_E = ["T", "Q", "I"];
+const NOMBRE_U = ["rey", "constructor", "guerrero", "sacerdote"];
+const NOMBRE_E = ["taller", "cuartel", "iglesia"];
+
+const codE = (d, t) => 1 + d * 3 + t;          // 1..3 blanco, 4..6 negro
+const duenoE = e => (e >= 4 && e <= 6) ? NEGRO : BLANCO;
+const tipoE = e => (e - 1) % 3;
+const esCastillo = e => e === CASTILLO;
+const codU = (d, t) => 1 + d * 4 + t;          // 1..4 blanco, 5..8 negro
+const duenoU = u => u >= 5 ? NEGRO : BLANCO;
+const tipoU = u => (u - 1) % 4;
+
+const REGLAS_DEF = {
+  lado: 5,
+  noPegado: false,
+  fcPropio: true,
+  fcTipo: false,
+  poderRey: "reino",          // reino | monotono | guarnicion
+  sacerdoteReubica: true,
+  sacerdoteVuelve: true,
+  castilloLibre: false,
+  noCercaDelRey: false,
+  vetoReyLinea: false,
+  sacerdoteDiagonal: false,
+  constructorDiagonal: false,
+  despliegaAlLado: false,
+  desliza: false,
+  soloGuerreroCorre: false,
+  construyeLejos: false,
+  alcanceObra: 2,
+};
+
+class Juego {
+  constructor(r) {
+    this.r = Object.assign({}, REGLAS_DEF, r);
+    const L = this.r.lado;
+    this.L = L;
+    this.N = L * L;
+    this.ady = []; this.adyDiag = []; this.lineas = [];
+    for (let c = 0; c < this.N; c++) {
+      const f = (c / L) | 0, col = c % L;
+      const a = [];
+      if (f > 0) a.push(c - L);
+      if (f < L - 1) a.push(c + L);
+      if (col > 0) a.push(c - 1);
+      if (col < L - 1) a.push(c + 1);
+      this.ady.push(a);
+      const d = [];
+      for (const [df, dc] of [[-1,-1],[-1,1],[1,-1],[1,1]]) {
+        const nf = f + df, nc = col + dc;
+        if (nf >= 0 && nf < L && nc >= 0 && nc < L) d.push(nf * L + nc);
+      }
+      this.adyDiag.push(d);
+      const dirs = [];
+      for (const [df, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+        const linea = [];
+        for (let k = 1; k < L; k++) {
+          const nf = f + df * k, nc = col + dc * k;
+          if (nf < 0 || nf >= L || nc < 0 || nc >= L) break;
+          linea.push(nf * L + nc);
+        }
+        if (linea.length) dirs.push(linea);
+      }
+      this.lineas.push(dirs);
+    }
+  }
+
+  casilla(c) { return String.fromCharCode(97 + c % this.L) + (this.L - ((c / this.L) | 0)); }
+
+  inicial() {
+    const ed = new Int8Array(this.N), un = new Int8Array(this.N);
+    // "frentes": los dos en el medio, el primero contra el fondo y el segundo
+    // una fila adelantado. Es la disposicion que quedo de las mediciones.
+    const donde = (this.L >> 1);
+    un[donde] = codU(BLANCO, REY);
+    un[this.N - 1 - donde] = codU(NEGRO, REY);
+    return { ed, un };
+  }
+
+  clon(p) { return { ed: Int8Array.from(p.ed), un: Int8Array.from(p.un) }; }
+  clave(p) { return p.ed.join("") + "|" + p.un.join(""); }
+
+  casillaDeU(p, cod) { for (let c = 0; c < this.N; c++) if (p.un[c] === cod) return c; return -1; }
+  casillaDeE(p, cod) { for (let c = 0; c < this.N; c++) if (p.ed[c] === cod) return c; return -1; }
+  hayU(p, d, t) { return this.casillaDeU(p, codU(d, t)) >= 0; }
+  levantado(p, d, t) { return this.casillaDeE(p, codE(d, t)) >= 0; }
+  hayCastillo(p) { return this.casillaDeE(p, CASTILLO) >= 0; }
+  casillaRey(p, d) { return this.casillaDeU(p, codU(d, REY)); }
+
+  /* Control: manda el que ocupa; si esta vacio, manda el que lo construyo. */
+  controla(p, c) {
+    const u = p.un[c];
+    if (u !== 0) return duenoU(u);
+    return duenoE(p.ed[c]);
+  }
+  controlaTipo(p, d, t) {
+    for (let c = 0; c < this.N; c++) {
+      const e = p.ed[c];
+      if (e === 0 || esCastillo(e) || tipoE(e) !== t) continue;
+      if (this.controla(p, c) === d) return true;
+    }
+    return false;
+  }
+  edificios(p, d) {
+    let n = 0;
+    for (let t = TALLER; t <= IGLESIA; t++) if (this.controlaTipo(p, d, t)) n++;
+    return n;
+  }
+
+  /* La unidad esta parada sobre un edificio propio de su tipo. */
+  guarnecida(p, d, t) {
+    const c = this.casillaDeU(p, codU(d, t));
+    if (c < 0) return false;
+    const e = p.ed[c];
+    return e !== 0 && !esCastillo(e) && duenoE(e) === d && tipoE(e) === t - 1;
+  }
+
+  poderDelRey(p, turno, t) {
+    const R = this.r;
+    if (R.poderRey === "monotono") return !this.levantado(p, turno, t - 1);
+    if (R.poderRey === "reino")
+      return !this.hayU(p, turno, t) && !this.controlaTipo(p, turno, t - 1);
+    // guarnicion: lo tiene si la unidad no esta, o si esta en su edificio
+    if (!this.hayU(p, turno, t)) return true;
+    return this.guarnecida(p, turno, t);
+  }
+
+  sitioDeObra(p, c, turno, ignoraUnidad) {
+    const R = this.r;
+    if (!ignoraUnidad && p.un[c] !== 0) return false;
+    if (p.ed[c] !== 0) return false;
+    if ((R.noCercaDelRey || R.vetoReyLinea) && turno >= 0) {
+      const re = this.casillaRey(p, 1 - turno);
+      if (re >= 0) {
+        if (R.noCercaDelRey) for (const a of this.ady[re]) if (a === c) return false;
+        // Fila y columna enteras: el rey enemigo veta 9 casillas de 25, y moverlo
+        // pasa a ser una jugada contra la construccion del otro.
+        if (R.vetoReyLinea &&
+            (((re / this.L) | 0) === ((c / this.L) | 0) || re % this.L === c % this.L))
+          return false;
+      }
+    }
+    if (!R.noPegado) return true;
+    for (const a of this.ady[c]) {
+      const e = p.ed[a];
+      if (e === 0) continue;
+      if (R.castilloLibre && esCastillo(e)) continue;
+      return false;
+    }
+    return true;
+  }
+
+  /* La parte del sitio que depende de QUE se levanta. El castillo queda afuera. */
+  sitioDeTipo(p, c, turno, tipo) {
+    const R = this.r;
+    if (!R.fcTipo && !R.fcPropio) return true;
+    const f = (c / this.L) | 0, col = c % this.L;
+    for (let d = 0; d < this.N; d++) {
+      const e = p.ed[d];
+      if (e === 0 || esCastillo(e)) continue;
+      if (((d / this.L) | 0) !== f && d % this.L !== col) continue;
+      if (R.fcPropio && duenoE(e) === turno) return false;
+      if (R.fcTipo && tipoE(e) === tipo) return false;
+    }
+    return true;
+  }
+
+  sitioDeCastillo(p, c, turno) {
+    if (!this.r.castilloLibre) return this.sitioDeObra(p, c, turno, false);
+    return p.un[c] === 0 && p.ed[c] === 0;
+  }
+
+  convertible(p, turno, tw) {
+    const R = this.r;
+    return !this.hayU(p, turno, tw) || R.sacerdoteReubica;
+  }
+
+  jugadas(p, turno) {
+    const R = this.r, out = [];
+    const tresEd = this.edificios(p, turno) === 3;
+    const hayCast = this.hayCastillo(p);
+    const reyConstruye = this.poderDelRey(p, turno, CONSTRUCTOR);
+    const reyMata = this.poderDelRey(p, turno, GUERRERO);
+    const reyConvierte = this.poderDelRey(p, turno, SACERDOTE);
+
+    for (let c = 0; c < this.N; c++) {
+      // Punto de aparicion: edificio propio del que puede salir su unidad.
+      const e = p.ed[c];
+      if (e !== 0 && !esCastillo(e) && duenoE(e) === turno) {
+        const tu = tipoE(e) + 1;
+        const dentro = p.un[c];
+        if (!this.hayU(p, turno, tu)) {
+          if (!R.despliegaAlLado) {
+            if (dentro === 0) out.push({ tipo: DESPLEGAR, desde: c, hasta: c, extra: tu });
+          } else if (dentro === 0 || duenoU(dentro) === turno) {
+            for (const a of this.ady[c])
+              if (p.un[a] === 0 && p.ed[a] === 0)
+                out.push({ tipo: DESPLEGAR, desde: c, hasta: a, extra: tu });
+          }
+        }
+      }
+
+      const u = p.un[c];
+      if (u === 0 || duenoU(u) !== turno) continue;
+      const t = tipoU(u), esRey = t === REY;
+      const puedeMatar = t === GUERRERO || (esRey && reyMata);
+      const puedeConstruir = t === CONSTRUCTOR || (esRey && reyConstruye);
+      const puedeConvertir = t === SACERDOTE || (esRey && reyConvierte);
+
+      // Correr por terreno abierto: frena antes de cualquier unidad o edificio.
+      const corre = R.desliza && (!R.soloGuerreroCorre || t === GUERRERO);
+      if (corre)
+        for (const linea of this.lineas[c])
+          for (const d of linea) {
+            if (p.un[d] !== 0 || p.ed[d] !== 0) break;
+            out.push({ tipo: MOVER, desde: c, hasta: d, extra: 0 });
+          }
+
+      for (const a of this.ady[c]) {
+        const w = p.un[a];
+        if (w === 0) {
+          // Los edificios son terreno: cualquiera entra a uno vacio y lo controla.
+          // Corriendo, el paso suelto se reserva a entrar a un edificio.
+          if (!corre || p.ed[a] !== 0) out.push({ tipo: MOVER, desde: c, hasta: a, extra: 0 });
+          continue;
+        }
+        if (duenoU(w) === turno) continue;
+        const tw = tipoU(w);
+        if (puedeMatar) out.push({ tipo: MATAR, desde: c, hasta: a, extra: 0 });
+        if (puedeConvertir && !R.sacerdoteDiagonal && tw !== REY && this.convertible(p, turno, tw))
+          out.push({ tipo: CONVERTIR, desde: c, hasta: a, extra: 0 });
+      }
+
+      // Convertir en aspa, donde el guerrero no llega a contestar.
+      if (R.sacerdoteDiagonal && puedeConvertir)
+        for (const a of this.adyDiag[c]) {
+          const w = p.un[a];
+          if (w === 0 || duenoU(w) === turno) continue;
+          const tw = tipoU(w);
+          if (tw !== REY && this.convertible(p, turno, tw))
+            out.push({ tipo: CONVERTIR, desde: c, hasta: a, extra: 0 });
+        }
+
+      if (!puedeConstruir) continue;
+
+      // El constructor llega en diagonal, donde el rey no. Es su oficio propio.
+      if (R.constructorDiagonal && t === CONSTRUCTOR)
+        for (const a of this.adyDiag[c]) this.obrasEn(p, out, c, a, turno, tresEd, hayCast);
+
+      if (R.construyeLejos) {
+        for (const linea of this.lineas[c])
+          for (let k = 0; k < linea.length; k++) {
+            if (R.alcanceObra > 0 && k >= R.alcanceObra) break;
+            const d = linea[k];
+            if (p.un[d] !== 0 || p.ed[d] !== 0) break;
+            this.obrasEn(p, out, c, d, turno, tresEd, hayCast);
+          }
+      } else {
+        for (const a of this.ady[c]) this.obrasEn(p, out, c, a, turno, tresEd, hayCast);
+      }
+    }
+    return out;
+  }
+
+  obrasEn(p, out, desde, a, turno, tresEd, hayCast) {
+    if (tresEd && !hayCast && this.sitioDeCastillo(p, a, turno))
+      out.push({ tipo: CORONAR, desde, hasta: a, extra: 0 });
+    if (!this.sitioDeObra(p, a, turno, false)) return;
+    for (let b = TALLER; b <= IGLESIA; b++)
+      if (!this.levantado(p, turno, b) && this.sitioDeTipo(p, a, turno, b))
+        out.push({ tipo: CONSTRUIR, desde, hasta: a, extra: b });
+  }
+
+  aplicar(p, turno, j) {
+    const q = this.clon(p), R = this.r;
+    switch (j.tipo) {
+      case MOVER:
+        q.un[j.hasta] = q.un[j.desde]; q.un[j.desde] = 0; break;
+      case MATAR:
+        q.un[j.hasta] = q.un[j.desde]; q.un[j.desde] = 0; break;
+      case CONSTRUIR: {
+        q.ed[j.hasta] = codE(turno, j.extra);
+        const tu = j.extra + 1;
+        if (!this.hayU(q, turno, tu) && q.un[j.hasta] === 0)
+          q.un[j.hasta] = codU(turno, tu);
+        break;
+      }
+      case CORONAR:
+        q.ed[j.hasta] = CASTILLO; break;
+      case DESPLEGAR:
+        q.un[j.hasta] = codU(turno, j.extra); break;
+      case CONVERTIR: {
+        const loHizoElSacerdote = tipoU(p.un[j.desde]) === SACERDOTE;
+        const victima = p.un[j.hasta], tv = tipoU(victima);
+        const mio = codU(turno, tv);
+        q.un[j.hasta] = mio;
+        if (R.sacerdoteReubica)
+          for (let c = 0; c < this.N; c++)
+            if (c !== j.hasta && q.un[c] === mio) { q.un[c] = 0; break; }
+        // Convertir un sacerdote NO dispara el retroceso: si no, robarle el
+        // sacerdote al otro te resetea la posicion y no vale la pena.
+        if (R.sacerdoteVuelve && loHizoElSacerdote && tv !== SACERDOTE) {
+          const cod = codU(turno, SACERDOTE);
+          const donde = this.casillaDeU(q, cod);
+          if (donde >= 0) {
+            const igl = this.casillaDeE(q, codE(turno, IGLESIA));
+            q.un[donde] = 0;
+            if (igl >= 0 && q.un[igl] === 0) q.un[igl] = cod;
+          }
+        }
+        break;
+      }
+    }
+    return q;
+  }
+
+  /* null si la partida sigue; si no, {res, fin} con res 1 blanco, -1 negro, 0 empate. */
+  terminal(p, turno) {
+    const rb = this.casillaRey(p, BLANCO), rn = this.casillaRey(p, NEGRO);
+    if (rb < 0) return { res: -1, fin: "rey muerto" };
+    if (rn < 0) return { res: 1, fin: "rey muerto" };
+    const cc = this.casillaDeE(p, CASTILLO);
+    if (cc >= 0) {
+      for (const d of [BLANCO, NEGRO]) {
+        const rc = this.casillaRey(p, d);
+        if (rc === cc && this.edificios(p, d) === 3)
+          return { res: d === BLANCO ? 1 : -1, fin: "castillo" };
+      }
+    }
+    return null;
+  }
+
+  describir(p, turno, j) {
+    const quien = NOMBRE_U[tipoU(p.un[j.desde] || codU(turno, REY))];
+    switch (j.tipo) {
+      case MOVER: return `${quien} ${this.casilla(j.desde)}-${this.casilla(j.hasta)}`;
+      case MATAR: return `${quien} ${this.casilla(j.desde)}x${this.casilla(j.hasta)} mata ${NOMBRE_U[tipoU(p.un[j.hasta])]}`;
+      case CONSTRUIR: return `${quien} construye ${NOMBRE_E[j.extra]} en ${this.casilla(j.hasta)}`;
+      case CORONAR: return `${quien} levanta el CASTILLO en ${this.casilla(j.hasta)}`;
+      case DESPLEGAR: return `sale el ${NOMBRE_U[j.extra]} en ${this.casilla(j.hasta)}`;
+      case CONVERTIR: return `${quien} convierte ${NOMBRE_U[tipoU(p.un[j.hasta])]} en ${this.casilla(j.hasta)}`;
+    }
+    return "?";
+  }
+}
+
+/* ==========================================================================
+   El bot. Alfa-beta con la misma evaluacion que el solver y busqueda de
+   quietud sobre matar y convertir. SIN tabla de transposicion: en el solver
+   la tabla guardaba valores que dependian del camino recorrido y eso le hacia
+   tirar partidas ganadas.
+   ========================================================================== */
+
+const GANA = 1000000;
+
+class Bot {
+  constructor(g) { this.g = g; this.nodos = 0; }
+
+  evaluar(p, turno) {
+    const g = this.g;
+    let s = 0;
+    const cc = g.casillaDeE(p, CASTILLO);
+    for (const d of [BLANCO, NEGRO]) {
+      const sg = d === turno ? 1 : -1;
+      const ed = g.edificios(p, d);
+      s += sg * 130 * ed;
+      if (ed === 3) s += sg * 260;
+      for (let t = CONSTRUCTOR; t <= SACERDOTE; t++) if (g.hayU(p, d, t)) s += sg * 35;
+      const rc = g.casillaRey(p, d);
+      if (rc < 0) continue;
+      if (cc >= 0) {
+        const dist = Math.abs(((rc / g.L) | 0) - ((cc / g.L) | 0)) + Math.abs(rc % g.L - cc % g.L);
+        s += sg * (ed === 3 ? 520 - 90 * dist : 110 - 20 * dist);
+      }
+      for (const a of g.ady[rc]) {
+        const w = p.un[a];
+        if (w === 0 || duenoU(w) === d) continue;
+        if (tipoU(w) === GUERRERO) s -= sg * 200;
+      }
+    }
+    return s;
+  }
+
+  quieta(p, turno, alfa, beta, gastado) {
+    this.nodos++;
+    const g = this.g;
+    const fin = g.terminal(p, turno);
+    if (fin) return fin.res * (turno === BLANCO ? 1 : -1) * (GANA - (100 + gastado));
+    const js = g.jugadas(p, turno);
+    if (!js.length) return -(GANA - (100 + gastado));
+    let mejor = this.evaluar(p, turno);
+    if (mejor >= beta || gastado >= 4) return mejor;
+    if (mejor > alfa) alfa = mejor;
+    for (const j of js) {
+      if (j.tipo !== MATAR && j.tipo !== CONVERTIR) continue;
+      const v = -this.quieta(g.aplicar(p, turno, j), 1 - turno, -beta, -alfa, gastado + 1);
+      if (v > mejor) mejor = v;
+      if (mejor > alfa) alfa = mejor;
+      if (alfa >= beta) break;
+    }
+    return mejor;
+  }
+
+  buscar(p, turno, prof, alfa, beta, camino) {
+    this.nodos++;
+    const g = this.g;
+    const fin = g.terminal(p, turno);
+    if (fin) return fin.res * (turno === BLANCO ? 1 : -1) * (GANA - (100 - prof));
+    const k = g.clave(p);
+    let veces = 0;
+    for (const x of camino) if (x === k && ++veces >= 2) return 0;
+    const js = g.jugadas(p, turno);
+    if (!js.length) return -(GANA - (100 - prof));
+    if (prof <= 0) return this.quieta(p, turno, alfa, beta, 0);
+    js.sort((a, b) => prioridad(b) - prioridad(a));
+    let mejor = -Infinity;
+    camino.push(k);
+    for (const j of js) {
+      const v = -this.buscar(g.aplicar(p, turno, j), 1 - turno, prof - 1, -beta, -alfa, camino);
+      if (v > mejor) mejor = v;
+      if (mejor > alfa) alfa = mejor;
+      if (alfa >= beta) break;
+    }
+    camino.pop();
+    return mejor;
+  }
+
+  elegir(p, turno, prof, historia) {
+    const g = this.g;
+    this.nodos = 0;
+    const js = g.jugadas(p, turno);
+    if (!js.length) return null;
+    js.sort((a, b) => prioridad(b) - prioridad(a));
+    let mejor = -Infinity, empatadas = [];
+    for (const j of js) {
+      const camino = historia.slice();
+      const v = -this.buscar(g.aplicar(p, turno, j), 1 - turno, prof - 1, -GANA * 2, GANA * 2, camino);
+      if (v > mejor) { mejor = v; empatadas = [j]; }
+      else if (v === mejor) empatadas.push(j);
+    }
+    return empatadas[(Math.random() * empatadas.length) | 0];
+  }
+}
+
+function prioridad(j) {
+  switch (j.tipo) {
+    case MATAR: return 5;
+    case CORONAR: return 4;
+    case CONVERTIR: return 3;
+    case CONSTRUIR: return 2;
+    case DESPLEGAR: return 1;
+    default: return 0;
+  }
+}
+
+/* ==========================================================================
+   La pagina.
+   ========================================================================== */
+
+const DEFS_REGLAS = [
+  ["Tablero y sitio de obra", [
+    ["lado", "Tamano del tablero", "", "lado"],
+    ["fcPropio", "Fila y columna propias",
+      "Tus tres edificios van en filas y columnas distintas. Reemplaza a no-pegado."],
+    ["fcTipo", "Fila y columna por tipo",
+      "Tu taller y el mio no pueden compartir fila ni columna. Medida: empeora el balance."],
+    ["noPegado", "No pegado",
+      "Ningun edificio puede tocar a ningun otro, ni tuyo ni mio."],
+    ["castilloLibre", "Castillo libre",
+      "El castillo no juega a no-pegado, en las dos direcciones."],
+    ["vetoReyLinea", "El rey enemigo veta su fila y su columna",
+      "No se puede construir en ninguna de las 9 casillas de su cruz. Mover el rey pasa a ser una jugada contra la obra del otro."],
+    ["noCercaDelRey", "No construir pegado al rey enemigo",
+      "La version chica: solo las 4 vecinas."],
+  ]],
+  ["El rey", [
+    ["poderRey", "Cuando pierde el poder", "", "poder"],
+  ]],
+  ["Las unidades", [
+    ["sacerdoteReubica", "El sacerdote reubica",
+      "Convierte aunque ya tengas esa pieza: la tuya se muda ahi."],
+    ["sacerdoteVuelve", "El sacerdote vuelve a la iglesia",
+      "Despues de convertir deja la casilla. Convertir a un sacerdote no lo dispara."],
+    ["sacerdoteDiagonal", "El sacerdote convierte en aspa",
+      "Solo en diagonal. El guerrero mata en cruz, asi que cubren casillas distintas."],
+    ["constructorDiagonal", "El constructor levanta en diagonal",
+      "Ocho casillas contra las cuatro del rey. Medida: acelera mucho la carrera."],
+    ["despliegaAlLado", "Desplegar al lado",
+      "La unidad sale a una casilla libre vecina, no encima del edificio."],
+  ]],
+  ["Movimiento y alcance", [
+    ["desliza", "Deslizar", "Se corre en linea recta y se frena ante unidad o edificio."],
+    ["soloGuerreroCorre", "Corre solo el guerrero", "El resto camina un paso."],
+    ["construyeLejos", "Construir a la vista", "En cualquier casilla de la linea."],
+    ["alcanceObra", "Alcance de la obra", "", "num"],
+  ]],
+];
+
+const PRESETS = {
+  "fc": { lado: 5, fcPropio: true, fcTipo: false, noPegado: false, poderRey: "reino",
+          sacerdoteReubica: true, sacerdoteVuelve: true, desliza: false, construyeLejos: false,
+          constructorDiagonal: false, sacerdoteDiagonal: false, despliegaAlLado: false,
+          castilloLibre: false, noCercaDelRey: false },
+  "np": { lado: 5, fcPropio: false, fcTipo: false, noPegado: true, poderRey: "monotono",
+          sacerdoteReubica: true, sacerdoteVuelve: true, desliza: false, construyeLejos: false,
+          constructorDiagonal: false, sacerdoteDiagonal: false, despliegaAlLado: false,
+          castilloLibre: false, noCercaDelRey: false },
+};
+
+let reglas = Object.assign({}, REGLAS_DEF);
+let juego, pos, turno, historia, pila, sel, ultima, terminado;
+
+function nueva() {
+  juego = new Juego(reglas);
+  pos = juego.inicial();
+  turno = BLANCO;
+  historia = [juego.clave(pos)];
+  pila = [];
+  sel = -1; ultima = null; terminado = null;
+  histEval = [];
+  armarMarco();
+  pintar();
+  document.getElementById("bitacora").replaceChildren();
+}
+
+function armarMarco() {
+  const marco = document.getElementById("marco");
+  marco.style.setProperty("--n", juego.L);
+  marco.replaceChildren();
+  for (let f = 0; f < juego.L; f++) {
+    const r = document.createElement("div");
+    r.className = "coord"; r.textContent = juego.L - f;
+    marco.appendChild(r);
+    for (let col = 0; col < juego.L; col++) {
+      const i = f * juego.L + col;
+      const d = document.createElement("button");
+      d.className = "celda" + ((f + col) % 2 ? " par" : "");
+      d.id = "c" + i;
+      d.onclick = () => clic(i);
+      const e = document.createElement("div"); e.className = "edificio"; e.hidden = true;
+      const u = document.createElement("div"); u.className = "unidad"; u.hidden = true;
+      d.append(e, u);
+      marco.appendChild(d);
+    }
+  }
+  marco.appendChild(document.createElement("div"));
+  for (let col = 0; col < juego.L; col++) {
+    const c = document.createElement("div");
+    c.className = "coord"; c.textContent = String.fromCharCode(97 + col);
+    marco.appendChild(c);
+  }
+}
+
+function legalesDesde(c) {
+  if (terminado || turno !== BLANCO) return [];
+  return juego.jugadas(pos, BLANCO).filter(j => j.desde === c);
+}
+
+function pintar() {
+  for (let i = 0; i < juego.N; i++) {
+    const celda = document.getElementById("c" + i);
+    const de = celda.firstChild, du = celda.children[1];
+    const e = pos.ed[i], u = pos.un[i];
+    if (e === 0) de.hidden = true;
+    else {
+      de.hidden = false;
+      if (esCastillo(e)) { de.dataset.de = "0"; de.textContent = "★"; }
+      else { de.dataset.de = duenoE(e) === BLANCO ? "1" : "2"; de.textContent = LETRA_E[tipoE(e)]; }
+    }
+    if (u === 0) { du.hidden = true; du.classList.remove("rey"); }
+    else {
+      du.hidden = false;
+      du.dataset.de = duenoU(u) === BLANCO ? "1" : "2";
+      du.textContent = LETRA_U[tipoU(u)];
+      du.classList.toggle("rey", tipoU(u) === REY);
+    }
+    celda.classList.toggle("sel", i === sel);
+    celda.classList.toggle("ult", !!ultima && (ultima.desde === i || ultima.hasta === i));
+    for (const x of Array.from(celda.querySelectorAll(".punto"))) x.remove();
+    celda.classList.remove("clickable");
+  }
+
+  const mias = terminado || turno !== BLANCO ? [] : juego.jugadas(pos, BLANCO);
+  if (sel < 0) {
+    for (const j of mias) document.getElementById("c" + j.desde).classList.add("clickable");
+  } else {
+    for (const j of mias.filter(j => j.desde === sel)) {
+      const celda = document.getElementById("c" + j.hasta);
+      celda.classList.add("clickable");
+      if (!celda.querySelector(".punto")) {
+        const pt = document.createElement("div");
+        pt.className = "punto" + (j.tipo === CONSTRUIR || j.tipo === CORONAR ? " obra" : "");
+        celda.appendChild(pt);
+      }
+    }
+    document.getElementById("c" + sel).classList.add("clickable");
+  }
+
+  const av = document.getElementById("aviso");
+  if (terminado) {
+    av.innerHTML = "<b>" + terminado + "</b>";
+  } else {
+    const n = mias.length;
+    av.innerHTML = turno === BLANCO
+      ? `Te toca. <b>${n}</b> jugadas legales.` +
+        (sel >= 0 ? " Clic en un destino verde. Escape para soltar la pieza." : " Clic en una pieza tuya.")
+      : "Piensa el bot...";
+  }
+  document.getElementById("deshacer").disabled = pila.length === 0;
+  const auto = document.getElementById("autoEval");
+  if (auto && auto.checked && !terminado && turno === BLANCO) evaluarJugadas();
+}
+
+function anotar(txt, quien) {
+  const b = document.getElementById("bitacora");
+  const d = document.createElement("div");
+  const n = document.createElement("span"); n.className = "n"; n.textContent = historia.length - 1;
+  const t = document.createElement("span"); t.className = quien === BLANCO ? "p1" : "p2"; t.textContent = txt;
+  d.append(n, t);
+  b.appendChild(d);
+  b.scrollTop = b.scrollHeight;
+}
+
+function hacer(j, quien) {
+  pila.push({ pos: juego.clon(pos), turno, ultima, hist: historia.length });
+  anotar(juego.describir(pos, quien, j), quien);
+  pos = juego.aplicar(pos, quien, j);
+  ultima = j;
+  turno = 1 - quien;
+  historia.push(juego.clave(pos));
+  sel = -1;
+  revisarFin();
+}
+
+function revisarFin() {
+  const fin = juego.terminal(pos, turno);
+  if (fin) {
+    terminado = fin.res === 1 ? "Ganaste: " + fin.fin : "Gano el bot: " + fin.fin;
+    return;
+  }
+  if (!juego.jugadas(pos, turno).length) {
+    terminado = turno === BLANCO ? "Perdiste: te quedaste sin jugadas" : "Ganaste: el bot se quedo sin jugadas";
+    return;
+  }
+  const k = juego.clave(pos);
+  let veces = 0;
+  for (const x of historia) if (x === k) veces++;
+  if (veces >= 3) terminado = "Empate por repeticion";
+}
+
+function clic(c) {
+  if (terminado || turno !== BLANCO) return;
+  // Primero las jugadas, DESPUES la deseleccion. Al reves, desplegar era
+  // imposible: cuando la unidad sale adentro del edificio la jugada va de la
+  // casilla a si misma, y el clic se comia como "soltar la pieza".
+  if (sel >= 0) {
+    const ops = legalesDesde(sel).filter(j => j.hasta === c);
+    if (ops.length === 1) { jugarYResponder(ops[0]); return; }
+    if (ops.length > 1) { elegirJugada(ops); return; }
+  }
+  if (sel === c) { sel = -1; pintar(); return; }
+  const propias = juego.jugadas(pos, BLANCO).some(j => j.desde === c);
+  sel = propias ? c : -1;
+  pintar();
+}
+
+/// Una casilla puede admitir varias jugadas distintas: pisarla, o levantar
+/// cualquiera de los tres edificios, o matar, o convertir. Cada una tiene que
+/// decir lo que es -- antes todas se etiquetaban con el nombre del edificio y
+/// "mover" aparecia como "taller".
+function etiquetaJugada(j) {
+  switch (j.tipo) {
+    case MOVER: return pos.ed[j.hasta] !== 0 ? "Entrar al edificio" : "Mover aca";
+    case MATAR: return "Matar " + NOMBRE_U[tipoU(pos.un[j.hasta])];
+    case CONVERTIR: return "Convertir " + NOMBRE_U[tipoU(pos.un[j.hasta])];
+    case CONSTRUIR: return "Levantar " + NOMBRE_E[j.extra];
+    case CORONAR: return "Levantar el CASTILLO";
+    case DESPLEGAR: return "Sacar el " + NOMBRE_U[j.extra];
+  }
+  return "?";
+}
+
+function elegirJugada(opciones) {
+  const dlg = document.getElementById("dlgObra");
+  const cont = document.getElementById("opcionesObra");
+  cont.replaceChildren();
+  for (const j of opciones) {
+    const b = document.createElement("button");
+    b.textContent = etiquetaJugada(j);
+    b.onclick = () => { dlg.close(); jugarYResponder(j); };
+    cont.appendChild(b);
+  }
+  const c = document.createElement("button");
+  c.textContent = "Cancelar";
+  c.onclick = () => dlg.close();
+  cont.appendChild(c);
+  dlg.showModal();
+}
+
+function jugarYResponder(j) {
+  hacer(j, BLANCO);
+  pintar();
+  if (terminado) return;
+  responder();
+}
+
+function responder() {
+  const et = document.getElementById("pensando");
+  et.textContent = "pensando...";
+  // Un respiro para que el navegador pinte el "pensando" antes de bloquearse.
+  setTimeout(() => {
+    const prof = +document.getElementById("prof").value;
+    const bot = new Bot(juego);
+    const t0 = performance.now();
+    const j = bot.elegir(pos, NEGRO, prof, historia);
+    const ms = Math.round(performance.now() - t0);
+    if (!j) { terminado = "Ganaste: el bot se quedo sin jugadas"; et.textContent = ""; pintar(); return; }
+    hacer(j, NEGRO);
+    et.textContent = `${bot.nodos.toLocaleString("es")} nodos en ${ms} ms`;
+    pintar();
+  }, 30);
+}
+
+/* La misma cuenta que hace el bot, pero mostrada desde TU lado: para cada jugada
+   tuya, cuanto vale la posicion que queda. Es una busqueda completa por jugada, o
+   sea que cuesta lo mismo que un turno del bot. */
+/* Cuanto vale la posicion AHORA, no solo cual es la mejor jugada. Sin esto se
+   puede jugar 273 veces "la mejor" y perder de golpe sin haber visto que las
+   chances venian cayendo: la lista solo mostraba diferencias contra la mejor,
+   que es un cero movil. */
+let histEval = [];
+
+function palabra(v) {
+  if (v > GANA / 2) return ["ganado", "bien"];
+  if (v < -GANA / 2) return ["perdido", "mal"];
+  if (v >= 400) return ["ganando claro", "bien"];
+  if (v >= 130) return ["mejor", "bien"];
+  if (v > -130) return ["parejo", ""];
+  if (v > -400) return ["peor", "mal"];
+  return ["perdiendo feo", "mal"];
+}
+
+function dibujarCurva(cont) {
+  if (histEval.length < 2) return;
+  const tope = 900;
+  const pts = histEval.map(h => Math.max(-tope, Math.min(tope, h.v)));
+  const w = 240, h = 44;
+  const px = (i) => (pts.length === 1 ? w / 2 : i * w / (pts.length - 1));
+  const py = (v) => h / 2 - (v / tope) * (h / 2 - 3);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  svg.setAttribute("preserveAspectRatio", "none");
+  const eje = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  eje.setAttribute("x1", 0); eje.setAttribute("x2", w);
+  eje.setAttribute("y1", h / 2); eje.setAttribute("y2", h / 2);
+  eje.setAttribute("stroke", "var(--linea)"); eje.setAttribute("stroke-dasharray", "3 3");
+  const linea = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  linea.setAttribute("fill", "none");
+  linea.setAttribute("stroke", pts[pts.length - 1] >= 0 ? "var(--legal)" : "var(--p2)");
+  linea.setAttribute("stroke-width", "2");
+  linea.setAttribute("points", pts.map((v, i) => `${px(i)},${py(v)}`).join(" "));
+  svg.append(eje, linea);
+  cont.appendChild(svg);
+}
+
+/* La misma cuenta que hace el bot, pero mostrada desde TU lado: para cada jugada
+   tuya, cuanto vale la posicion que queda. Es una busqueda completa por jugada, o
+   sea que cuesta lo mismo que un turno del bot. */
+function evaluarJugadas() {
+  const cont = document.getElementById("analisis");
+  const res = document.getElementById("resumen");
+  cont.replaceChildren();
+  res.replaceChildren();
+  if (terminado || turno !== BLANCO) { document.getElementById("costoEval").textContent = ""; return; }
+  const prof = +document.getElementById("prof").value;
+  const bot = new Bot(juego);
+  const t0 = performance.now();
+  const filas = juego.jugadas(pos, BLANCO).map(j => ({
+    j, v: -bot.buscar(juego.aplicar(pos, BLANCO, j), NEGRO, prof - 1, -GANA * 2, GANA * 2, historia.slice())
+  }));
+  const ms = Math.round(performance.now() - t0);
+  filas.sort((a, b) => b.v - a.v);
+  document.getElementById("costoEval").textContent =
+    `${filas.length} jugadas, ${bot.nodos.toLocaleString("es")} nodos, ${ms} ms`;
+  if (!filas.length) return;
+
+  const mejor = filas[0].v;
+  const ply = historia.length - 1;
+  const previo = histEval.length ? histEval[histEval.length - 1] : null;
+  if (!previo || previo.ply !== ply) histEval.push({ ply, v: mejor });
+  else previo.v = mejor;
+
+  // --------------------------------------------------------------- resumen
+  const [txt, clase] = palabra(mejor);
+  const cifra = document.createElement("div");
+  cifra.className = "cifra " + clase;
+  cifra.textContent = Math.abs(mejor) > GANA / 2
+    ? txt : (mejor > 0 ? "+" : "") + mejor;
+  res.appendChild(cifra);
+
+  const sub = document.createElement("div");
+  sub.className = "sub";
+  const partes = [`Estas <b>${txt}</b>`];
+  const antes = histEval.length >= 2 ? histEval[histEval.length - 2].v : null;
+  if (antes !== null && Math.abs(antes) < GANA / 2 && Math.abs(mejor) < GANA / 2) {
+    const d = mejor - antes;
+    partes.push(d === 0 ? "igual que en tu turno anterior"
+      : `${d > 0 ? "subiste" : "bajaste"} ${Math.abs(d)} desde tu turno anterior`);
+  }
+  const empatan = filas.filter(f => f.v === mejor).length;
+  if (empatan > 1) partes.push(`<b>${empatan}</b> jugadas empatan arriba: la eleccion es indistinta`);
+  sub.innerHTML = partes.join(" &middot; ");
+  res.appendChild(sub);
+
+  dibujarCurva(res);
+  const esc = document.createElement("div");
+  esc.className = "escala";
+  esc.innerHTML = "Escala: <b>130</b> un edificio controlado &middot; <b>260</b> tener los tres tipos " +
+                  "&middot; <b>35</b> una unidad viva &middot; <b>200</b> tu rey pegado a un guerrero enemigo";
+  res.appendChild(esc);
+
+  // --------------------------------------------------------------- lista
+  const peor = filas[filas.length - 1].v;
+  const rango = Math.max(1, mejor - peor);
+  for (const { j, v } of filas) {
+    const b = document.createElement("button");
+    b.className = "jug" + (v === mejor ? " mejor" : "") + (v < -GANA / 2 ? " mala" : "");
+    const t = document.createElement("span");
+    t.textContent = juego.describir(pos, BLANCO, j);
+    const val = document.createElement("span");
+    val.className = "val";
+    if (v > GANA / 2) { val.textContent = "gana"; val.classList.add("gana"); }
+    else if (v < -GANA / 2) { val.textContent = "pierde"; val.classList.add("pierde"); }
+    else val.textContent = v === mejor ? "mejor" : "−" + (mejor - v);
+    const barra = document.createElement("span");
+    barra.className = "barra";
+    const i = document.createElement("i");
+    i.style.width = Math.round(100 * (v - peor) / rango) + "%";
+    barra.appendChild(i);
+    b.append(t, val, barra);
+    b.onmouseenter = () => { sel = j.desde; pintar(); };
+    b.onclick = () => jugarYResponder(j);
+    cont.appendChild(b);
+  }
+}
+
+let grupoActivo = 0;
+
+function ayuda(txt) { document.getElementById("ayudaRegla").textContent = txt || ""; }
+
+/* Las reglas arriba de todo, en pestanas: son quince y no entran en una tira
+   sola sin dejar el tablero abajo del pliegue. */
+function armarReglas() {
+  const pres = document.getElementById("presets");
+  pres.replaceChildren();
+  const rot = document.createElement("span");
+  rot.style.cssText = "font-size:12px;color:var(--tinta-baja);margin-right:2px";
+  rot.textContent = "Partidas armadas:";
+  pres.appendChild(rot);
+  for (const [k, nombre] of [["fc", "Fila y columna"], ["np", "No pegado + rey monotono"]]) {
+    const b = document.createElement("button");
+    b.textContent = nombre;
+    b.style.cssText = "font-size:13px;padding:5px 11px";
+    b.onclick = () => { Object.assign(reglas, PRESETS[k]); armarReglas(); nueva(); };
+    pres.appendChild(b);
+  }
+
+  const tabs = document.getElementById("tabsReglas");
+  tabs.replaceChildren();
+  DEFS_REGLAS.forEach(([grupo], i) => {
+    const b = document.createElement("button");
+    b.className = "tab";
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", String(i === grupoActivo));
+    b.textContent = grupo;
+    b.onclick = () => { grupoActivo = i; armarReglas(); };
+    tabs.appendChild(b);
+  });
+
+  const tira = document.getElementById("tiraReglas");
+  tira.replaceChildren();
+  for (const [clave, nombre, ayudaTxt, tipo] of DEFS_REGLAS[grupoActivo][1]) {
+    const l = document.createElement("label");
+    l.className = "chk";
+    l.title = ayudaTxt || "";
+    l.onmouseenter = () => ayuda(ayudaTxt || nombre);
+    l.onmouseleave = () => ayuda("");
+
+    if (tipo === "poder" || tipo === "lado" || tipo === "num") {
+      let ctrl;
+      if (tipo === "num") {
+        ctrl = document.createElement("input");
+        ctrl.type = "number"; ctrl.min = "1"; ctrl.max = "5";
+        ctrl.value = reglas.alcanceObra; ctrl.style.width = "42px";
+        ctrl.onchange = () => { reglas.alcanceObra = +ctrl.value || 1; nueva(); };
+      } else {
+        ctrl = document.createElement("select");
+        const ops = tipo === "lado"
+          ? [[4, "4x4"], [5, "5x5"], [6, "6x6"]]
+          : [["reino", "mientras tenga la unidad o el edificio"],
+             ["monotono", "al levantarlo, para siempre"],
+             ["guarnicion", "salvo que la unidad este en su edificio"]];
+        for (const [v, txt] of ops) {
+          const o = document.createElement("option");
+          o.value = String(v); o.textContent = txt;
+          if ((tipo === "lado" ? reglas.lado : reglas.poderRey) == v) o.selected = true;
+          ctrl.appendChild(o);
+        }
+        ctrl.onchange = () => {
+          if (tipo === "lado") reglas.lado = +ctrl.value; else reglas.poderRey = ctrl.value;
+          nueva();
+        };
+      }
+      l.append(document.createTextNode(nombre + " "), ctrl);
+    } else {
+      const inp = document.createElement("input");
+      inp.type = "checkbox";
+      inp.checked = !!reglas[clave];
+      const marcar = () => l.classList.toggle("on", inp.checked);
+      inp.onchange = () => { reglas[clave] = inp.checked; marcar(); nueva(); };
+      marcar();
+      l.append(inp, document.createTextNode(nombre));
+    }
+    tira.appendChild(l);
+  }
+  ayuda("");
+}
+
+document.getElementById("evaluar").onclick = evaluarJugadas;
+document.getElementById("autoEval").onchange = () => { if (document.getElementById("autoEval").checked) evaluarJugadas(); };
+document.getElementById("nueva").onclick = nueva;
+document.getElementById("pasar").onclick = () => { if (!terminado && turno === BLANCO) { turno = NEGRO; pintar(); responder(); } };
+document.getElementById("deshacer").onclick = () => {
+  if (!pila.length) return;
+  const s = pila.pop();
+  pos = s.pos; turno = s.turno; ultima = s.ultima;
+  historia.length = s.hist;
+  terminado = null; sel = -1;
+  const b = document.getElementById("bitacora");
+  if (b.lastChild) b.removeChild(b.lastChild);
+  pintar();
+};
+
+// Con una jugada de la casilla a si misma -- desplegar adentro del edificio --
+// el clic ya no sirve para soltar la pieza, asi que hace falta otra salida.
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && sel >= 0) { sel = -1; pintar(); }
+});
+
+armarReglas();
+nueva();
+</script>
+</body>
+</html>

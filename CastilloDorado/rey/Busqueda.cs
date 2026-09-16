@@ -33,6 +33,14 @@ public sealed class Busqueda {
     private readonly Pos[] _camino = new Pos[1024];
     private int _caminoLen;
 
+    /// <summary>
+    /// Cuantas veces se corto una rama por repeticion. Un valor que salio de una
+    /// repeticion depende del CAMINO recorrido, no solo de la posicion, asi que
+    /// guardarlo en la tabla contamina cualquier otro contexto que llegue ahi.
+    /// Contando antes y despues se sabe si el valor de un nodo se puede guardar.
+    /// </summary>
+    private int _repeticiones;
+
     public long Nodos;
 
     /// <summary>
@@ -43,6 +51,13 @@ public sealed class Busqueda {
     /// pasan de 1.8% a 26%. Ese salto es del buscador, no del juego.
     /// </summary>
     public int MaxQuieta = 0;
+
+    /// <summary>
+    /// Vacia la tabla antes de cada jugada. La tabla guarda valores que dependen del
+    /// CAMINO -YaVista devuelve 0 por repeticion, y ese 0 se propaga al valor del padre,
+    /// que si se guarda-, asi que reutilizarla en otro contexto contamina.
+    /// </summary>
+    public bool LimpiaCadaJugada = false;
 
     public Busqueda(Juego g, int bits = 22) {
         _g = g;
@@ -59,6 +74,7 @@ public sealed class Busqueda {
     public void Limpiar() {
         Array.Clear(_ttTipo);
         Nodos = 0;
+        _repeticiones = 0;
     }
 
     // ------------------------------------------------------------ evaluacion
@@ -100,6 +116,7 @@ public sealed class Busqueda {
 
     /// <summary>Elige una jugada mirando prof plies. Entre las que empatan elige al azar.</summary>
     public int ElegirPractico(Pos p, int turno, int prof, ref Rng rng, List<Pos>? historia) {
+        if (LimpiaCadaJugada) Array.Clear(_ttTipo);
         _caminoLen = 0;
         if (historia != null) foreach (Pos h in historia) _camino[_caminoLen++] = h;
 
@@ -137,7 +154,7 @@ public sealed class Busqueda {
             int signo = turno == Juego.Blanco ? 1 : -1;
             return (int)fin.Value.res * signo * (GANA - (100 - prof));
         }
-        if (YaVista(p)) return 0;
+        if (YaVista(p)) { _repeticiones++; return 0; }
 
         Span<int> jugadas = stackalloc int[Juego.MaxJugadas];
         int n = _g.Jugadas(p, turno, jugadas);
@@ -156,6 +173,7 @@ public sealed class Busqueda {
 
         Ordenar(jugadas, n);
         int alfa0 = alfa, mejor = int.MinValue;
+        int repAntes = _repeticiones;
         for (int i = 0; i < n; i++) {
             Pos np = _g.Aplicar(p, turno, jugadas[i]);
             _camino[_caminoLen++] = np;
@@ -166,11 +184,24 @@ public sealed class Busqueda {
             if (alfa >= beta) break;
         }
 
-        _ttClave[idx] = clave;
-        _ttValor[idx] = mejor;
-        _ttProf[idx] = (sbyte)Math.Min(prof, 127);
-        _ttTipo[idx] = (byte)(mejor <= alfa0 ? 3 : mejor >= beta ? 2 : 1);
+        // Solo se guarda lo que vale para cualquier camino.
+        if (_repeticiones == repAntes) {
+            _ttClave[idx] = clave;
+            _ttValor[idx] = mejor;
+            _ttProf[idx] = (sbyte)Math.Min(prof, 127);
+            _ttTipo[idx] = (byte)(mejor <= alfa0 ? 3 : mejor >= beta ? 2 : 1);
+        }
         return mejor;
+    }
+
+    /// <summary>
+    /// Valor practico de una posicion suelta, sin historia previa. Es la puerta para
+    /// analizar una posicion a mano y ver que le da el motor a cada jugada.
+    /// </summary>
+    public int RaizPractica(Pos p, int turno, int prof) {
+        _caminoLen = 0;
+        _camino[_caminoLen++] = p;
+        return Practico(p, turno, prof, -GANA * 2, GANA * 2);
     }
 
     // --------------------------------------------------------------- quietud

@@ -35,9 +35,11 @@ public static class SelfTest {
         => Lista(g, p, turno).Any(j => Juego.JTipo(j) == tipoJ && Juego.JHasta(j) == hasta
                                        && (extra < 0 || Juego.JExtra(j) == extra));
 
-    private static bool TieneDesde(Juego g, Pos p, int turno, int tipoJ, int desde, int hasta)
+    private static bool TieneDesde(Juego g, Pos p, int turno, int tipoJ, int desde, int hasta,
+                                   int extra = -1)
         => Lista(g, p, turno).Any(j => Juego.JTipo(j) == tipoJ && Juego.JDesde(j) == desde
-                                       && Juego.JHasta(j) == hasta);
+                                       && Juego.JHasta(j) == hasta
+                                       && (extra < 0 || Juego.JExtra(j) == extra));
 
     private static bool TieneTipo(Juego g, Pos p, int turno, int tipoJ)
         => Lista(g, p, turno).Any(j => Juego.JTipo(j) == tipoJ);
@@ -626,6 +628,126 @@ public static class SelfTest {
               TieneDesde(gal, pista, B, Juego.CONSTRUIR, 10, 12));
         Check("y no mas alla",
               !TieneDesde(gal, pista, B, Juego.CONSTRUIR, 10, 13));
+
+        // El constructor nace sobre el taller y con --no-pegado sus cuatro vecinas son
+        // sitio ilegal: sin ayuda no puede construir NUNCA en su primer turno.
+        var gnp5 = new Juego(new Reglas { Lado = 5, NoPegado = true });
+        Pos reciennacido = U(U(E(v5, B, Juego.Taller, 12), B, Juego.Constructor, 12), N, Juego.Rey, 4);
+        reciennacido = U(reciennacido, B, Juego.Rey, 0);
+        Check("el constructor recien salido no tiene donde construir: nace en zona muerta",
+              !Lista(gnp5, reciennacido, B).Any(j => Juego.JTipo(j) == Juego.CONSTRUIR &&
+                                                     Juego.JDesde(j) == 12));
+
+        var gdl = new Juego(new Reglas { Lado = 5, NoPegado = true, DespliegaAlLado = true });
+        Pos conTallerD = U(U(E(v5, B, Juego.Taller, 12), B, Juego.Rey, 0), N, Juego.Rey, 4);
+        Check("con --despliega-al-lado la unidad sale a una casilla vecina, no encima",
+              TieneDesde(gdl, conTallerD, B, Juego.DESPLEGAR, 12, 11) &&
+              !TieneDesde(gdl, conTallerD, B, Juego.DESPLEGAR, 12, 12));
+        Check("y un edificio ocupado por los tuyos ya no traba el despliegue",
+              TieneDesde(gdl, U(conTallerD, B, Juego.Sacerdote, 12), B, Juego.DESPLEGAR, 12, 11));
+
+        var gel = new Juego(new Reglas { Lado = 5, NoPegado = true, ObraEnElLugar = true });
+        Pos solito = U(U(v5, B, Juego.Rey, 12), N, Juego.Rey, 4);
+        Check("con --obra-en-el-lugar se construye bajo los pies",
+              TieneDesde(gel, solito, B, Juego.CONSTRUIR, 12, 12));
+        Check("y no al lado: para levantar en otro lado hay que caminar",
+              !TieneDesde(gel, solito, B, Juego.CONSTRUIR, 12, 11));
+        Check("la unidad no aparece sola, porque la casilla la ocupa el que construyo",
+              Juego.En(gel.Aplicar(solito, B, Juego.Jug(Juego.CONSTRUIR, 12, 12, Juego.Taller)).Un, 12)
+                  == Juego.CodU(B, Juego.Rey));
+
+        var gal2 = new Juego(new Reglas { Lado = 5, NoPegado = true, ObraAlLlegar = true });
+        Pos solo2 = U(U(v5, B, Juego.Rey, 12), N, Juego.Rey, 4);
+        Pos trasLlegar = gal2.Aplicar(solo2, B, Juego.Jug(Juego.CONSTRUIR, 12, 11, Juego.Taller));
+        Check("con --obra-al-llegar el que construye se muda al sitio",
+              Juego.En(trasLlegar.Un, 11) == Juego.CodU(B, Juego.Rey) && Juego.En(trasLlegar.Un, 12) == 0);
+        Check("y la unidad del edificio no aparece, porque la casilla la ocupa el",
+              Juego.En(trasLlegar.Ed, 11) == Juego.CodE(B, Juego.Taller));
+        Check("parado sobre lo recien construido no puede volver a construir: todo vecino es ilegal",
+              !Lista(gal2, trasLlegar, B).Any(j => Juego.JTipo(j) == Juego.CONSTRUIR && Juego.JDesde(j) == 11));
+
+        var gfc = new Juego(new Reglas { Lado = 5, FcTipo = true, FcPropio = true });
+        // Taller blanco en 12. Su fila es la 10..14; su columna es 2,7,12,17,22.
+        Pos fcOtro = U(U(E(v5, B, Juego.Taller, 12), B, Juego.Rey, 0), N, Juego.Rey, 11);
+        Check("con --fc-tipo el rival no pone SU taller en la fila del mio",
+              !TieneDesde(gfc, fcOtro, N, Juego.CONSTRUIR, 11, 10, Juego.Taller));
+        Check("pero si su cuartel en esa misma casilla, que es otro tipo",
+              TieneDesde(gfc, fcOtro, N, Juego.CONSTRUIR, 11, 10, Juego.Cuartel));
+        Check("y su taller fuera de esa fila y esa columna, si",
+              TieneDesde(gfc, fcOtro, N, Juego.CONSTRUIR, 11, 16, Juego.Taller));
+
+        // Rey blanco en 7, que comparte la columna 2 con su propio taller de 12.
+        Pos fcMio = U(U(E(v5, B, Juego.Taller, 12), B, Juego.Rey, 7), N, Juego.Rey, 24);
+        Check("con --fc-propio no pongo MI cuartel en la columna de mi taller",
+              !TieneDesde(gfc, fcMio, B, Juego.CONSTRUIR, 7, 2, Juego.Cuartel));
+        Check("y fuera de esa fila y esa columna, si",
+              TieneDesde(gfc, fcMio, B, Juego.CONSTRUIR, 7, 6, Juego.Cuartel));
+
+        var gnrc = new Juego(new Reglas { Lado = 5, ReyNoRecupera = true });
+        var greino = new Juego(new Reglas { Lado = 5, ReyReino = true });
+        // Blanco levanto la iglesia en 12 y el negro se la ocupo con su guerrero.
+        Pos robada = E(v5, B, Juego.Iglesia, 12);
+        robada = U(U(U(robada, N, Juego.Guerrero, 12), B, Juego.Rey, 6), N, Juego.Rey, 24);
+        Check("con --rey-reino, ocuparte la iglesia le DEVUELVE al rey el poder de convertir",
+              greino.PoderDelRey(robada, Juego.PresU(robada.Un), B, Juego.Sacerdote));
+        Check("con --rey-no-recupera no: lo perdio al levantarla y no vuelve",
+              !gnrc.PoderDelRey(robada, Juego.PresU(robada.Un), B, Juego.Sacerdote));
+        Check("y los poderes que no gasto los conserva",
+              gnrc.PoderDelRey(robada, Juego.PresU(robada.Un), B, Juego.Guerrero) &&
+              gnrc.PoderDelRey(robada, Juego.PresU(robada.Un), B, Juego.Constructor));
+
+        var gvl = new Juego(new Reglas { Lado = 5, VetoReyLinea = true });
+        // Rey blanco en 12 (c3), rey negro en 4 (e5): fila 5 y columna e vetadas.
+        Pos linea = U(U(v5, B, Juego.Rey, 12), N, Juego.Rey, 4);
+        Check("con --veto-rey-linea no se construye en la columna del rey enemigo",
+              !TieneDesde(gvl, linea, B, Juego.CONSTRUIR, 12, 13) ||
+              Juego.Casilla(13)[0] != Juego.Casilla(4)[0]);
+        Check("ni en su fila",
+              !TieneDesde(gvl, linea, B, Juego.CONSTRUIR, 12, 7) ||
+              Juego.Casilla(7)[1] != Juego.Casilla(4)[1]);
+        Check("y fuera de esa fila y esa columna si",
+              TieneDesde(gvl, linea, B, Juego.CONSTRUIR, 12, 11));
+        Check("la de una sola casilla es otra cosa: veta 4, esta veta 9",
+              !new Juego(new Reglas { Lado = 5, NoCercaDelRey = true })
+                   .SitioDeObra(linea, 3, B, false) &&
+              new Juego(new Reglas { Lado = 5, NoCercaDelRey = true })
+                   .SitioDeObra(linea, 14, B, false) &&
+              !gvl.SitioDeObra(linea, 14, B, false));
+
+        var gcl = new Juego(new Reglas { Lado = 5, NoPegado = true, CastilloLibre = true });
+        var gcn = new Juego(new Reglas { Lado = 5, NoPegado = true });
+        // Blanco controla los tres tipos y su rey en 7 quiere coronar en 2, pegado al taller.
+        Pos listo = E(E(E(v5, B, Juego.Taller, 1), B, Juego.Cuartel, 20), B, Juego.Iglesia, 24);
+        listo = U(U(listo, B, Juego.Rey, 7), N, Juego.Rey, 12);
+        Check("con --no-pegado el castillo tampoco se levanta pegado a un edificio",
+              !TieneDesde(gcn, listo, B, Juego.CORONAR, 7, 2));
+        Check("con --castillo-libre si",
+              TieneDesde(gcl, listo, B, Juego.CORONAR, 7, 2));
+        // Y al reves: con el castillo puesto en 6, construir en 7 es ilegal salvo castillo-libre.
+        Pos conCast = U(U(Cast(v5, 6), B, Juego.Rey, 12), N, Juego.Rey, 24);
+        Check("y con el castillo puesto, tampoco se construye pegado a el",
+              !TieneDesde(gcn, conCast, B, Juego.CONSTRUIR, 12, 7));
+        Check("salvo con --castillo-libre",
+              TieneDesde(gcl, conCast, B, Juego.CONSTRUIR, 12, 7));
+
+        var gnr = new Juego(new Reglas { Lado = 5, NoCercaDelRey = true });
+        // Rey blanco en 12, rey negro en 14: la casilla 13 esta pegada al negro.
+        Pos cerca = U(U(v5, B, Juego.Rey, 12), N, Juego.Rey, 14);
+        Check("con --no-cerca-del-rey no se construye pegado al rey enemigo",
+              !TieneDesde(gnr, cerca, B, Juego.CONSTRUIR, 12, 13));
+        Check("pero del otro lado si",
+              TieneDesde(gnr, cerca, B, Juego.CONSTRUIR, 12, 11));
+
+        var gcd = new Juego(new Reglas { Lado = 5, ConstructorDiagonal = true });
+        // Constructor blanco en 12, rey blanco lejos en 0 para que no ensucie la lista.
+        Pos ofic = U(U(U(v5, B, Juego.Rey, 0), N, Juego.Rey, 4), B, Juego.Constructor, 12);
+        Check("con --constructor-diagonal el constructor levanta en diagonal",
+              TieneDesde(gcd, ofic, B, Juego.CONSTRUIR, 12, 16) &&
+              TieneDesde(gcd, ofic, B, Juego.CONSTRUIR, 12, 18));
+        Check("y en cruz tambien, como siempre",
+              TieneDesde(gcd, ofic, B, Juego.CONSTRUIR, 12, 11));
+        Check("pero el rey no: la diagonal es el oficio del constructor",
+              !TieneDesde(gcd, ofic, B, Juego.CONSTRUIR, 0, 6));
 
         var gaj = new Juego(new Reglas { Lado = 5, Desliza = true, ReyAjedrez = true });
         Check("el rey de ajedrez pisa la diagonal",

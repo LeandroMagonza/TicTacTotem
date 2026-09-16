@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ReySolver;
@@ -36,9 +37,11 @@ public static class Program {
                          Ent(o, "plies-negro", -1), Ent(o, "semilla", 1), Ent(o, "quieta", 0));
                 return 0;
             case "resolver": Resolver(reglas, Ent(o, "max-prof", 15), Ent(o, "tt-bits", 22)); return 0;
+            case "analiza": Analiza(reglas, o); return 0;
             case "partida":
                 UnaPartida(reglas, Ent(o, "plies", 4), Ent(o, "semilla", 1),
-                           o.ContainsKey("azar"), o.ContainsKey("json"));
+                           o.ContainsKey("azar"), o.ContainsKey("json"),
+                           Ent(o, "quieta", 0), Flag(o, "limpia-tt"));
                 return 0;
             case "comparar": Comparar(reglas, Ent(o, "partidas", 20000), Ent(o, "plies", 6), Ent(o, "partidas-practica", 200)); return 0;
             default: Ayuda(); return 0;
@@ -71,6 +74,16 @@ public static class Program {
         GuerreroLargo = Flag(o, "guerrero-largo"),
         ConstruyeLejos = Flag(o, "construye-lejos"),
         AlcanceObra = Ent(o, "alcance-obra", 0),
+        ConstructorDiagonal = Flag(o, "constructor-diagonal"),
+        ObraEnElLugar = Flag(o, "obra-en-el-lugar"),
+        ObraAlLlegar = Flag(o, "obra-al-llegar"),
+        DespliegaAlLado = Flag(o, "despliega-al-lado"),
+        NoCercaDelRey = Flag(o, "no-cerca-del-rey"),
+        VetoReyLinea = Flag(o, "veto-rey-linea"),
+        FcTipo = Flag(o, "fc-tipo") || Flag(o, "fila-columna"),
+        FcPropio = Flag(o, "fc-propio") || Flag(o, "fila-columna"),
+        CastilloLibre = Flag(o, "castillo-libre"),
+        ReyNoRecupera = Flag(o, "rey-no-recupera"),
         ReyGuarnicion = !Flag(o, "rey-pierde-poder"),
         ReyPorEdificio = Flag(o, "rey-por-edificio"),
         ReyReino = Flag(o, "rey-reino"),
@@ -107,6 +120,10 @@ los tres edificios bajo control, o matandole el rey al otro.
   practica [--partidas 300] [--plies 6] [--plies-negro N] [--semilla 1]
       Los dos miran N plies con evaluacion de material.
 
+  analiza [--pos <linea de 50>] [--turno 0|1] [--plies 8] [--quieta 4]
+      Que vale cada jugada legal en una posicion, de mejor a peor. La linea es la
+      misma que exporta -partida --json- en el campo posiciones.
+
   resolver [--max-prof 15] [--tt-bits 22]
       Profundizacion iterativa buscando victorias forzadas desde el arranque.
       Un veredicto de victoria es real; 'no se' no dice nada.
@@ -130,6 +147,7 @@ Reglas (en cualquier comando):
   --regalo-casilla N    casilla exacta del regalo, pisa a --regalo-donde
   --edificio-sin-unidad los edificios no traen su unidad: hay que desplegarla aparte
   --quieta N            plies extra de busqueda de quietud al llegar al horizonte (0 la apaga)
+
   --desliza             las unidades corren en linea recta y frenan ante unidad o edificio
   --rey-ajedrez         el rey no corre: un paso en las ocho direcciones
   --solo-guerrero-corre corre solo el guerrero; el resto camina
@@ -138,6 +156,17 @@ Reglas (en cualquier comando):
   --guerrero-largo      el guerrero mata a la primera unidad de la fila
   --construye-lejos     se construye en cualquier casilla del alcance, no solo al lado
   --alcance-obra N      tope de casillas para la obra a distancia (0 = toda la linea)
+  --constructor-diagonal  el constructor levanta tambien en diagonal; el rey no
+  --obra-en-el-lugar    se construye bajo los pies: hay que caminar hasta el sitio
+  --obra-al-llegar      el que construye se muda al sitio: mover y construir es una jugada
+  --despliega-al-lado   la unidad sale al lado del edificio, no encima
+  --no-cerca-del-rey    no se puede construir pegado al rey enemigo
+  --veto-rey-linea      ni en la fila o la columna del rey enemigo
+  --fila-columna        prende las dos de abajo
+  --fc-tipo             no dos edificios del mismo TIPO en la misma fila o columna
+  --fc-propio           no dos edificios del mismo JUGADOR en la misma fila o columna
+  --castillo-libre      el castillo no juega a --no-pegado, en las dos direcciones
+  --rey-no-recupera     el rey pierde el poder al levantar el edificio y no vuelve nunca
   --rey-pierde-poder    el rey pierde el poder apenas la unidad existe en el tablero,
                         en vez de conservarlo mientras la unidad este en su edificio
   --rey-por-edificio    el rey pierde el poder por CONTROLAR el edificio, no por tener la
@@ -207,11 +236,30 @@ Reglas (en cualquier comando):
         Console.WriteLine($"  ({sw.ElapsedMilliseconds:N0} ms)");
     }
 
+    /// <summary>Segundos a algo que se lee de un vistazo: 3m12s, 1h04m.</summary>
+    private static string Reloj(double seg) {
+        if (seg < 90) return $"{seg,4:F0}s";
+        if (seg < 3600) return $"{(int)(seg / 60),3}m{(int)(seg % 60):00}s";
+        return $"{(int)(seg / 3600)}h{(int)(seg % 3600 / 60):00}m";
+    }
+
+    /// <summary>
+    /// Cuantas partidas van, cuanto tardaron y cuanto falta. Va a la salida de ERROR a
+    /// proposito: asi el archivo de resultados queda limpio y el progreso se puede
+    /// redirigir aparte y mirar con tail -f mientras corre.
+    /// </summary>
+    private static int _hechas;
+
     private static Balance CorrerLote(Reglas r, int partidas, int semilla,
                                       Func<Juego, Politica> hacerB, Func<Juego, Politica> hacerN) {
         int hilos = Math.Max(1, Environment.ProcessorCount - 1);
         var parciales = new Balance[hilos];
         int porHilo = (partidas + hilos - 1) / hilos;
+
+        _hechas = 0;
+        int paso = Math.Max(1, partidas / 20);
+        var swProg = Stopwatch.StartNew();
+        Console.Error.WriteLine($"[{r.Etiqueta()}]  {partidas} partidas en {hilos} hilos");
 
         Parallel.For(0, hilos, h => {
             var bal = new Balance();
@@ -221,7 +269,15 @@ Reglas (en cualquier comando):
             var polN = hacerN(g);
             var rng = new Rng((ulong)(semilla * 1000003 + h * 7919 + 17));
             int desde = h * porHilo, hasta = Math.Min(partidas, desde + porHilo);
-            for (int i = desde; i < hasta; i++) bal.Sumar(mesa.Jugar(polB, polN, ref rng));
+            for (int i = desde; i < hasta; i++) {
+                bal.Sumar(mesa.Jugar(polB, polN, ref rng));
+                int n = Interlocked.Increment(ref _hechas);
+                if (n % paso != 0 && n != partidas) continue;
+                double seg = swProg.Elapsed.TotalSeconds;
+                Console.Error.WriteLine(
+                    $"  {n,5}/{partidas}  {100.0 * n / partidas,5:F1}%   " +
+                    $"{Reloj(seg)} corridos, faltan ~{Reloj(seg / n * (partidas - n))}");
+            }
             parciales[h] = bal;
         });
 
@@ -248,11 +304,56 @@ Reglas (en cualquier comando):
         }
     }
 
+    // ---------------------------------------------------------------- analiza
+
+    /// <summary>
+    /// Le pregunta al motor que vale cada jugada legal en una posicion. Sin esto, cuando
+    /// el motor juega algo raro no queda mas que adivinar por que.
+    /// </summary>
+    private static void Analiza(Reglas r, Dictionary<string, string> o) {
+        var g = new Juego(r);
+        Pos p = o.TryGetValue("pos", out string? l) ? Juego.DesdeLinea(l) : g.Inicial();
+        int turno = Ent(o, "turno", 0);
+        int plies = Ent(o, "plies", 8);
+        var bus = new Busqueda(g, 22) { MaxQuieta = Ent(o, "quieta", 4) };
+
+        Console.Write(Juego.Dibujar(p));
+        Console.WriteLine($"Juega {(turno == Juego.Blanco ? "el PRIMERO" : "el segundo")}, " +
+                          $"mirando {plies} plies   [{r.Etiqueta()}]");
+
+        var fin = g.Terminal(p, turno);
+        if (fin.HasValue) {
+            Console.WriteLine($"  la posicion ya termino: {fin.Value.res} por {fin.Value.fin}");
+            return;
+        }
+
+        Span<int> buf = stackalloc int[Juego.MaxJugadas];
+        int n = g.Jugadas(p, turno, buf);
+        if (n == 0) { Console.WriteLine("  ahogado: no hay jugadas"); return; }
+
+        var filas = new List<(int v, string t)>();
+        for (int i = 0; i < n; i++) {
+            Pos np = g.Aplicar(p, turno, buf[i]);
+            filas.Add((-bus.RaizPractica(np, 1 - turno, plies - 1), g.Describir(p, turno, buf[i])));
+        }
+        filas.Sort((a, b) => b.v.CompareTo(a.v));
+
+        Console.WriteLine($"  {n} jugadas legales, de mejor a peor:");
+        foreach (var (v, t) in filas) Console.WriteLine($"  {Veredicto(v),14}  {t}");
+    }
+
+    private static string Veredicto(int v) {
+        if (v > Busqueda.GANA / 2) return $"GANA ({v})";
+        if (v < -Busqueda.GANA / 2) return $"PIERDE ({v})";
+        return v.ToString();
+    }
+
     // ---------------------------------------------------------------- partida
 
-    private static void UnaPartida(Reglas r, int plies, int semilla, bool azar, bool json) {
+    private static void UnaPartida(Reglas r, int plies, int semilla, bool azar, bool json,
+                                   int quieta, bool limpiaTT) {
         var g = new Juego(r);
-        var bus = new Busqueda(g, 22);
+        var bus = new Busqueda(g, 22) { MaxQuieta = quieta, LimpiaCadaJugada = limpiaTT };
         var rng = new Rng((ulong)(semilla * 1000003 + 17));
         Pos p = g.Inicial();
         int turno = Juego.Blanco;
