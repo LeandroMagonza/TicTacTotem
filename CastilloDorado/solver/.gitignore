@@ -1,6 +1,0 @@
-bin/
-obj/
-
-# El .gitignore de la raiz ignora *.csproj porque Unity los regenera.
-# Este no lo regenera nadie, asi que va al repo.
-!Castillo.csproj
