@@ -7,40 +7,58 @@ qué, todo lo que se descubrió en el camino, y cómo volver a correr cualquier 
 
 ## 1. La conclusión
 
-**El que arranca lleva `1, 2, 3, 4, 4` — el otro lleva `1, 1, 2, 4, 5`.**
+**Vigente desde septiembre de 2026.** Es lo que juega la web (`../web/`) y contra lo que se
+compara todo lo demás.
 
-Cinco piezas por lado, cinco niveles de rango, diez piezas en total. El que arranca **no**
-tiene la pieza más alta, igual que en el diseño original.
+**El que arranca lleva `1, 2, 3, 4, 4` — el otro lleva `1, 2, 3, 5, 5` — y nadie coloca una
+pieza de la mano en el centro: al centro sólo se llega moviendo.**
+
+Cinco piezas por lado, cinco niveles, diez piezas en total: exactamente dos de cada molde. El
+que arranca **no** tiene la pieza más alta. Todo lo demás queda como siempre: destapar una
+línea del rival es perder, quedarse sin jugada legal es perder.
 
 | | |
 |---|---|
-| Con juego perfecto | gana el **segundo**, en 12 plies |
-| Si arranca el otro | gana `11245` en 7 plies — **no alternar quién empieza** |
-| Aperturas viables | **12 de 12 (100 %)** — centro, esquina y lado, todas |
-| Libertad efectiva | 33 % |
-| Reparto real, ve2 | 54,5 % / 45,5 % |
-| **Reparto real, ve4** | **51,7 % / 48,3 %** |
-| Reparto real, ve6 | 38,8 % / 61,2 % |
-| Duración típica | 10,2 plies (unas 5 jugadas de cada uno) |
-| Sumas | 14 contra 13 |
-| Disimilitud de los sets | 0,57 |
-| Moldes | 5 — nivel 1 ×3, nivel 2 ×2, nivel 3 ×1, nivel 4 ×3, nivel 5 ×1 |
+| Con juego perfecto | gana el **segundo**, en 14 plies |
+| Si arranca el otro | gana `12355` en 7 plies — **no alternar quién empieza** |
+| Reparto real, ve2 | 50,2 % / 48,9 % |
+| **Reparto real, ve4** | **49,2 % / 49,8 %** |
+| Reparto real, ve6 | 34,9 % / 63,4 % |
+| Reparto real, ve8 | 9,8 % / 87,3 % |
+| Mejor y peor apertura del primero, ve4 | 54,8 % y 41,0 % — **rango de 13,8 puntos** |
+| Respuestas del segundo que aguantan 8 plies, mínimo | **10 de 28**; tras cualquier apertura de lado, las 28 |
+| Libertad efectiva, primeros 9 plies | **62 %**, con 2 turnos de 20 % o menos |
+| Duración típica | 13 plies |
+| Moldes | 5, dos piezas de cada uno |
 
-**Contra el diseño original** (`122335` vs `12246`), a ve4 el reparto pasa de 62,6 / 37,4 a
-51,7 / 48,3. Once puntos. Además: un molde menos, una pieza menos, sumas casi iguales entre
-los dos lados, los dos jugadores con la misma cantidad de piezas, y todas las aperturas
-jugables en vez de 5 de 12.
+Lo que la sostiene: **no hay jugadas obligadas que se vean.** El segundo sigue teniendo una
+respuesta mejor tras cada apertura, pero las otras no pierden en 6 plies sino en 14, y en una
+mesa nadie llega a verlo. Y equivocar la apertura cuesta un margen, no la partida.
 
-Esta conclusión es la del juego **con tablero**, que es para el que se la eligió, y se sostiene:
-de las 338 configuraciones viables que se barrieron después (sección 6), sólo 10 le ganan acá.
-Si el juego además se va a jugar **sin tablero**, la recomendación cambia a `11344` contra
-`12245` — el mismo diseño con una pieza intercambiada entre los dos jugadores, que sirve para
-las dos reglas. Está en la sección 6.
+Cómo se llegó, y qué se probó después y se descartó:
 
-Tiene una propiedad que conviene entender porque es la que lo sostiene: **la ventaja teórica
-y la práctica apuntan en direcciones opuestas y se cancelan.** El segundo jugador tiene la
-victoria forzada, pero está a 12 plies y nadie la ve; el primero tiene el tempo, que sí se
-siente. Es más robusto que buscar un empate exacto — que además es imposible.
+- **Sección 10**: por qué hizo falta la regla del centro y por qué este set. Con las reglas de
+  siempre, el 4 al centro daba 68 % al primero y al segundo le quedaba una sola respuesta;
+  ningún set lo arregla, la regla sí.
+- **Sección 11**: obligar a colocar las piezas en orden, del 1 al 5 o del 5 al 1. Descartado.
+- **Sección 12**: 4, 5 o 6 piezas por lado. Con menos piezas la partida se traba y pierde
+  libertad; con más no se gana nada. Se queda en 5 contra 5.
+
+### Lo que se había elegido antes, y por qué cambió
+
+Hasta septiembre de 2026 la conclusión era **`1, 2, 3, 4, 4` contra `1, 1, 2, 4, 5`** con las
+reglas de siempre, sin regla del centro. Las secciones 2 a 9 son de esa etapa y sus números se
+refieren a ese set: gana el segundo en 12 plies, 51,7 / 48,3 a ve4, 12 de 12 aperturas
+viables, 33 % de libertad.
+
+Estaba bien en promedio y mal en la mesa: el promedio de `practica` sortea la apertura, y
+escondía que con el 4 al centro el primero ganaba 68 %, con una única respuesta del segundo a
+11 plies que no ve nadie. Saber la apertura *era* el juego. La regla del centro y el cambio de
+`11245` a `12355` lo arreglan: el rango entre aperturas baja de 34 a 14 puntos y la libertad
+sube de 41 a 62 %. Está medido en la sección 10.
+
+Si el juego se juega **sin tablero** (sección 6), esa etapa recomendaba `11344` contra
+`12245`; con la regla del centro esa variante no se volvió a medir.
 
 ---
 
