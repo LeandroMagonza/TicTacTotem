@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { COLLAR_RADIUS, cellToWorld, GROUND_RING_Y } from './geometry.js'
+import { COIN_RADIUS, cellToWorld, GROUND_RING_Y } from './geometry.js'
 
 /**
  * Anillos de resaltado: seleccion, destinos legales y ultima jugada.
@@ -13,8 +13,8 @@ import { COLLAR_RADIUS, cellToWorld, GROUND_RING_Y } from './geometry.js'
 export function createHighlights(mats) {
   const group = new THREE.Group()
 
-  const ringGeo = new THREE.RingGeometry(COLLAR_RADIUS * 1.06, COLLAR_RADIUS * 1.3, 32)
-  const discGeo = new THREE.CircleGeometry(COLLAR_RADIUS * 1.3, 32)
+  const ringGeo = new THREE.RingGeometry(COIN_RADIUS * 1.06, COIN_RADIUS * 1.3, 32)
+  const discGeo = new THREE.CircleGeometry(COIN_RADIUS * 1.3, 32)
 
   const mk = (geo, mat) => {
     const m = new THREE.Mesh(geo, mat)
@@ -34,7 +34,7 @@ export function createHighlights(mats) {
   // pila: eso tapaba justo las piezas que hay que mirar. Y en blanco, no en
   // dorado: el dorado se confunde con el ambar del equipo A, asi que cuando
   // ganaba B la linea se leia como si fuera de A.
-  const winGeo = new THREE.RingGeometry(COLLAR_RADIUS * 1.15, COLLAR_RADIUS * 1.45, 32)
+  const winGeo = new THREE.RingGeometry(COIN_RADIUS * 1.15, COIN_RADIUS * 1.45, 32)
   /** @type {THREE.Mesh[]} */
   const winCells = Array.from({ length: 3 }, () => mk(winGeo, mats.ringSelect))
 

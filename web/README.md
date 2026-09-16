@@ -129,27 +129,34 @@ la búsqueda arrancan juntas, así que el ciclo mide *pausa + animación* y no
 que la pausa. Medido con `test/traza.mjs`: a Experto, 1,2-1,5 s por jugada con
 pausa 0 y 3,1-3,3 s con pausa 2.
 
-## 5. El collar
+## 5. La moneda
 
-Cada pieza se apoya en un cilindro coloreado por dueño con el numeral del nivel
-en el borde. Es **más ancho que el cuerpo** (0,68 contra 0,48), así que desde
-cualquier ángulo por encima del horizonte se ve una franja limpia de collares,
-uno por pieza: un tótem de 3 se lee como tres franjas numeradas sin tocar nada.
+Cada pieza es una moneda: un cilindro chato coloreado por dueño, con el numeral
+del nivel **grande en la cara** y **repetido alrededor del canto**. Todas tienen
+el mismo radio (0,34) y el grosor crece con el nivel (0,12 a 0,24), así que una
+pila es un rollo de monedas: desde cualquier ángulo por encima del horizonte se
+ve una franja numerada por pieza, y la cara de la de arriba dice qué nivel está
+destapado sin leer letra chica.
 
-El primer intento lo tenía invisible — el cuerpo medía casi lo mismo que el
-collar, así que a 45° se escorzaba a nada. Las alturas también se re-repartieron
-(0,15 a 0,42 en vez de 0,18 a 0,34) porque los niveles 1, 2 y 3 se veían iguales.
+El numeral de la cara **gira con el azimut de la cámara** (`pieceSet.setFacing`,
+enganchado a un stepper del loop) para que se lea derecho después de un cuarto
+de vuelta o del giro de hotseat. El canto es simétrico, así que ese giro no se
+nota en nada más. La textura del canto se dimensiona con la proporción real
+circunferencia por grosor, así los numerales no salen estirados.
+
+Antes era un collar (cilindro con numerales) más un cono; el cono no aportaba
+información que el collar no diera ya y a 45° escorzaba la franja de abajo.
 
 Todos esos números están en `src/scene/geometry.js` y son de ajuste: **si una pila
 de 4 no se lee, se tocan esos y nada más.**
 
 La cámara sale de una ecuación: `celdas ocultas = altura de la pila / tan(elevación)`.
 
-| elevación | celdas ocultas detrás de una pila máxima |
+| elevación | celdas ocultas detrás de una pila máxima (0,90) |
 |---|---|
-| 30° | 3,1 — inusable |
-| **45° (por defecto)** | **1,8; una pila realista de 3 oculta 0,89** |
-| 62° (el otro preset) | 0,97 — sin oclusión real |
+| 30° | 1,56 — tapa la fila de atrás |
+| **45° (por defecto)** | **0,90; una pila realista de 3 oculta 0,45** |
+| 62° (el otro preset) | 0,48 — sin oclusión real |
 
 ## 6. Verificación
 

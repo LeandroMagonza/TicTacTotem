@@ -1,28 +1,19 @@
 import * as THREE from 'three'
 import {
-  COLLAR_RADIUS, COLLAR_HEIGHT, PIECE_HEIGHT, FOOTPRINT,
+  COIN_RADIUS, COIN_THICKNESS, PIECE_HEIGHT,
   pieceThickness, cellToWorld, traySlotToWorld,
 } from './geometry.js'
 
 /**
- * Cuerpo procedural: un cono truncado cuya altura y radio superior crecen con el
- * nivel. Es el placeholder hasta que existan los modelos de animales, y es
- * perfectamente jugable — el collar hace el trabajo informativo igual.
- * @param {number} rank
- */
-function proceduralBody(rank) {
-  const h = PIECE_HEIGHT[rank] ?? 0.27
-  const rBottom = FOOTPRINT / 2
-  // Los niveles bajos salen conicos y los altos casi cilindricos: sumado a la
-  // altura, un 5 se lee como una mole y un 1 como una punta. Dos señales
-  // redundantes para lo mismo.
-  const rTop = rBottom * (0.22 + 0.12 * rank)
-  return new THREE.CylinderGeometry(rTop, rBottom, h, 24, 1)
-}
-
-/**
- * Una pieza: collar + cuerpo, dentro de un Group cuyo origen esta en la BASE.
+ * Una pieza: una moneda, dentro de un Group cuyo origen esta en la BASE.
  * Que el origen este en la base es lo que hace que apilar sea sumar alturas.
+ *
+ * La moneda es un solo cilindro con tres materiales, uno por cara:
+ * [canto con los numerales alrededor, cara de arriba con el numeral grande,
+ * cara de abajo lisa].
+ *
+ * Si hay un modelo de animal para el nivel, se para encima de la moneda (que
+ * entonces hace de collar) y la pieza suma su alto.
  *
  * @param {object} args
  * @param {number} args.rank @param {number} args.owner
@@ -31,28 +22,27 @@ function proceduralBody(rank) {
  */
 export function createPiece({ rank, owner, mats, model }) {
   const g = new THREE.Group()
+  const grosor = COIN_THICKNESS[rank] ?? 0.18
 
-  // El collar. Materiales por cara: [borde, tapa superior, tapa inferior].
-  const collar = new THREE.Mesh(
-    new THREE.CylinderGeometry(COLLAR_RADIUS, COLLAR_RADIUS, COLLAR_HEIGHT, 32, 1),
-    [mats.collarFor(rank, owner), mats.collarCap[owner], mats.collarCap[owner]],
+  const coin = new THREE.Mesh(
+    new THREE.CylinderGeometry(COIN_RADIUS, COIN_RADIUS, grosor, 48, 1),
+    [mats.coinEdgeFor(rank, owner), mats.coinFaceFor(rank, owner), mats.coinBottom[owner]],
   )
-  collar.position.y = COLLAR_HEIGHT / 2
-  collar.castShadow = true
-  collar.receiveShadow = true
-  g.add(collar)
+  coin.position.y = grosor / 2
+  coin.castShadow = true
+  coin.receiveShadow = true
+  g.add(coin)
 
-  const body = model ? model.clone(true) : new THREE.Mesh(proceduralBody(rank), mats.body[owner])
-  if (!model) {
-    body.position.y = COLLAR_HEIGHT + (PIECE_HEIGHT[rank] ?? 0.26) / 2
-    body.castShadow = true
-  } else {
-    body.position.y = COLLAR_HEIGHT
+  let thickness = pieceThickness(rank)
+  if (model) {
+    const body = model.clone(true)
+    body.position.y = grosor
     body.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.material = mats.body[owner] } })
+    g.add(body)
+    thickness += PIECE_HEIGHT[rank] ?? 0.27
   }
-  g.add(body)
 
-  g.userData = { kind: 'piece', rank, owner, thickness: pieceThickness(rank) }
+  g.userData = { kind: 'piece', rank, owner, thickness }
   return g
 }
 
@@ -73,6 +63,13 @@ export function createPieceSet(spec, mats, models = new Map()) {
   const group = new THREE.Group()
   /** @type {Map<number, THREE.Group>} */
   const byId = new Map()
+
+  /**
+   * Giro comun de todas las piezas sobre Y. El canto es simetrico, asi que lo
+   * unico que gira de verdad es el numeral de la cara: se lo mantiene alineado
+   * con el azimut de la camara para que se lea derecho desde donde se mire.
+   */
+  let facing = 0
 
   for (let i = 0; i < spec.pieceCount; i++) {
     const obj = createPiece({
@@ -103,7 +100,7 @@ export function createPieceSet(spec, mats, models = new Map()) {
         const obj = byId.get(pieceId)
         obj.visible = true
         obj.position.set(x, y, z)
-        obj.rotation.y = 0
+        obj.rotation.y = facing
         obj.scale.setScalar(1)
         y += obj.userData.thickness
       }
@@ -117,10 +114,22 @@ export function createPieceSet(spec, mats, models = new Map()) {
         const { x, z } = traySlotToWorld(side, slot, layout)
         obj.visible = true
         obj.position.set(x, 0, z)
-        obj.rotation.y = 0
+        obj.rotation.y = facing
         obj.scale.setScalar(1)
       })
     }
+  }
+
+  /**
+   * Alinea el numeral de la cara con la camara. Devuelve true si algo cambio,
+   * para que el loop sepa que hay que volver a dibujar.
+   * @param {number} azimuth  el de la camara, en radianes
+   */
+  function setFacing(azimuth) {
+    if (azimuth === facing) return false
+    facing = azimuth
+    for (const obj of byId.values()) obj.rotation.y = facing
+    return true
   }
 
   /** Altura a la que caeria una pieza si se juega en esta celda. */
@@ -130,5 +139,5 @@ export function createPieceSet(spec, mats, models = new Map()) {
     return y
   }
 
-  return { group, byId, applyInstant, landingY }
+  return { group, byId, applyInstant, setFacing, landingY }
 }

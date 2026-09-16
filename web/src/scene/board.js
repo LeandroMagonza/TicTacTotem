@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import {
   BOARD_HALF, BOARD_THICKNESS, TILE_SIZE, TILE_THICKNESS,
-  cellToWorld, traySlotToWorld, TRAY_SLOTS, TRAY_PITCH, COLLAR_RADIUS,
+  cellToWorld, traySlotToWorld, TRAY_SLOTS, TRAY_PITCH, COIN_RADIUS,
 } from './geometry.js'
 
 /** Alto de la caja de una celda vacia: algo de cuerpo para tocar, sin tapar. */
@@ -45,7 +45,7 @@ export function createBoard(mats) {
 
   // Contornos tenues de los slots de bandeja. Los huecos son informacion: se ve
   // de un vistazo que piezas ya uso cada uno.
-  const slotGeo = new THREE.RingGeometry(COLLAR_RADIUS * 0.82, COLLAR_RADIUS * 0.92, 24)
+  const slotGeo = new THREE.RingGeometry(COIN_RADIUS * 0.82, COIN_RADIUS * 0.92, 24)
   const slotMat = new THREE.MeshBasicMaterial({
     color: 0x6a7382, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false,
   })
@@ -82,7 +82,7 @@ export function createBoard(mats) {
   //   - una COLUMNA angosta, del ancho de la pieza y del alto REAL de la pila.
   //     Es lo que hace que tocar la punta de un totem seleccione su casilla.
   //
-  // La columna se dimensiona con el collar y no con la baldosa a proposito: asi
+  // La columna se dimensiona con la moneda y no con la baldosa a proposito: asi
   // un totem tapa exactamente lo que se ve que tapa. Con una sola caja ancha y
   // alta —que era el diseño anterior— la geometria invisible tapaba mucho mas
   // que las piezas, y con la camara baja tocabas la fila del fondo pero jugaba
@@ -106,7 +106,7 @@ export function createBoard(mats) {
 
     const columna = new THREE.Mesh(cellPickGeo, pickMat)
     columna.position.set(x, 0, z)
-    columna.scale.set(COLLAR_RADIUS * 2.05, 0.0001, COLLAR_RADIUS * 2.05)
+    columna.scale.set(COIN_RADIUS * 2.05, 0.0001, COIN_RADIUS * 2.05)
     columna.visible = false
     columna.userData = { kind: 'cell', index: i }
     stackPickers.push(columna)
@@ -157,7 +157,7 @@ export function createBoard(mats) {
     // El lado largo de la caja sigue el eje de la bandeja: en vertical corre a lo
     // largo de x, en horizontal a lo largo de z.
     const largo = TRAY_PITCH - 0.06
-    const ancho = COLLAR_RADIUS * 2.05
+    const ancho = COIN_RADIUS * 2.05
     for (let side = 0; side < 2; side++) {
       for (let k = 0; k < TRAY_SLOTS; k++) {
         const { x, z } = traySlotToWorld(side, k, layout)

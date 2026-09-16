@@ -11,14 +11,15 @@ import assert from 'node:assert/strict'
  * juego va a tener, y una captura de pantalla no lo agarra.
  */
 
-// Stub minimo de canvas: lo unico que lo necesita es la textura del numeral del
-// collar (un canvas 2D de 512x64).
+// Stub minimo de canvas: lo unico que lo necesita son las texturas de la moneda
+// (el canto con los numerales y la cara con el numeral grande).
 globalThis.document = {
   createElement: () => ({
     width: 0, height: 0,
     getContext: () => ({
-      fillStyle: '', font: '', textAlign: '', textBaseline: '',
-      fillRect() {}, fillText() {},
+      fillStyle: '', strokeStyle: '', lineWidth: 0, font: '', textAlign: '', textBaseline: '',
+      fillRect() {}, fillText() {}, beginPath() {}, arc() {}, stroke() {},
+      save() {}, restore() {}, translate() {}, rotate() {},
     }),
   }),
 }
@@ -81,8 +82,8 @@ test('la caja de picking de celda sigue la altura real de su pila', () => {
 
   // Y no es mas ANCHA que la pieza: si lo fuera, un totem taparia mas de lo que
   // se ve que tapa, que es como se sentia el bug de picking.
-  assert.ok(columna.scale.x <= geo.COLLAR_RADIUS * 2.2,
-    `la columna mide ${columna.scale.x} contra un collar de ${geo.COLLAR_RADIUS * 2}`)
+  assert.ok(columna.scale.x <= geo.COIN_RADIUS * 2.2,
+    `la columna mide ${columna.scale.x} contra una moneda de ${geo.COIN_RADIUS * 2}`)
   // La losa, en cambio, cubre toda la baldosa y es chata.
   assert.equal(board.cellPickers[4].scale.x, 0.95)
   assert.ok(board.cellPickers[4].scale.y < 0.2)
@@ -140,7 +141,7 @@ test('picking: con la camara baja, apuntar a la fila del fondo NO pega adelante'
     const columna = board.stackPickers[7]
     assert.ok(columna.scale.y - real < 0.05,
       `la columna sobresale ${(columna.scale.y - real).toFixed(3)} sobre el totem real`)
-    assert.ok(columna.scale.x <= geo.COLLAR_RADIUS * 2.1,
+    assert.ok(columna.scale.x <= geo.COIN_RADIUS * 2.1,
       'la columna es mas ancha que la pieza y tapa de mas')
   })
 
@@ -193,8 +194,8 @@ test('las cajas de la mano: sin huecos a lo largo, ceñidas a lo ancho', async (
       // A lo ancho y en alto tiene que ceñirse a la pieza: si sobresale, con la
       // camara baja la bandeja se mete en la linea de vision de la fila de
       // casillas mas cercana y le roba los toques.
-      assert.ok(aLoAncho <= geo.COLLAR_RADIUS * 2.1,
-        `la caja mide ${aLoAncho} de ancho contra un collar de ${geo.COLLAR_RADIUS * 2}`)
+      assert.ok(aLoAncho <= geo.COIN_RADIUS * 2.1,
+        `la caja mide ${aLoAncho} de ancho contra una moneda de ${geo.COIN_RADIUS * 2}`)
       assert.ok(caja.scale.y <= geo.pieceThickness(5) + 0.05,
         `la caja mide ${caja.scale.y} de alto contra una pieza de ${geo.pieceThickness(5)}`)
       assert.ok(Math.abs(caja.position.y - caja.scale.y / 2) < 1e-9, 'la caja flota')
@@ -323,11 +324,51 @@ test('los anillos del piso quedan por encima de la baldosa', async (t) => {
   })
 })
 
-test('el collar es mas ancho que la huella de cualquier animal', () => {
-  // Es de lo que depende toda la legibilidad: si la huella supera al collar,
+test('la moneda es mas ancha que la huella de cualquier animal', () => {
+  // Es de lo que depende toda la legibilidad: si la huella supera a la moneda,
   // el animal tapa la franja de abajo y las pilas dejan de leerse.
-  assert.ok(geo.COLLAR_RADIUS * 2 > geo.FOOTPRINT * 0.95,
-    `collar ${geo.COLLAR_RADIUS * 2} vs huella ${geo.FOOTPRINT}`)
+  assert.ok(geo.COIN_RADIUS * 2 > geo.FOOTPRINT * 0.95,
+    `moneda ${geo.COIN_RADIUS * 2} vs huella ${geo.FOOTPRINT}`)
+})
+
+test('la moneda: un solo cilindro por pieza, el grosor crece con el nivel', async () => {
+  const THREE = await import('three')
+  const { createPiece } = await import('../src/scene/pieces.js')
+  const mats = createMaterials()
+  let anterior = 0
+  for (const rank of [1, 2, 3, 4, 5]) {
+    const p = createPiece({ rank, owner: 0, mats })
+    const meshes = []
+    p.traverse((o) => { if (o.isMesh) meshes.push(o) })
+    assert.equal(meshes.length, 1, `el nivel ${rank} tiene ${meshes.length} mallas, no una`)
+    const box = new THREE.Box3().setFromObject(p)
+    assert.ok(Math.abs(box.min.y) < 1e-6, 'la base no esta en y=0')
+    assert.ok(Math.abs(box.max.y - p.userData.thickness) < 1e-6, 'el grosor no coincide con la malla')
+    assert.ok(p.userData.thickness > anterior, `el nivel ${rank} no es mas grueso que el anterior`)
+    anterior = p.userData.thickness
+    // Tres materiales: canto, cara de arriba, cara de abajo. La cara lleva su
+    // propia textura (el numeral grande); el canto la suya (los numerales chicos).
+    const m = meshes[0].material
+    assert.equal(m.length, 3)
+    assert.ok(m[0].map && m[1].map, 'canto y cara tienen que llevar textura')
+    assert.notEqual(m[0].map, m[1].map)
+  }
+})
+
+test('el numeral de la cara sigue a la camara', () => {
+  const { pieces } = setup()
+  const snap = { stacks: Array.from({ length: 9 }, () => []), hands: { 0: [0, 1], 1: [5] } }
+  snap.stacks[4] = [2]
+  pieces.applyInstant(snap, 'portrait')
+  assert.equal(pieces.byId.get(2).rotation.y, 0)
+
+  assert.equal(pieces.setFacing(Math.PI / 2), true, 'cambiar el azimut tiene que avisar')
+  assert.equal(pieces.setFacing(Math.PI / 2), false, 'repetirlo no')
+  for (const id of [0, 1, 2, 5]) assert.equal(pieces.byId.get(id).rotation.y, Math.PI / 2)
+
+  // Y un sync instantaneo conserva el giro, no lo vuelve a cero.
+  pieces.applyInstant(snap, 'landscape')
+  assert.equal(pieces.byId.get(2).rotation.y, Math.PI / 2)
 })
 
 test('normalizacion de modelos', async (t) => {

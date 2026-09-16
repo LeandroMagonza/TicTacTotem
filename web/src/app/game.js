@@ -34,6 +34,11 @@ export async function startGame(canvas, uiRoot, onFatal) {
 
   world.scene.add(rig.pivot, board.group, highlights.group)
   world.steppers.push((now) => tweens.update(now))
+  // El numeral de la cara de cada moneda sigue al azimut de la camara, para
+  // leerse derecho tras un cuarto de vuelta, el giro de hotseat o la orbita de
+  // celebracion. Un stepper y no un hook en cada sitio que toca el azimut: son
+  // cinco sitios hoy y seran mas.
+  world.steppers.push(() => (pieceSet?.setFacing(rig.state.azimuth) ?? false))
 
   const state = {
     phase: /** @type {'menu'|'playing'|'thinking'|'animating'|'over'} */ ('playing'),
@@ -183,21 +188,25 @@ export async function startGame(canvas, uiRoot, onFatal) {
     const below = stack[stack.length - 2]
     if (below == null) return
     const obj = pieceSet.byId.get(below)
+    // La moneda lleva un material por cara (canto, arriba, abajo), asi que se
+    // clonan todos: los compartidos no se pueden tocar sin encender a las demas
+    // piezas del mismo nivel y dueño.
     const meshes = []
     obj.traverse((o) => { if (o.isMesh) meshes.push(o) })
+    const originales = meshes.map((m) => m.material)
+    const clones = originales.map((m) => Array.isArray(m) ? m.map((x) => x.clone()) : m.clone())
+    meshes.forEach((m, i) => { m.material = clones[i] })
+    const emisivos = clones.flat().filter((m) => m.emissive)
     tweens.add({
       dur: 250,
       step: (k) => {
         const a = Math.sin(k * Math.PI)
-        for (const m of meshes) {
-          if (!m.material.emissive) continue
-          m.material = m.material.clone()
-          m.material.emissive.setRGB(a * 0.5, a * 0.45, a * 0.25)
-        }
+        for (const m of emisivos) m.emissive.setRGB(a * 0.5, a * 0.45, a * 0.25)
         world.invalidate()
       },
       done: () => {
-        for (const m of meshes) if (m.material.emissive) m.material.emissive.setRGB(0, 0, 0)
+        meshes.forEach((m, i) => { m.material = originales[i] })
+        clones.flat().forEach((m) => m.dispose())
         world.invalidate()
       },
     })
