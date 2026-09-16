@@ -105,7 +105,9 @@ const handlers = {
   analyze({ vision = 6 }) {
     const turn = match.turn
     const mio = turn === 0 ? 1 : -1
-    const moves = match.legalMoves()
+    // Sin las gemelas de la mano: poner el primer 4 o el segundo es la misma
+    // jugada, y listarla dos veces con el mismo valor es ruido.
+    const moves = match.legalMoves().filter((m) => m.twinOf == null)
     const scored = moves.map((m) => ({
       ...m,
       value: searcher.solveFrom(applyMove(match.pos, m.id), 1 - turn, vision - 1).result * mio,

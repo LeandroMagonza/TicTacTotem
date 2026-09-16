@@ -577,7 +577,9 @@ export async function startGame(canvas, uiRoot, onFatal) {
     const ids = moves ?? []
     const count = demo ?? ids.length
     for (let i = 0; i < count; i++) {
-      const legal = state.snapshot.legalMoves
+      // Sin las gemelas de la mano, para que ?demo=N con la misma semilla siga
+      // llegando a la misma posicion de siempre.
+      const legal = state.snapshot.legalMoves.filter((m) => m.twinOf == null)
       if (legal.length === 0 || state.snapshot.result) break
       const id = moves ? ids[i] : legal[nextRnd(legal.length)].id
       const prevTurn = state.snapshot.turn

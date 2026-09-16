@@ -13,6 +13,7 @@ const PLY_CAP = 60
  * @property {'hand'|number} from
  * @property {number} to
  * @property {null|'win'|'loss'} immediateResult  desde el punto de vista del que mueve
+ * @property {number} [twinOf]      colocacion de una pieza identica a la de esta otra jugada
  */
 
 /**
@@ -68,25 +69,37 @@ export class Match {
   get turn() { return this.history[this.history.length - 1].turn }
   get ply() { return this.history.length - 1 }
 
-  /** Jugadas legales enriquecidas para la UI. */
+  /**
+   * Jugadas legales enriquecidas para la UI.
+   *
+   * El generador emite UNA colocacion por grupo de piezas identicas (la primera
+   * libre): para la busqueda las otras son la misma jugada. Para la persona
+   * que toca la pantalla no: si tiene dos 4 en la mano y toca el segundo, tiene
+   * que poder ponerlo. Aca se agregan esas gemelas, marcadas con `twinOf` para
+   * que el analisis pueda seguir mostrando cada jugada una sola vez.
+   */
   legalMoves() {
     if (this.result) return []
     const spec = this.spec, p = this.pos, turn = this.turn
-    return Array.from(legalMoves(spec, p, turn), (mv) => {
+    const { pieceCount, owner, rank } = spec
+    const out = /** @type {MoveInfo[]} */ ([])
+    for (const mv of legalMoves(spec, p, turn)) {
       const pieceId = mv >> 4, to = mv & 0xf
       const from = loc(p, pieceId)
       const w = winnerAfterPacked(spec, applyMove(p, mv), turn)
-      return /** @type {MoveInfo} */ ({
-        id: mv,
-        pieceId,
-        rank: spec.rank[pieceId],
-        from: from === HAND ? 'hand' : from,
-        to,
-        // Esto es lo que permite el anillo ambar: avisar antes de mover que la
-        // jugada destapa una linea rival, sin que la UI reimplemente ni una regla.
-        immediateResult: w === ONGOING ? null : (w === (turn === WHITE ? 1 : -1) ? 'win' : 'loss'),
-      })
-    })
+      // Esto es lo que permite el anillo ambar: avisar antes de mover que la
+      // jugada destapa una linea rival, sin que la UI reimplemente ni una regla.
+      const immediateResult = w === ONGOING ? null : (w === (turn === WHITE ? 1 : -1) ? 'win' : 'loss')
+      out.push({ id: mv, pieceId, rank: rank[pieceId], from: from === HAND ? 'hand' : from, to, immediateResult })
+      if (from !== HAND) continue
+      // Las gemelas siguen a la pieza en el indice (spec.js: los grupos son
+      // contiguos) y dan exactamente la misma posicion salvo permutacion.
+      for (let j = pieceId + 1; j < pieceCount && owner[j] === owner[pieceId] && rank[j] === rank[pieceId]; j++) {
+        if (loc(p, j) !== HAND) continue
+        out.push({ id: (j << 4) | to, pieceId: j, rank: rank[j], from: 'hand', to, immediateResult, twinOf: pieceId })
+      }
+    }
+    return out
   }
 
   /**
@@ -97,9 +110,9 @@ export class Match {
     if (this.result) throw new Error('la partida ya termino')
     const spec = this.spec, p = this.pos, mover = this.turn
 
-    // Validar contra la lista real: la UI no puede inventar jugadas.
-    const legal = legalMoves(spec, p, mover)
-    if (!legal.includes(moveId)) {
+    // Validar contra la lista real (con las gemelas de la mano, que son jugadas
+    // tan legales como su representante): la UI no puede inventar jugadas.
+    if (!this.legalMoves().some((m) => m.id === moveId)) {
       throw new Error(`jugada ilegal ${moveId} en el ply ${this.ply}`)
     }
 
